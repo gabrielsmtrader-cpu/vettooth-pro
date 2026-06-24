@@ -1,6 +1,19 @@
 -- VetTooth Pro - Supabase Schema
 -- Execute este arquivo no SQL Editor do Supabase
 
+-- TUTORES (deve vir antes de pacientes)
+create table if not exists tutores (
+  id uuid primary key default gen_random_uuid(),
+  nome text not null,
+  cpf text,
+  telefone text,
+  email text,
+  endereco text,
+  cidade text,
+  cep text,
+  created_at timestamptz default now()
+);
+
 -- PACIENTES
 create table if not exists pacientes (
   id uuid primary key default gen_random_uuid(),
@@ -18,19 +31,6 @@ create table if not exists pacientes (
   tutor_id uuid references tutores(id),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
-);
-
--- TUTORES
-create table if not exists tutores (
-  id uuid primary key default gen_random_uuid(),
-  nome text not null,
-  cpf text,
-  telefone text,
-  email text,
-  endereco text,
-  cidade text,
-  cep text,
-  created_at timestamptz default now()
 );
 
 -- ATENDIMENTOS
