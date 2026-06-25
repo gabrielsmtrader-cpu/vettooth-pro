@@ -422,7 +422,16 @@ function App() {
   const [focusOwner, setFocusOwner] = useState(null);
   const [focusAgenda, setFocusAgenda] = useState(null);
   const [odontoPatient, setOdontoPatient] = useState(null);
+  const [dataVer, setDataVer] = useState(0);
   const flush = active === 'odontograma';
+
+  // Escuta restauração de dados do Supabase → força re-render de todos os módulos
+  useEffect(() => {
+    const handler = () => setDataVer((v) => v + 1);
+    document.addEventListener('vtDataRestored', handler);
+    window.vtForceRefresh = handler;
+    return () => { document.removeEventListener('vtDataRestored', handler); delete window.vtForceRefresh; };
+  }, []);
 
   if (!user) return <AuthScreen onAuthed={(u) => { setUser(u); setActive('dashboard'); }} />;
 
@@ -443,13 +452,13 @@ function App() {
         <TopBar user={user} onLogout={logout} onAvatar={(a) => setUser((u) => ({ ...u, avatar: a }))} nav={navSearch} />
         <main className={`vt-content${flush ? ' flush' : ''}`}>
           {active === 'dashboard' && <Dashboard setActive={setActive} user={user} />}
-          {active === 'pacientes' && <PacientesModule openOdonto={openOdonto} goAgenda={() => setActive('agenda')} openAgendaNew={openAgendaNew} openAtendimento={openAtendimento} focusPatientId={focusPatient} clearFocus={() => setFocusPatient(null)} />}
-          {active === 'clientes' && <ClientesModule openPatient={openPatient} focusOwnerName={focusOwner} clearFocus={() => setFocusOwner(null)} />}
-          {active === 'agenda' && <AgendaModule focusNewPatient={focusAgenda} clearAgendaFocus={() => setFocusAgenda(null)} />}
+          {active === 'pacientes' && <PacientesModule key={'pac-'+dataVer} openOdonto={openOdonto} goAgenda={() => setActive('agenda')} openAgendaNew={openAgendaNew} openAtendimento={openAtendimento} focusPatientId={focusPatient} clearFocus={() => setFocusPatient(null)} />}
+          {active === 'clientes' && <ClientesModule key={'cli-'+dataVer} openPatient={openPatient} focusOwnerName={focusOwner} clearFocus={() => setFocusOwner(null)} />}
+          {active === 'agenda' && <AgendaModule key={'ag-'+dataVer} focusNewPatient={focusAgenda} clearAgendaFocus={() => setFocusAgenda(null)} />}
           {active === 'odontograma' && <Odontograma patientId={odontoPatient} />}
-          {active === 'atendimentos' && <AtendimentosModule openPatient={openPatient} openOdonto={openOdonto} focus={focusAtend} clearFocus={() => setFocusAtend(null)} />}
-          {active === 'insumos' && <EstoqueModule />}
-          {active === 'financas' && <FinancasModule />}
+          {active === 'atendimentos' && <AtendimentosModule key={'at-'+dataVer} openPatient={openPatient} openOdonto={openOdonto} focus={focusAtend} clearFocus={() => setFocusAtend(null)} />}
+          {active === 'insumos' && <EstoqueModule key={'est-'+dataVer} />}
+          {active === 'financas' && <FinancasModule key={'fin-'+dataVer} />}
           {active === 'relatorios' && <RelatoriosModule />}
           {active === 'config' && <ConfigModule />}
           {active === 'ia' && <IAModule />}
