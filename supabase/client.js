@@ -54,7 +54,8 @@ export const db = {
     getAll: () => supabase.from('financeiro').select('*, pacientes(nome)').order('data', { ascending: false }),
     getByMes: (ano, mes) => {
       const start = `${ano}-${String(mes).padStart(2,'0')}-01`;
-      const end = `${ano}-${String(mes).padStart(2,'0')}-31`;
+      const lastDay = new Date(ano, mes, 0).getDate();
+      const end = `${ano}-${String(mes).padStart(2,'0')}-${lastDay}`;
       return supabase.from('financeiro').select('*').gte('data', start).lte('data', end);
     },
     create: (data) => supabase.from('financeiro').insert(data).select().single(),

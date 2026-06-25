@@ -203,7 +203,7 @@
   /* ── FINANCEIRO ────────────────────────────────────────────── */
   window.dbFinanceiro = {
     getAll:    ()            => q('financeiro', t => t.select('*,pacientes(nome)').order('data', { ascending: false })),
-    getByMes:  (ano, mes)    => { const s = `${ano}-${String(mes).padStart(2, '0')}-01`; const e = `${ano}-${String(mes).padStart(2, '0')}-31`; return q('financeiro', t => t.select('*').gte('data', s).lte('data', e)); },
+    getByMes:  (ano, mes)    => { const s = `${ano}-${String(mes).padStart(2, '0')}-01`; const lastDay = new Date(ano, mes, 0).getDate(); const e = `${ano}-${String(mes).padStart(2, '0')}-${lastDay}`; return q('financeiro', t => t.select('*').gte('data', s).lte('data', e)); },
     create:    (d)           => q('financeiro', t => t.insert(d).select().single()),
     update:    (id, d)       => q('financeiro', t => t.update(d).eq('id', id).select().single()),
     delete:    (id)          => q('financeiro', t => t.delete().eq('id', id)),
