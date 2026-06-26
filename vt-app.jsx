@@ -1,7 +1,7 @@
 ﻿/* ============================================================
    VetTooth Pro — app (shell + dashboard + navegação)
    ============================================================ */
-const { useState } = React;
+const { useState, useEffect } = React;
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: 'grid' },
