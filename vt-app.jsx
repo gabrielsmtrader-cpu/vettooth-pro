@@ -426,6 +426,7 @@ function App() {
   const [focusOwner, setFocusOwner] = useState(null);
   const [focusAgenda, setFocusAgenda] = useState(null);
   const [odontoPatient, setOdontoPatient] = useState(null);
+  const [focusIA, setFocusIA] = useState(null);
   const [dataVer, setDataVer] = useState(0);
   const flush = active === 'odontograma';
 
@@ -439,8 +440,12 @@ function App() {
 
   if (!user) return <AuthScreen onAuthed={(u) => { setUser(u); setActive('dashboard'); }} />;
 
+  // expõe setActive para o launcher global da IA
+  window._vtSetActive = setActive;
+
   const logout = () => { window.VtStore.logout(); setUser(null); };
   const openPatient = (id) => { setFocusPatient(id); setActive('pacientes'); };
+  const openIA = (prompt, patientId) => { setFocusIA({ prompt: prompt || '', patientId: patientId || null }); setActive('ia'); };
   const openOwner = (name) => { setFocusOwner(name); setActive('clientes'); };
   const openAtendimento = (patientId, atendimentoId) => { setFocusAtend({ patientId, atendimentoId: atendimentoId || null }); setActive('atendimentos'); };
   const openOdonto = (pid) => { setOdontoPatient(pid || null); setActive('odontograma'); };
@@ -465,7 +470,7 @@ function App() {
           {active === 'financas' && <FinancasModule key={'fin-'+dataVer} />}
           {active === 'relatorios' && <RelatoriosModule />}
           {active === 'config' && <ConfigModule />}
-          {active === 'ia' && <IAModule />}
+          {active === 'ia' && <IAModule key={'ia-'+(focusIA?.patientId||'x')+'-'+dataVer} initialPrompt={focusIA?.prompt} contextPatientId={focusIA?.patientId} />}
         </main>
       </div>
     </div>

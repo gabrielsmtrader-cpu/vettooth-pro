@@ -330,6 +330,9 @@ function IAFinanceiraTab({ fin }) {
     window.vtToast('Análise concluída.', 'ok');
   };
 
+  /* auto-análise na primeira renderização — analisar definido acima */
+  vtUseEffect(() => { analisar(); }, []);
+
   const exportar = () => {
     if (!insights) return;
     const linhas = ['===== RELATÓRIO IA FINANCEIRA — VetTooth Pro =====', 'Gerado em: ' + analisadoEm, ''];

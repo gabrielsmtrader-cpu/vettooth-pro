@@ -214,6 +214,13 @@ function PrHeader({ at, patient, saving, onBack, onAction, go, tab }) {
             {id === 'whats' ? '💬' : <VtIcon name={icon} size={15} />} {label}
           </button>
         ))}
+        <button className="pr-qbtn" style={{ background: 'linear-gradient(135deg,#6d28d9,#4f46e5)', color: '#fff', border: 'none' }}
+          onClick={() => window.vtOpenIA && window.vtOpenIA(
+            `Paciente: ${p.name} (${p.species}, ${p.breed}, ${p.sex}, ${at.weight || p.weight || '?'}kg). Motivo da consulta: ${at.motivo || 'não informado'}. Queixa: ${at.queixa || 'não informada'}. Diagnóstico: ${(at.diag && at.diag.principal) || 'em avaliação'}. Sugira plano terapêutico e orientações pós-procedimento.`,
+            p.id
+          )}>
+          <VtIcon name="spark" size={15} /> VetIA
+        </button>
       </div>
     </div>
   );

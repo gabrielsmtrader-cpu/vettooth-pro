@@ -481,6 +481,7 @@ function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos,
             <h3 className="pf-aside-title">Ações Rápidas</h3>
             <button className="pf-act teal" onClick={() => onOpenOdonto(p.id)}><VtIcon name="tooth" size={16} /> Abrir Odontograma</button>
             <button className="pf-act navy" onClick={() => openAtendimento(p.id)}><VtIcon name="plus" size={16} /> Novo Procedimento</button>
+            <button className="pf-act" style={{ background: 'linear-gradient(135deg,#6d28d9,#4f46e5)', color: '#fff' }} onClick={() => window.vtOpenIA && window.vtOpenIA(`Resumo completo e sugestão de conduta clínica para o paciente ${p.name} (${p.species}, ${p.breed}, ${p.sex}, ${p.weight||'?'}kg, tutor: ${p.owner}).`, p.id)}><VtIcon name="spark" size={16} /> Consultar VetIA</button>
             <button className="pf-act navy" onClick={() => window.vtToast('PDF do prontuário gerado.', 'ok')}><VtIcon name="receipt" size={16} /> Gerar PDF do Prontuário</button>
             <button className="pf-act navy" onClick={() => window.vtToast('Prontuário enviado ao tutor por e-mail.', 'ok')}>✉ Enviar ao Tutor (E-mail)</button>
           </div>
