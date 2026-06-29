@@ -1459,40 +1459,384 @@ function InsumoModal({ data, onClose, onSave, subCost }) {
 
 /* ---------------- Relatórios ---------------- */
 function RelatoriosModule() {
-  const d = (window.VtStore && window.VtStore.getData()) || {};
-  const patients = d.patients || [];
-  const ats = d.atendimentos || [];
-  const fin = d.fin || { tx: [] };
-  const inv = d.inventory || [];
-  const receita = (fin.tx || []).filter((t) => t.kind === 'receita').reduce((s, t) => s + t.value, 0);
-  const custo = (fin.tx || []).filter((t) => t.kind === 'custo').reduce((s, t) => s + t.value, 0);
-  const lucro = receita - custo;
-  const money = (n) => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-  const lowStock = (inv || []).filter((i) => Number(i.qty) < Number(i.min)).length;
-  // distribuição por espécie
+  const [open, setOpen] = vtUseState(null); // qual relatório está aberto
+  const [periodo, setPeriodo] = vtUseState('mes'); // mes | semana | ano | tudo
+  const [busca, setBusca] = vtUseState('');
+
+  const db = (window.VtStore && window.VtStore.getData()) || {};
+  const patients = db.patients || [];
+  const ats = db.atendimentos || [];
+  const fin = db.fin || { tx: [] };
+  const inv = db.inventory || [];
+  const txAll = fin.tx || [];
+
+  // helpers
+  const money = (n) => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money0 = (n) => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0 });
+  const vtISO = (t) => { const s = t.date || ''; const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : s.slice(0,10); };
+  const isRec = (t) => t.kind === 'receita' || t.type === 'entrada';
+  const isCus = (t) => t.kind === 'custo'   || t.type === 'saida';
+  const val = (t) => Number(t.value || t.val || 0);
+
+  // filtro de período
+  const today = new Date().toISOString().slice(0,10);
+  const periodoStart = (() => {
+    if (periodo === 'semana') { const d = new Date(); d.setDate(d.getDate()-7); return d.toISOString().slice(0,10); }
+    if (periodo === 'mes')    { return today.slice(0,7)+'-01'; }
+    if (periodo === 'ano')    { return today.slice(0,4)+'-01-01'; }
+    return '2000-01-01';
+  })();
+
+  const txFiltradas = txAll.filter(t => vtISO(t) >= periodoStart);
+  const atsFiltrados = ats.filter(a => {
+    const iso = (a.date||'').match(/(\d{2})\/(\d{2})\/(\d{4})/) ? `${(a.date||'').slice(6)}-${(a.date||'').slice(3,5)}-${(a.date||'').slice(0,2)}` : a.date||'';
+    return iso >= periodoStart;
+  });
+
+  // KPIs gerais
+  const receita = txFiltradas.filter(isRec).reduce((s,t)=>s+val(t),0);
+  const custo   = txFiltradas.filter(isCus).reduce((s,t)=>s+val(t),0);
+  const lucro   = receita - custo;
+  const lowStock = inv.filter(i => Number(i.qty != null ? i.qty : i.stock) <= Number(i.min||0));
   const porEspecie = {};
-  patients.forEach((p) => { porEspecie[p.species] = (porEspecie[p.species] || 0) + 1; });
-  const cards = [
-    { icon: 'stethoscope', title: 'Atendimentos', desc: 'Total de atendimentos registrados', n: String(ats.length), sub: 'registros' },
-    { icon: 'paw', title: 'Pacientes', desc: 'Ativos e inativos na base', n: String(patients.length), sub: `${patients.filter((p) => p.status !== 'Óbito').length} ativos` },
-    { icon: 'dollar', title: 'Receita', desc: 'Faturamento lançado', n: money(receita), sub: `lucro ${money(lucro)}` },
-    { icon: 'chart', title: 'Custos', desc: 'Insumos e despesas', n: money(custo), sub: `margem ${receita ? Math.round(lucro / receita * 100) : 0}%` },
-    { icon: 'box', title: 'Estoque', desc: 'Itens abaixo do mínimo', n: String(lowStock), sub: 'alertas' },
-    { icon: 'tooth', title: 'Espécies atendidas', desc: Object.entries(porEspecie).map(([k, v]) => `${k}: ${v}`).join(' · ') || '—', n: String(Object.keys(porEspecie).length), sub: 'espécies' },
+  patients.forEach(p => { if(p.species) porEspecie[p.species] = (porEspecie[p.species]||0)+1; });
+
+  const CARDS = [
+    { id:'atendimentos', icon:'stethoscope', title:'Atendimentos',    desc:'Por tipo, veterinário e período',    n: String(atsFiltrados.length), sub:'registros no período' },
+    { id:'receita',      icon:'dollar',      title:'Receita',         desc:'Entradas e faturamento por período', n: money0(receita),             sub: `lucro ${money0(lucro)}` },
+    { id:'custos',       icon:'chart',       title:'Custos',          desc:'Despesas e saídas no período',       n: money0(custo),               sub: `margem ${receita ? Math.round(lucro/receita*100):0}%` },
+    { id:'pacientes',    icon:'paw',         title:'Pacientes',       desc:'Base de pacientes por espécie',      n: String(patients.filter(p=>p.status!=='Óbito').length), sub:`${patients.length} total` },
+    { id:'estoque',      icon:'box',         title:'Estoque',         desc:'Inventário e alertas de reposição',  n: String(lowStock.length),     sub:'itens abaixo do mínimo' },
+    { id:'especies',     icon:'tooth',       title:'Espécies',        desc:'Distribuição da base de pacientes',  n: String(Object.keys(porEspecie).length), sub:'espécies atendidas' },
   ];
+
+  // impressão
+  const imprimir = (titulo, html) => {
+    const w = window.open('','_blank');
+    const clinic = window.vtClinic ? window.vtClinic() : {};
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${titulo}</title>
+    <style>body{font-family:Arial,sans-serif;font-size:13px;color:#111;padding:24px}
+    h1{font-size:18px;margin:0 0 4px}p{margin:0 0 16px;color:#555;font-size:12px}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th{background:#f0f4f8;text-align:left;padding:7px 10px;font-size:12px;border-bottom:2px solid #dde3ea}
+    td{padding:6px 10px;border-bottom:1px solid #eef0f3;font-size:12px}
+    tr:nth-child(even) td{background:#fafbfc}
+    .tot{font-weight:700;background:#f0f4f8!important}
+    .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px}
+    .verde{background:#e6f7f0;color:#1a7a4a}.vermelho{background:#fde8e8;color:#a31515}.amarelo{background:#fff8e1;color:#795700}
+    @media print{@page{margin:15mm}}</style></head><body>
+    <h1>${titulo}</h1>
+    <p>${clinic.name||'Dentalis Vet'} · Gerado em ${new Date().toLocaleString('pt-BR')} · Período: ${periodo==='tudo'?'Todo o histórico':periodo==='ano'?'Este ano':periodo==='mes'?'Este mês':'Últimos 7 dias'}</p>
+    ${html}</body></html>`);
+    w.document.close();
+    setTimeout(()=>w.print(),400);
+  };
+
+  // ---- RELATÓRIO ABERTO ----
+  if (open) {
+    const buscaL = busca.toLowerCase();
+
+    // Relatório de Atendimentos
+    if (open === 'atendimentos') {
+      const rows = atsFiltrados.filter(a =>
+        !buscaL || (a.patientName||'').toLowerCase().includes(buscaL) ||
+        (a.type||'').toLowerCase().includes(buscaL) || (a.vet||'').toLowerCase().includes(buscaL)
+      ).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      const totVal = rows.reduce((s,a)=>s+Number((a.value||'').replace(/[^\d,]/g,'').replace(',','.'))||0, 0);
+      const html = `<table><thead><tr><th>Data</th><th>Paciente</th><th>Tipo</th><th>Procedimento</th><th>Veterinário</th><th>Valor</th></tr></thead><tbody>
+        ${rows.map(a=>`<tr><td>${a.date||''}</td><td>${a.patientName||''}</td><td>${a.type||''}</td><td>${a.procedure||'—'}</td><td>${(a.vet||'').replace('M.V.','').trim()}</td><td>${a.value||'—'}</td></tr>`).join('')}
+        <tr class="tot"><td colspan="5">Total</td><td>R$ ${totVal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>
+      </tbody></table>`;
+      return (
+        <div>
+          <button className="vt-back" onClick={()=>{setOpen(null);setBusca('')}}><VtIcon name="chevron" size={16}/> Relatórios</button>
+          <div className="vt-page-head vt-head-row">
+            <div><h1>Relatório de Atendimentos</h1><p>{rows.length} registros · {periodo==='mes'?'Este mês':periodo==='semana'?'Últimos 7 dias':periodo==='ano'?'Este ano':'Todo o histórico'}</p></div>
+            <button className="vt-btn-primary" onClick={()=>imprimir('Relatório de Atendimentos',html)}><VtIcon name="print" size={15}/> Imprimir / PDF</button>
+          </div>
+          <div className="vt-card vt-sec" style={{marginBottom:14}}>
+            <input className="vtf-input" style={{width:'100%'}} placeholder="Filtrar por paciente, tipo, veterinário…" value={busca} onChange={e=>setBusca(e.target.value)}/>
+          </div>
+          <div className="vt-card vt-sec" style={{overflowX:'auto'}}>
+            {rows.length===0 ? <p className="vt-muted" style={{padding:16}}>Nenhum atendimento no período.</p> : (
+              <table className="pr-dtable" style={{width:'100%'}}>
+                <thead><tr><th>Data</th><th>Paciente</th><th>Tipo</th><th>Procedimento</th><th>Veterinário</th><th>Valor</th></tr></thead>
+                <tbody>
+                  {rows.map((a,i)=>(
+                    <tr key={a.id||i}>
+                      <td style={{whiteSpace:'nowrap'}}>{a.date||'—'}</td>
+                      <td><b>{a.patientName||'—'}</b></td>
+                      <td>{a.type||'—'}</td>
+                      <td style={{color:'var(--muted)',fontSize:12}}>{a.procedure||'—'}</td>
+                      <td style={{fontSize:12}}>{(a.vet||'—').replace('M.V.','').trim()}</td>
+                      <td style={{fontWeight:600,color:'var(--teal)'}}>{a.value||'—'}</td>
+                    </tr>
+                  ))}
+                  <tr style={{background:'var(--bg)',fontWeight:700}}>
+                    <td colSpan="5">Total ({rows.length} registros)</td>
+                    <td style={{color:'var(--teal)'}}>R$ {totVal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Relatório de Receita ou Custos
+    if (open === 'receita' || open === 'custos') {
+      const isRel = open === 'receita';
+      const rows = txFiltradas.filter(isRel ? isRec : isCus).filter(t =>
+        !buscaL || (t.desc||t.description||'').toLowerCase().includes(buscaL) ||
+        (t.cat||t.category||'').toLowerCase().includes(buscaL)
+      ).sort((a,b)=>vtISO(b).localeCompare(vtISO(a)));
+      const total = rows.reduce((s,t)=>s+val(t),0);
+      const porCat = {};
+      rows.forEach(t=>{ const c=t.cat||t.category||'Outros'; porCat[c]=(porCat[c]||0)+val(t); });
+      const titulo = isRel ? 'Relatório de Receitas' : 'Relatório de Custos';
+      const cor = isRel ? 'var(--teal)' : 'var(--red)';
+      const html = `<table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pagamento</th><th>Status</th><th>Valor</th></tr></thead><tbody>
+        ${rows.map(t=>`<tr><td>${t.date||''}</td><td>${t.desc||t.description||''}</td><td>${t.cat||t.category||''}</td><td>${t.pay||''}</td><td>${t.status||''}</td><td>R$ ${val(t).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`).join('')}
+        <tr class="tot"><td colspan="5">Total</td><td>R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>
+      </tbody></table>`;
+      return (
+        <div>
+          <button className="vt-back" onClick={()=>{setOpen(null);setBusca('')}}><VtIcon name="chevron" size={16}/> Relatórios</button>
+          <div className="vt-page-head vt-head-row">
+            <div><h1>{titulo}</h1><p>{rows.length} lançamentos · Total: {money(total)}</p></div>
+            <button className="vt-btn-primary" onClick={()=>imprimir(titulo,html)}><VtIcon name="print" size={15}/> Imprimir / PDF</button>
+          </div>
+          {/* resumo por categoria */}
+          <div className="vt-grid" style={{gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',marginBottom:14,gap:10}}>
+            {Object.entries(porCat).sort((a,b)=>b[1]-a[1]).map(([cat,v])=>(
+              <div key={cat} className="vt-card" style={{padding:'12px 16px'}}>
+                <div style={{fontSize:11,color:'var(--muted)',marginBottom:3}}>{cat}</div>
+                <div style={{fontWeight:700,fontSize:15,color:cor}}>{money0(v)}</div>
+                <div style={{fontSize:11,color:'var(--muted)'}}>{total ? Math.round(v/total*100) : 0}% do total</div>
+              </div>
+            ))}
+          </div>
+          <div className="vt-card vt-sec" style={{marginBottom:14}}>
+            <input className="vtf-input" style={{width:'100%'}} placeholder="Filtrar por descrição ou categoria…" value={busca} onChange={e=>setBusca(e.target.value)}/>
+          </div>
+          <div className="vt-card vt-sec" style={{overflowX:'auto'}}>
+            {rows.length===0 ? <p className="vt-muted" style={{padding:16}}>Nenhum lançamento no período.</p> : (
+              <table className="pr-dtable" style={{width:'100%'}}>
+                <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pagamento</th><th>Status</th><th>Valor</th></tr></thead>
+                <tbody>
+                  {rows.map((t,i)=>{
+                    const st = t.status||'';
+                    const stColor = st==='recebido'||st==='pago' ? '#27a871' : st==='pendente' ? '#e09c3c' : 'var(--muted)';
+                    return (
+                      <tr key={t.id||i}>
+                        <td style={{whiteSpace:'nowrap'}}>{t.date||'—'}</td>
+                        <td><b>{t.desc||t.description||'—'}</b></td>
+                        <td style={{fontSize:12}}>{t.cat||t.category||'—'}</td>
+                        <td style={{fontSize:12,textTransform:'capitalize'}}>{t.pay||'—'}</td>
+                        <td><span style={{fontSize:11,fontWeight:600,color:stColor,background:stColor+'18',borderRadius:4,padding:'2px 7px'}}>{st||'—'}</span></td>
+                        <td style={{fontWeight:700,color:cor}}>{money(val(t))}</td>
+                      </tr>
+                    );
+                  })}
+                  <tr style={{background:'var(--bg)',fontWeight:700}}>
+                    <td colSpan="5">Total ({rows.length} lançamentos)</td>
+                    <td style={{color:cor}}>{money(total)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Relatório de Pacientes
+    if (open === 'pacientes') {
+      const rows = patients.filter(p =>
+        !buscaL || (p.name||'').toLowerCase().includes(buscaL) ||
+        (p.species||'').toLowerCase().includes(buscaL) || (p.owner||'').toLowerCase().includes(buscaL)
+      );
+      const html = `<table><thead><tr><th>Código</th><th>Paciente</th><th>Espécie</th><th>Raça</th><th>Tutor</th><th>Status</th></tr></thead><tbody>
+        ${rows.map(p=>`<tr><td>${window.vtPacienteCode?window.vtPacienteCode(p):p.id}</td><td>${p.name||''}</td><td>${p.species||''}</td><td>${p.breed||''}</td><td>${p.owner||''}</td><td>${p.status||'Ativo'}</td></tr>`).join('')}
+      </tbody></table>`;
+      return (
+        <div>
+          <button className="vt-back" onClick={()=>{setOpen(null);setBusca('')}}><VtIcon name="chevron" size={16}/> Relatórios</button>
+          <div className="vt-page-head vt-head-row">
+            <div><h1>Relatório de Pacientes</h1><p>{rows.length} pacientes encontrados</p></div>
+            <button className="vt-btn-primary" onClick={()=>imprimir('Relatório de Pacientes',html)}><VtIcon name="print" size={15}/> Imprimir / PDF</button>
+          </div>
+          <div className="vt-card vt-sec" style={{marginBottom:14}}>
+            <input className="vtf-input" style={{width:'100%'}} placeholder="Filtrar por nome, espécie, tutor…" value={busca} onChange={e=>setBusca(e.target.value)}/>
+          </div>
+          <div className="vt-card vt-sec" style={{overflowX:'auto'}}>
+            <table className="pr-dtable" style={{width:'100%'}}>
+              <thead><tr><th>Código</th><th>Paciente</th><th>Espécie</th><th>Raça</th><th>Tutor</th><th>Status</th></tr></thead>
+              <tbody>
+                {rows.map((p,i)=>{
+                  const st = p.status||'Ativo';
+                  const stColor = st==='Óbito'?'#e0533c':st==='Inativo'?'#67788c':'#27a871';
+                  return (
+                    <tr key={p.id||i}>
+                      <td style={{fontSize:12,color:'var(--muted)'}}>{window.vtPacienteCode?window.vtPacienteCode(p):p.id}</td>
+                      <td><b>{p.name||'—'}</b></td>
+                      <td>{p.species||'—'}</td>
+                      <td style={{fontSize:12}}>{p.breed||'—'}</td>
+                      <td style={{fontSize:12}}>{p.owner||'—'}</td>
+                      <td><span style={{fontSize:11,fontWeight:600,color:stColor,background:stColor+'18',borderRadius:4,padding:'2px 7px'}}>{st}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // Relatório de Estoque
+    if (open === 'estoque') {
+      const rows = inv.filter(i =>
+        !buscaL || (i.name||'').toLowerCase().includes(buscaL) || (i.cat||i.category||'').toLowerCase().includes(buscaL)
+      );
+      const html = `<table><thead><tr><th>Item</th><th>Categoria</th><th>Quantidade</th><th>Mínimo</th><th>Unidade</th><th>Preço</th><th>Fornecedor</th><th>Status</th></tr></thead><tbody>
+        ${rows.map(i=>{const q=Number(i.qty!=null?i.qty:i.stock);const st=q===0?'ZERADO':q<=Number(i.min||0)?'BAIXO':'OK';return`<tr><td>${i.name||''}</td><td>${i.cat||''}</td><td>${q}</td><td>${i.min||0}</td><td>${i.unit||''}</td><td>R$ ${Number(i.price||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td>${i.supplier||''}</td><td class="${st==='OK'?'verde':st==='BAIXO'?'amarelo':'vermelho'} badge">${st}</td></tr>`}).join('')}
+      </tbody></table>`;
+      return (
+        <div>
+          <button className="vt-back" onClick={()=>{setOpen(null);setBusca('')}}><VtIcon name="chevron" size={16}/> Relatórios</button>
+          <div className="vt-page-head vt-head-row">
+            <div><h1>Relatório de Estoque</h1><p>{rows.length} itens · {lowStock.length} abaixo do mínimo</p></div>
+            <button className="vt-btn-primary" onClick={()=>imprimir('Relatório de Estoque',html)}><VtIcon name="print" size={15}/> Imprimir / PDF</button>
+          </div>
+          <div className="vt-card vt-sec" style={{marginBottom:14}}>
+            <input className="vtf-input" style={{width:'100%'}} placeholder="Filtrar por item ou categoria…" value={busca} onChange={e=>setBusca(e.target.value)}/>
+          </div>
+          <div className="vt-card vt-sec" style={{overflowX:'auto'}}>
+            <table className="pr-dtable" style={{width:'100%'}}>
+              <thead><tr><th>Item</th><th>Cat.</th><th style={{textAlign:'center'}}>Qtd</th><th style={{textAlign:'center'}}>Mín</th><th>Unidade</th><th>Preço unit.</th><th>Fornecedor</th><th>Status</th></tr></thead>
+              <tbody>
+                {rows.map((item,i)=>{
+                  const q = Number(item.qty!=null?item.qty:item.stock);
+                  const min = Number(item.min||0);
+                  const st = q===0?'ZERADO':q<=min?'BAIXO':'OK';
+                  const stColor = st==='OK'?'#27a871':st==='BAIXO'?'#e09c3c':'#e0533c';
+                  return (
+                    <tr key={item.id||i}>
+                      <td><b>{item.name||'—'}</b></td>
+                      <td style={{fontSize:12}}>{item.cat||item.category||'—'}</td>
+                      <td style={{textAlign:'center',fontWeight:700,color:stColor}}>{q}</td>
+                      <td style={{textAlign:'center',color:'var(--muted)',fontSize:12}}>{min}</td>
+                      <td style={{fontSize:12}}>{item.unit||'—'}</td>
+                      <td style={{fontSize:12}}>R$ {Number(item.price||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                      <td style={{fontSize:12}}>{item.supplier||'—'}</td>
+                      <td><span style={{fontSize:11,fontWeight:600,color:stColor,background:stColor+'18',borderRadius:4,padding:'2px 7px'}}>{st}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // Relatório de Espécies
+    if (open === 'especies') {
+      const total = patients.length || 1;
+      const entries = Object.entries(porEspecie).sort((a,b)=>b[1]-a[1]);
+      const cores = ['#14a8a0','#2f6fed','#6c3fc0','#e0533c','#e09c3c','#27a871'];
+      const html = `<table><thead><tr><th>Espécie</th><th>Quantidade</th><th>%</th></tr></thead><tbody>
+        ${entries.map(([k,v])=>`<tr><td>${k}</td><td>${v}</td><td>${Math.round(v/total*100)}%</td></tr>`).join('')}
+      </tbody></table>`;
+      return (
+        <div>
+          <button className="vt-back" onClick={()=>setOpen(null)}><VtIcon name="chevron" size={16}/> Relatórios</button>
+          <div className="vt-page-head vt-head-row">
+            <div><h1>Distribuição por Espécie</h1><p>{patients.length} pacientes · {entries.length} espécies</p></div>
+            <button className="vt-btn-primary" onClick={()=>imprimir('Distribuição por Espécie',html)}><VtIcon name="print" size={15}/> Imprimir / PDF</button>
+          </div>
+          <div className="vt-grid" style={{gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:12,marginBottom:18}}>
+            {entries.map(([esp,qtd],i)=>{
+              const pct = Math.round(qtd/total*100);
+              return (
+                <div key={esp} className="vt-card" style={{padding:'16px 20px'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+                    <span style={{width:12,height:12,borderRadius:'50%',background:cores[i%cores.length],flexShrink:0}}/>
+                    <b style={{fontSize:14}}>{esp}</b>
+                  </div>
+                  <div style={{fontSize:28,fontWeight:800,color:cores[i%cores.length],lineHeight:1}}>{qtd}</div>
+                  <div style={{fontSize:12,color:'var(--muted)',marginTop:4}}>{pct}% da base</div>
+                  <div style={{height:4,borderRadius:2,background:'var(--border)',marginTop:10}}>
+                    <div style={{height:'100%',borderRadius:2,background:cores[i%cores.length],width:pct+'%'}}/>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="vt-card vt-sec" style={{overflowX:'auto'}}>
+            <table className="pr-dtable" style={{width:'100%'}}>
+              <thead><tr><th>Espécie</th><th>Quantidade</th><th>% da base</th></tr></thead>
+              <tbody>
+                {entries.map(([esp,qtd],i)=>(
+                  <tr key={esp}>
+                    <td style={{display:'flex',alignItems:'center',gap:8}}><span style={{width:10,height:10,borderRadius:'50%',background:cores[i%cores.length],display:'inline-block'}}/><b>{esp}</b></td>
+                    <td>{qtd}</td>
+                    <td>{Math.round(qtd/total*100)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // ---- TELA PRINCIPAL (cards) ----
   return (
     <div>
-      <div className="vt-page-head"><h1>Relatórios</h1><p>Painéis clínicos, financeiros e de estoque — dados em tempo real</p></div>
+      <div className="vt-page-head vt-head-row">
+        <div><h1>Relatórios</h1><p>Clique em um relatório para abrir, filtrar e imprimir</p></div>
+        <select className="vtf-input" style={{width:160}} value={periodo} onChange={e=>setPeriodo(e.target.value)}>
+          <option value="semana">Últimos 7 dias</option>
+          <option value="mes">Este mês</option>
+          <option value="ano">Este ano</option>
+          <option value="tudo">Todo o histórico</option>
+        </select>
+      </div>
+
+      {/* resumo financeiro rápido */}
+      <div className="vt-grid" style={{gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:18}}>
+        {[
+          { label:'Receita no período', val: money0(receita), cor:'#14a8a0' },
+          { label:'Custos no período',  val: money0(custo),   cor:'#e0533c' },
+          { label:'Lucro líquido',      val: money0(lucro),   cor: lucro>=0?'#27a871':'#e0533c' },
+        ].map(k=>(
+          <div key={k.label} className="vt-card" style={{padding:'14px 18px'}}>
+            <div style={{fontSize:12,color:'var(--muted)',marginBottom:4}}>{k.label}</div>
+            <div style={{fontSize:22,fontWeight:800,color:k.cor}}>{k.val}</div>
+          </div>
+        ))}
+      </div>
+
       <div className="vt-grid" style={{ gridTemplateColumns: 'repeat(2,1fr)' }}>
-        {cards.map((c) => (
-          <div key={c.title} className="vt-card vt-report">
+        {CARDS.map((c) => (
+          <button key={c.id} className="vt-card vt-report" style={{cursor:'pointer',textAlign:'left',border:'1.5px solid var(--border)',transition:'box-shadow .15s'}}
+            onClick={()=>{ setOpen(c.id); setBusca(''); }}
+            onMouseEnter={e=>e.currentTarget.style.boxShadow='0 4px 18px rgba(0,0,0,.10)'}
+            onMouseLeave={e=>e.currentTarget.style.boxShadow=''}>
             <div className="vt-report-ic"><VtIcon name={c.icon} size={24} /></div>
             <div className="vt-report-body">
               <div className="vt-report-title">{c.title}</div>
               <div className="vt-report-desc">{c.desc}</div>
             </div>
-            <div className="vt-report-num"><b>{c.n}</b><i>{c.sub}</i></div>
-          </div>
+            <div className="vt-report-num">
+              <b>{c.n}</b><i>{c.sub}</i>
+              <span style={{fontSize:11,color:'var(--teal)',marginTop:4,display:'block',fontWeight:600}}>Ver relatório →</span>
+            </div>
+          </button>
         ))}
       </div>
     </div>
