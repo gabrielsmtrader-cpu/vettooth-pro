@@ -21,7 +21,7 @@ function Sidebar({ active, setActive }) {
   const d = (window.VtStore && window.VtStore.getData()) || {};
   const today = new Date().toISOString().slice(0, 10);
   const agToday = (d.agendaAppts || []).filter((a) => a.date === today).length;
-  const lowStock = (d.inventory || []).filter((i) => Number(i.qty) < Number(i.min)).length;
+  const lowStock = (d.inventory || []).filter((i) => Number(i.qty != null ? i.qty : i.stock) <= Number(i.min || 0)).length;
   const badges = { agenda: agToday, insumos: lowStock };
   return (
     <aside className="vt-sidebar">
