@@ -206,14 +206,25 @@ const ALERTS = [
   { k: 'Vacina:', v: 'Rex (Cão) vencendo', c: 'var(--teal)' },
 ];
 
+function vtTxISO(t) {
+  // suporta DD/MM/YYYY e YYYY-MM-DD
+  const s = t.date || t.paidAt || '';
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : s.slice(0, 10);
+}
+function vtIsReceita(t) { return t.kind === 'receita' || t.type === 'entrada'; }
+function vtIsCusto(t)   { return t.kind === 'custo'   || t.type === 'saida'; }
+function vtTxVal(t)     { return Number(t.value || t.val || 0); }
+function vtStockQty(i)  { return Number(i.qty != null ? i.qty : i.stock); }
+
 function LineChart() {
   const [hover, setHover] = useState(null);
   const d = (window.VtStore && window.VtStore.getData()) || {};
   const tx = (d.fin && d.fin.tx) || [];
   const days = [];
   for (let i = 29; i >= 0; i--) { const dt = new Date(); dt.setDate(dt.getDate() - i); days.push(dt.toISOString().slice(0, 10)); }
-  let receita = days.map((iso) => tx.filter((t) => t.kind === 'receita' && t.date === iso).reduce((s, t) => s + (Number(t.value) || 0), 0));
-  let custos = days.map((iso) => tx.filter((t) => t.kind === 'custo' && t.date === iso).reduce((s, t) => s + (Number(t.value) || 0), 0));
+  let receita = days.map((iso) => tx.filter((t) => vtIsReceita(t) && vtTxISO(t) === iso).reduce((s, t) => s + vtTxVal(t), 0));
+  let custos = days.map((iso) => tx.filter((t) => vtIsCusto(t) && vtTxISO(t) === iso).reduce((s, t) => s + vtTxVal(t), 0));
   const peak = Math.max(1, ...receita, ...custos);
   const max = peak * 1.15;
   const empty = receita.every((v) => v === 0) && custos.every((v) => v === 0);
@@ -265,36 +276,51 @@ function Dashboard({ setActive }) {
   const inv = d.inventory || [];
   const today = new Date().toISOString().slice(0, 10);
   const appts = d.agendaAppts || [];
-  const recebHoje = (fin.tx || []).filter((t) => t.kind === 'receita' && t.status === 'pago' && t.paidAt === today).reduce((s, t) => s + t.value, 0);
-  const aReceber = (fin.tx || []).filter((t) => t.kind === 'receita' && t.status !== 'pago').reduce((s, t) => s + t.value, 0);
-  const lowStock = (inv || []).filter((i) => Number(i.qty) < Number(i.min));
   const money = (n) => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-  // métricas do mês
   const mPrefix = today.slice(0, 7);
-  const fatMes = (fin.tx || []).filter((t) => t.kind === 'receita' && (t.date || '').slice(0, 7) === mPrefix).reduce((s, t) => s + (Number(t.value) || 0), 0);
   const brToYM = (br) => { const m = (br || '').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? `${m[3]}-${m[2]}` : (br || '').slice(0, 7); };
+
+  // financeiro — suporta {type:'entrada'|'saida', val} e {kind:'receita'|'custo', value}
+  const txAll = fin.tx || [];
+  const fatMes = txAll.filter((t) => vtIsReceita(t) && vtTxISO(t).slice(0, 7) === mPrefix).reduce((s, t) => s + vtTxVal(t), 0);
+  const custoMes = txAll.filter((t) => vtIsCusto(t) && vtTxISO(t).slice(0, 7) === mPrefix).reduce((s, t) => s + vtTxVal(t), 0);
+  const recebHoje = txAll.filter((t) => vtIsReceita(t) && vtTxISO(t) === today && (t.status === 'pago' || t.status === 'recebido')).reduce((s, t) => s + vtTxVal(t), 0);
+  const aReceber = txAll.filter((t) => vtIsReceita(t) && t.status === 'pendente').reduce((s, t) => s + vtTxVal(t), 0);
+  const ticketBase = txAll.filter(vtIsReceita);
+  const ticket = ticketBase.length ? ticketBase.reduce((s, t) => s + vtTxVal(t), 0) / ticketBase.length : 0;
+
+  // estoque — suporta {stock} e {qty}
+  const lowStock = inv.filter((i) => vtStockQty(i) <= Number(i.min || 0));
+  const itensCrit = inv.filter((i) => vtStockQty(i) === 0);
+
+  // agenda
+  const weekStart = (() => { const dt = new Date(); dt.setDate(dt.getDate() - dt.getDay()); return dt.toISOString().slice(0, 10); })();
+  const weekEnd   = (() => { const dt = new Date(); dt.setDate(dt.getDate() - dt.getDay() + 7); return dt.toISOString().slice(0, 10); })();
+  const aptsWeek = appts.filter((a) => (a.date || '') >= weekStart && (a.date || '') < weekEnd).length;
+  const aptsHoje = appts.filter((a) => (a.date || '') === today).sort((a, b) => (a.time || a.start || '').localeCompare(b.time || b.start || ''));
+  const proximos = appts.filter((a) => (a.date || '') > today).sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || '')).slice(0, 4);
+
+  // atendimentos
   const procMes = ats.filter((a) => brToYM(a.date || a.dataISO || '') === mPrefix && !vtIsCancel(a.status)).length;
-  const ticketBase = (fin.tx || []).filter((t) => t.kind === 'receita');
-  const ticket = ticketBase.length ? ticketBase.reduce((s, t) => s + (Number(t.value) || 0), 0) / ticketBase.length : 0;
   const comRetorno = patients.filter((p) => ats.filter((a) => a.patientId === p.id).length > 1).length;
   const taxaRetorno = patients.length ? Math.round(comRetorno / patients.length * 100) : 0;
-  const weekStart = (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay()); return d.toISOString().slice(0, 10); })();
-  const weekEnd = (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay() + 7); return d.toISOString().slice(0, 10); })();
-  const aptsWeek = appts.filter((a) => (a.date || '') >= weekStart && (a.date || '') < weekEnd).length;
-  const kpis = [
-    { icon: 'calendar', label: 'Agendamentos', value: String(aptsWeek), sub: `${appts.length} total · ${aptsWeek} esta semana`, go: 'agenda' },
-    { icon: 'paw', label: 'Pacientes ativos', value: String(patients.filter((p) => p.status !== 'Óbito').length), sub: `${patients.length} no total`, go: 'pacientes' },
-    { icon: 'stethoscope', label: 'Atendimentos', value: String(ats.length), sub: 'registrados', go: 'atendimentos' },
-    { icon: 'dollar', label: 'Recebido hoje', value: money(recebHoje), sub: `${money(aReceber)} a receber`, go: 'financas' },
-    { icon: 'dollar', label: 'Faturamento do mês', value: money(fatMes), sub: 'receita no mês', go: 'financas' },
-    { icon: 'receipt', label: 'Ticket médio', value: money(ticket), sub: 'por lançamento', go: 'financas' },
-    { icon: 'tooth', label: 'Procedimentos do mês', value: String(procMes), sub: 'finalizados', go: 'atendimentos' },
-    { icon: 'chart', label: 'Taxa de retorno', value: taxaRetorno + '%', sub: `${comRetorno} pacientes recorrentes`, go: 'relatorios' },
-  ];
-  const proximos = appts.slice().sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.start || 0) - (b.start || 0)).filter((a) => (a.date || '') >= today).slice(0, 5);
-  // atividade recente
-  const recent = ats.slice().sort((a, b) => { const da = (b.date || '').split('/').reverse().join('-'); const db = (a.date || '').split('/').reverse().join('-'); return da.localeCompare(db) || (b.id || '').localeCompare(a.id || ''); }).slice(0, 6);
+  const recent = ats.slice().sort((a, b) => { const da = (b.date || '').split('/').reverse().join('-'); const db = (a.date || '').split('/').reverse().join('-'); return da.localeCompare(db) || (b.id || '').localeCompare(a.id || ''); }).slice(0, 5);
   const patName = (id) => (patients.find((p) => p.id === id) || {}).name || '';
+
+  const kpis = [
+    { icon: 'calendar', label: 'Hoje', value: String(aptsHoje.length), sub: `${aptsWeek} esta semana · ${appts.length} total`, go: 'agenda' },
+    { icon: 'paw', label: 'Pacientes ativos', value: String(patients.filter((p) => p.status !== 'Óbito').length), sub: `${patients.length} cadastrados`, go: 'pacientes' },
+    { icon: 'dollar', label: 'Faturamento do mês', value: money(fatMes), sub: `Custos: ${money(custoMes)} · Líquido: ${money(fatMes - custoMes)}`, go: 'financas' },
+    { icon: 'dollar', label: 'Recebido hoje', value: money(recebHoje), sub: aReceber > 0 ? `${money(aReceber)} pendente` : 'Sem pendências', go: 'financas' },
+    { icon: 'receipt', label: 'Ticket médio', value: money(ticket), sub: `${ticketBase.length} lançamentos`, go: 'financas' },
+    { icon: 'tooth', label: 'Procedimentos/mês', value: String(procMes), sub: `${ats.length} no total`, go: 'atendimentos' },
+    { icon: 'chart', label: 'Taxa de retorno', value: taxaRetorno + '%', sub: `${comRetorno} pacientes recorrentes`, go: 'relatorios' },
+    { icon: 'box', label: 'Estoque crítico', value: String(lowStock.length), sub: itensCrit.length > 0 ? `${itensCrit.length} zerado(s)` : 'Verifique itens', go: 'insumos' },
+  ];
+
+  const statusColor = (s) => s === 'confirmado' ? '#27a871' : s === 'cancelado' ? '#e0533c' : '#e09c3c';
+  const statusLabel = (s) => s === 'confirmado' ? 'Confirmado' : s === 'cancelado' ? 'Cancelado' : 'Aguardando';
+
   return (
     <div>
       <div className="vt-page-head">
@@ -315,26 +341,53 @@ function Dashboard({ setActive }) {
         ))}
       </div>
 
+      {/* Agenda de Hoje */}
+      <div className="vt-card vt-sec" style={{ marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <h3 className="vt-sec-title" style={{ margin: 0 }}>Agenda de Hoje — {today.slice(8, 10)}/{today.slice(5, 7)}/{today.slice(0, 4)}</h3>
+          <button className="vt-btn-ghost" style={{ fontSize: 12 }} onClick={() => setActive('agenda')}>Ver tudo</button>
+        </div>
+        {aptsHoje.length === 0 ? (
+          <p className="vt-muted" style={{ fontSize: 13 }}>Nenhum agendamento para hoje.</p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 8 }}>
+            {aptsHoje.map((n, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg)', borderRadius: 8, padding: '8px 12px', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--teal)', minWidth: 40 }}>{n.time || n.start || '--'}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.patient}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>{n.type || n.kind || 'Consulta'} · {n.vet ? n.vet.replace('Dr. ','').replace('Dra. ','') : ''}</div>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 600, color: statusColor(n.status), background: statusColor(n.status)+'18', borderRadius: 4, padding: '2px 6px', whiteSpace: 'nowrap' }}>{statusLabel(n.status)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="vt-grid" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 18 }}>
         <div className="vt-card vt-sec">
-          <h3 className="vt-sec-title">Próximos agendamentos</h3>
-          {proximos.length === 0 ? <p className="vt-muted" style={{ fontSize: 13 }}>Nenhum agendamento.</p> : proximos.map((n, i) => (
+          <h3 className="vt-sec-title">Próximos dias</h3>
+          {proximos.length === 0 ? <p className="vt-muted" style={{ fontSize: 13 }}>Sem agendamentos futuros.</p> : proximos.map((n, i) => (
             <div key={i} className="vt-list-row">
               <span className="name">{n.patient}</span>
-              <span className="meta">({n.kind})</span>
-              <span className="time">{(n.date || '').slice(8, 10)}/{(n.date || '').slice(5, 7)} {fmtH ? fmtH(n.start) : n.start}</span>
+              <span className="meta">{n.type || n.kind || ''}</span>
+              <span className="time">{(n.date || '').slice(8, 10)}/{(n.date || '').slice(5, 7)} {n.time || ''}</span>
             </div>
           ))}
           <button className="vt-btn-ghost" style={{ marginTop: 10 }} onClick={() => setActive('agenda')}>Ver agenda</button>
         </div>
         <div className="vt-card vt-sec">
-          <h3 className="vt-sec-title">Alertas</h3>
-          {lowStock.length === 0 ? <p className="vt-muted" style={{ fontSize: 13 }}>Estoque em dia.</p> : lowStock.slice(0, 5).map((a, i) => (
-            <div key={i} className="vt-alert-row">
-              <span className="vt-alert-dot" style={{ background: 'var(--red)' }} />
-              <div><span className="k">Estoque baixo:</span> {a.name} ({a.qty} {a.unit})</div>
-            </div>
-          ))}
+          <h3 className="vt-sec-title">Alertas de estoque</h3>
+          {lowStock.length === 0
+            ? <p className="vt-muted" style={{ fontSize: 13 }}>Estoque em dia ✓</p>
+            : lowStock.slice(0, 6).map((a, i) => (
+              <div key={i} className="vt-alert-row">
+                <span className="vt-alert-dot" style={{ background: vtStockQty(a) === 0 ? 'var(--red)' : 'var(--amber)' }} />
+                <div><span className="k">{vtStockQty(a) === 0 ? 'Zerado:' : 'Baixo:'}</span> {a.name} ({vtStockQty(a)} {a.unit})</div>
+              </div>
+            ))
+          }
           <button className="vt-btn-ghost" style={{ marginTop: 10 }} onClick={() => setActive('insumos')}>Ver estoque</button>
         </div>
       </div>
@@ -347,6 +400,8 @@ function Dashboard({ setActive }) {
             <button className="vt-qa navy" onClick={() => setActive('atendimentos')}><VtIcon name="stethoscope" /> Atendimentos</button>
             <button className="vt-qa teal" onClick={() => setActive('agenda')}><VtIcon name="calendar" /> Agendar</button>
             <button className="vt-qa teal" onClick={() => setActive('financas')}><VtIcon name="dollar" /> Financeiro</button>
+            <button className="vt-qa" style={{ background: 'linear-gradient(135deg,#6c3fc0,#14a8a0)', color: '#fff' }} onClick={() => window.vtOpenIA && window.vtOpenIA('Olá! Como posso ajudar hoje?')}><VtIcon name="spark" /> VetIA Pro</button>
+            <button className="vt-qa" style={{ background: 'var(--bg)', border: '1.5px solid var(--border)' }} onClick={() => setActive('relatorios')}><VtIcon name="chart" /> Relatórios</button>
           </div>
         </div>
         <div className="vt-card vt-sec">
