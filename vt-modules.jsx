@@ -227,10 +227,7 @@ window.vtModelForType = function (typeLabel) {
 };
 /* inclusão de seções por modelo + listas globais personalizáveis */
 window.PR_DIAG_DEFAULT = [
-  { k: 'principal', label: 'Diagnóstico principal', ph: 'Diagnóstico definitivo ou mais provável' },
-  { k: 'secundarios', label: 'Diagnósticos secundários', ph: 'Comorbidades ou achados associados' },
-  { k: 'diferencial', label: 'Diagnóstico diferencial', ph: 'Hipóteses a descartar' },
-  { k: 'suspeitas', label: 'Suspeitas clínicas', ph: 'Impressões a investigar' },
+  { k: 'principal', label: 'Diagnóstico', ph: 'Diagnóstico definitivo ou mais provável' },
   { k: 'obs', label: 'Observações', ph: 'Notas adicionais' },
 ];
 window.vtConsultInclude = function (modelId) {
