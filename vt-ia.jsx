@@ -492,18 +492,83 @@ function IAText({ text }) {
   );
 }
 
+/* ── busca número do tutor nos dados do app ── */
+function vtGetOwnerPhone(tutorName) {
+  try {
+    const d = window.VtStore?.getData() || {};
+    const owners = d.owners || [];
+    const nome = (tutorName || '').toLowerCase();
+    const primeiro = nome.split(' ')[0];
+    const found = owners.find((o) => {
+      const n = (o.name || '').toLowerCase();
+      return n === nome || n.startsWith(primeiro);
+    });
+    if (found) return (found.whats || found.phone || '').replace(/\D/g,'');
+  } catch {}
+  return '';
+}
+
 /* ───── CARD DE AÇÃO ───── */
 function ActionCard({ action, onExecute, done }) {
+  const [tel, setTel] = vtUseState(() => action.type === 'whatsapp' ? vtGetOwnerPhone(action.para) : '');
+  const [expanded, setExpanded] = vtUseState(action.type === 'whatsapp');
+
   const labels = {
     receituario: { icon: '💊', title: 'Receituário gerado', btn: 'Abrir Receituário' },
     pedido_exame: { icon: '🔬', title: 'Pedido de exames', btn: 'Abrir Pedido' },
     termo: { icon: '📋', title: 'Termo de Consentimento', btn: 'Abrir Termo' },
     laudo: { icon: '📄', title: 'Laudo Odontológico', btn: 'Abrir Laudo' },
     orientacao: { icon: '🐾', title: 'Orientações ao Tutor', btn: 'Abrir Orientações' },
-    whatsapp: { icon: '📱', title: 'Mensagem WhatsApp pronta', btn: 'Abrir WhatsApp' },
+    whatsapp: { icon: '📱', title: `WhatsApp${action.para ? ' → ' + action.para : ''}`, btn: 'Abrir WhatsApp' },
     agendar: { icon: '📅', title: 'Agendamento sugerido', btn: 'Ir para Agenda' },
     financeiro: { icon: '💰', title: 'Registro financeiro', btn: 'Registrar lançamento' },
   }[action.type] || { icon: '⚡', title: 'Ação disponível', btn: 'Executar' };
+
+  /* card especial para WhatsApp */
+  if (action.type === 'whatsapp') {
+    const execWA = () => {
+      const num = tel.replace(/\D/g,'');
+      const msg = encodeURIComponent(action.mensagem || '');
+      const url = num.length >= 10
+        ? `https://api.whatsapp.com/send?phone=55${num}&text=${msg}`
+        : `https://api.whatsapp.com/send?text=${msg}`;
+      window.open(url, '_blank');
+      onExecute();
+    };
+    return (
+      <div className="vt-ia-acard" style={{ opacity: done ? .6 : 1, flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <span className="vt-ia-acard-ic">📱</span>
+          <div className="vt-ia-acard-info" style={{flex:1}}>
+            <b>WhatsApp{action.para ? ` → ${action.para}` : ''}</b>
+            {!tel && <i style={{color:'var(--amber)'}}>Número não encontrado — informe abaixo</i>}
+            {tel && <i style={{color:'#22c55e'}}>Número: {tel}</i>}
+          </div>
+          <button style={{background:'none',border:'none',cursor:'pointer',fontSize:16,color:'var(--muted)'}} onClick={()=>setExpanded(e=>!e)}>{expanded?'▲':'▼'}</button>
+        </div>
+        {expanded && (
+          <div style={{ display:'flex', flexDirection:'column', gap:8, paddingTop:4, borderTop:'1px solid var(--line)' }}>
+            <div style={{ background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:8, padding:'8px 12px', fontSize:13, color:'#166534', whiteSpace:'pre-wrap', maxHeight:100, overflowY:'auto' }}>
+              {action.mensagem || ''}
+            </div>
+            <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+              <input
+                type="tel"
+                placeholder="(11) 99999-9999 — número do tutor"
+                value={tel}
+                onChange={(e) => setTel(e.target.value)}
+                style={{ flex:1, padding:'8px 12px', borderRadius:9, border:'1.5px solid var(--line)', fontSize:13, fontFamily:'inherit' }}
+                disabled={done}
+              />
+              <button className="vt-ia-acard-btn" onClick={execWA} disabled={done} style={{ whiteSpace:'nowrap' }}>
+                {done ? '✓ Enviado' : '📱 Abrir WhatsApp'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="vt-ia-acard" style={{ opacity: done ? .6 : 1 }}>
