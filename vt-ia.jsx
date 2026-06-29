@@ -311,8 +311,22 @@ function vtExecuteAction(action, showDoc) {
   }
   if (action.type === 'whatsapp') {
     const msg = encodeURIComponent(action.mensagem || '');
-    const tel = (action.tel || '').replace(/\D/g,'');
-    window.open(`https://wa.me/${tel ? '55'+tel : ''}?text=${msg}`, '_blank');
+    /* tenta buscar número real do tutor nos owners cadastrados */
+    let tel = (action.tel || '').replace(/\D/g,'');
+    if (!tel) {
+      const d = window.VtStore?.getData() || {};
+      const owners = d.owners || [];
+      const nomeAlvo = (action.para || '').toLowerCase();
+      const owner = owners.find((o) => o.name && o.name.toLowerCase().includes(nomeAlvo.split(' ')[0]));
+      if (owner) {
+        const rawTel = (owner.whats || owner.phone || '').replace(/\D/g,'');
+        if (rawTel.length >= 10) tel = rawTel;
+      }
+    }
+    const url = tel
+      ? `https://api.whatsapp.com/send?phone=55${tel}&text=${msg}`
+      : `https://api.whatsapp.com/send?text=${msg}`;
+    window.open(url, '_blank');
     return;
   }
   if (action.type === 'agendar') {
@@ -404,18 +418,57 @@ function smartReply(q, role, contextPatientId) {
     }
   }
 
+  /* ── Diagnóstico diferencial ── */
+  if (lower.includes('diagnóstico diferencial') || lower.includes('diferencial') || lower.includes('halitose') || lower.includes('sialorreia')) {
+    const sinais = lower.includes('sialorreia') || lower.includes('dificuldade de mastigação') || lower.includes('dificuldade mastigação');
+    if (sinais || lower.includes('felino') || lower.includes('gato')) {
+      return `🔎 **Diagnóstico diferencial — felino com halitose + sialorreia + disfagia:**\n\n**1° Doença periodontal grau III–IV** (mais provável)\n• Acúmulo de cálculo, bolsas periodontais profundas, exposição de furca\n• Dx: sondagem + radiografia intraoral\n\n**2° Estomatite crônica felina (GECF)**\n• Inflamação difusa de mucosa oral, dor intensa, sialorreia profusa\n• Associação com FCV, FHV-1, FIV/FeLV\n• Dx: biópsia + sorologias\n\n**3° Lesões de reabsorção dentária (RL)**\n• Dor aguda à sondagem no colo dentário\n• Dx: radiografia intraoral (lesões radiolúcidas subgengivais)\n\n**4° Neoplasia oral**\n• Carcinoma de células escamosas (localizado em língua/amígdala/gengiva)\n• Crescimento rápido, ulceração, halitose fétida\n• Dx: biópsia + TC\n\n**5° Corpo estranho oral**\n• Sialorreia aguda, dor localizada, meneio de cabeça\n• Dx: inspeção + radiografia\n\n**Conduta imediata:** hemograma + bioquímica, sorologias FIV/FeLV, radiografia intraoral sob anestesia.` + AVISO;
+    }
+    return `🔎 **Diagnóstico diferencial para halitose:**\n\n• **Doença periodontal** — causa mais comum em cães e gatos\n• **Corpo estranho oral** — osso, espinho, graveto\n• **Neoplasia oral** — crescimento, úlcera, sangramento\n• **IRC (uremia)** — halitose de amônia em animais geriátricos\n• **Diabetes mellitus** — halitose cetônica\n• **Estomatite felina (GECF)** — em gatos com sialorreia\n\nInforme a espécie, sinais e duração para diagnóstico mais preciso.` + AVISO;
+  }
+
+  /* ── Anestesia / protocolos ── */
+  if (lower.includes('cetamina') || lower.includes('propofol') || lower.includes('midazolam') || lower.includes('dexmedeto') || lower.includes('protocolo anestés')) {
+    const hasPeso = /(\d+[\.,]?\d*)\s*kg/.exec(lower);
+    const peso = hasPeso ? parseFloat(hasPeso[1].replace(',','.')) : null;
+    const especie = lower.includes('gato') || lower.includes('felino') ? 'felino' : lower.includes('equino') || lower.includes('cavalo') ? 'equino' : 'canino';
+    if (especie === 'canino') {
+      const base = peso ? `(para ${peso}kg)` : '';
+      return `💉 **Protocolo anestésico canino ${base}:**\n\n**MPA (30–40 min antes):**\n• Acepromazina 0,02–0,05 mg/kg IM ${peso ? `= ${(peso*0.03).toFixed(2)}mg` : ''}\n• Meperidina 4–5 mg/kg IM ${peso ? `= ${(peso*4.5).toFixed(0)}mg` : ''} _ou_ Morfina 0,2–0,5 mg/kg IM\n\n**Indução IV:**\n• Propofol 4–6 mg/kg IV lento ${peso ? `= ${(peso*5).toFixed(0)}mg` : ''}\n_ou_\n• Cetamina 5 mg/kg + Midazolam 0,3 mg/kg IV ${peso ? `= Ket ${(peso*5).toFixed(0)}mg + Mida ${(peso*0.3).toFixed(1)}mg` : ''}\n\n**Manutenção:** Isoflurano 1,2–2% em O₂\n\n**Analgesia peri-op:**\n• Meloxicam 0,2 mg/kg IV/SC pré-op ${peso ? `= ${(peso*0.2).toFixed(2)}mg` : ''}\n• Tramadol 2–4 mg/kg IM ${peso ? `= ${(peso*3).toFixed(0)}mg` : ''}\n\n**Bloqueio locoregional:** lidocaína 2% + bupivacaína 0,5% para nervos alveolares.` + AVISO;
+    }
+    if (especie === 'felino') {
+      return `💉 **Protocolo anestésico felino ${peso ? `(${peso}kg)` : ''}:**\n\n**MPA:**\n• Dexmedetomidina 10–20 mcg/kg IM ${peso ? `= ${(peso*15).toFixed(0)}mcg` : ''}\n• Butorfanol 0,2–0,4 mg/kg IM ${peso ? `= ${(peso*0.3).toFixed(2)}mg` : ''}\n\n**Indução:**\n• Cetamina 5 mg/kg + Midazolam 0,2 mg/kg IM ${peso ? `= Ket ${(peso*5).toFixed(0)}mg + Mida ${(peso*0.2).toFixed(1)}mg` : ''}\n_ou_ Propofol 3–5 mg/kg IV lento\n\n**Manutenção:** Isoflurano 1,0–1,5% em O₂\n\n**Analgesia:**\n• Meloxicam 0,05 mg/kg SC ${peso ? `= ${(peso*0.05).toFixed(2)}mg` : ''} (1 dose)\n• Bloqueio infraorbital com bupivacaína 0,25% (0,1 mL/ponto)` + AVISO;
+    }
+    if (especie === 'equino') {
+      return `💉 **Protocolo anestésico equino ${peso ? `(${peso}kg)` : ''}:**\n\n**Sedação em estação (campo):**\n• Xilazina 1,1 mg/kg IV ${peso ? `= ${(peso*1.1).toFixed(0)}mg` : ''}\n• Butorfanol 0,02–0,05 mg/kg IV ${peso ? `= ${(peso*0.03).toFixed(0)}mg` : ''}\n\n**Indução (campo):**\n• Cetamina 2,2 mg/kg IV ${peso ? `= ${(peso*2.2).toFixed(0)}mg` : ''}\n• Midazolam 0,05–0,1 mg/kg IV ${peso ? `= ${(peso*0.07).toFixed(0)}mg` : ''}\n\n**Manutenção (clínica):** Isoflurano em circuito fechado equino\n\n**AINE:** Flunixin meglumine 1,1 mg/kg IV ${peso ? `= ${(peso*1.1).toFixed(0)}mg` : ''} ou Meloxicam 0,6 mg/kg VO` + AVISO;
+    }
+  }
+
+  /* ── Odontoplastia equina ── */
+  if (lower.includes('odontoplastia') || lower.includes('nivelamento') || lower.includes('diastema') || lower.includes('gancho') || lower.includes('ponta de esmalte')) {
+    return `🐴 **Protocolo de Odontoplastia Equina:**\n\n**1. Preparo e sedação**\n• Xilazina 0,5–1,0 mg/kg IV + Butorfanol 0,02 mg/kg IV\n• Espéculo oral + fonte de luz\n• Avaliação com sonda dentária e espelho odontológico\n\n**2. Nivelamento odontológico**\n• Remoção de pontas de esmalte (burs manuais ou elétricos)\n• Eliminar ganchos no 106/206 (maxila) e 311/411 (mandíbula)\n• Corrigir degraus e ondas\n• Redução de diastemas com cureta periodontal\n\n**3. Extrações (se indicado)**\n• Dentes de lobo (pré-molares rudimentares) com elevador periosteal\n• Elementos com mobilidade grau III ou suporte ósseo < 25%\n\n**4. Pós-procedimento**\n• Meloxicam 0,6 mg/kg VO 1x/dia por 3–5 dias\n• Dieta de feno macio 5–7 dias\n• Evitar pellet duro por 10 dias\n• Reavaliação em 6 meses\n\n**Equipamentos:** boroscopio bucal + afastadores labiais + burs de tungstênio + seringa de irrigação com solução salina.` + AVISO;
+  }
+
+  /* ── Estomatite felina ── */
+  if (lower.includes('estomatite') || lower.includes('gecf') || lower.includes('gengivoestomatite')) {
+    return `**Estomatite Crônica Felina (GECF):**\n\n**Clínica:** sialorreia, anorexia, disfagia, perda de peso, halitose intensa, mucosa avermelhada/ulcerada além da linha mucogengival\n\n**Diagnóstico:** biópsia (plasmócitos + linfócitos), sorologias FIV/FeLV/FCV\n\n**Tratamento:**\n• **1ª linha:** extração de todos os dentes pré-molares e molares (± caninos e incisivos)\n• Remissão em 60–80% dos casos com extração total\n• **Pós-op:** prednisolona 1 mg/kg/dia reduzindo em 4 semanas\n• ATB: amoxicilina+clav 20 mg/kg 12/12h por 10 dias\n• Interferon ômega felino (se disponível) 1M UI/dia por 90 dias\n\n**Prognóstico:** depende da extensão; resposta parcial pode requerer imunomodulação de longo prazo.` + AVISO;
+  }
+
   if (lower.includes('eotrh'))
     return '**EOTRH:** Lesões nodulares em incisivos/caninos de equinos. Dx: radiografia intraoral. Tx: exodontia + AINE. Pós-op: lavagem das cavernosas + retorno em 10–14 dias.' + AVISO;
   if (lower.includes('periodontite') || lower.includes('doença periodontal'))
     return '**Doença Periodontal:**\n• Grau I: profilaxia + higiene\n• Grau II: curetagem + ATB\n• Grau III: exodontia seletiva + ATB\n• Grau IV: exodontia\n\nATB: Amoxicilina+Clav 20 mg/kg 12/12h 7–10d' + AVISO;
-  if (lower.includes('profilaxia') || lower.includes('limpeza'))
+  if (lower.includes('profilaxia') || lower.includes('limpeza dental') || lower.includes('detartragem'))
     return '**Protocolo Profilaxia:** US supragengival → curetagem manual → sondagem → radiografias → polimento → extrações indicadas → orientação do tutor' + AVISO;
   if (lower.includes('receituário') || lower.includes('receita') || lower.includes('prescri'))
     return '**Modelo Receituário:**\n• Meloxicam [dose] VO 1x/dia [X]d\n• Amoxicilina+Clav [dose] VO 12/12h 7d\n• Clorexidina 0,12% gel 2x/dia 7d\n• Dieta pastosa [X] dias\n• Retorno em [X] dias' + AVISO;
-  if (lower.includes('pré-anest') || lower.includes('exame') || lower.includes('hemograma'))
+  if (lower.includes('pré-anest') || lower.includes('exame pré') || lower.includes('hemograma'))
     return '**Exames pré-anestésicos:**\n• Mínimo: hemograma + ALT + FA + ureia + creatinina\n• Idosos/ASA II+: + proteínas, albumina, glicose, ECG, Rx tórax\n• Equinos: + hemogasometria + fibrinogênio' + AVISO;
+  if (lower.includes('fratura') || lower.includes('dente fraturado') || lower.includes('coroa fraturada')) {
+    return `**Fratura Dentária — Classificação e Conduta:**\n\n**Classe I (esmalte):** desgaste com punta diamantada, polimento, aplicação de flúor\n**Classe II (esmalte + dentina, polpa fechada):** restauração com ionômero de vidro + resina\n**Classe III (exposição de polpa, recente):** pulpotomia vital + restauração _ou_ endodontia\n**Classe IV (exposição de polpa, crônica):** endodontia ou exodontia\n**Classe V (fratura de raiz):** exodontia cirúrgica\n\nDx: sondagem + radiografia intraoral + teste de vitalidade pulpar.` + AVISO;
+  }
 
-  return `Como copiloto **Clínica**, posso ajudar com:\n• Diagnóstico assistido e diferencial\n• Planos terapêuticos passo a passo\n• Cálculo de doses pelo peso real\n• Geração de laudos, receituários e termos\n• Orientações pós-operatórias\n\nDescreva o caso ou selecione uma opção acima!` + AVISO;
+  return `Como copiloto **Clínica**, posso ajudar com:\n• Diagnóstico diferencial (descreva os sinais)\n• Protocolos anestésicos (informe espécie e peso)\n• Planos terapêuticos passo a passo\n• Cálculo de doses\n• Laudos, receituários e termos\n• Odontoplastia equina, estomatite felina, EOTRH, periodontite\n\nDescreva o caso!` + AVISO;
 }
 
 /* ───── FORMATADOR DE TEXTO ───── */

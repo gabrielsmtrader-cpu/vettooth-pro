@@ -1,134 +1,351 @@
-﻿/* ============================================================
-   VetTooth Pro — telas de Login e Cadastro
+/* ============================================================
+   VetTooth Pro — Auth v2 (Login + Cadastro)
+   Design premium, CRMV, força da senha, WhatsApp tutor
+   Branch: gabriel
    ============================================================ */
+
+/* força da senha */
+function pwStrength(p) {
+  if (!p) return 0;
+  let s = 0;
+  if (p.length >= 6) s++;
+  if (p.length >= 10) s++;
+  if (/[A-Z]/.test(p)) s++;
+  if (/[0-9]/.test(p)) s++;
+  if (/[^A-Za-z0-9]/.test(p)) s++;
+  return s; // 0-5
+}
+function PwBar({ pw }) {
+  const s = pwStrength(pw);
+  const color = s <= 1 ? '#ef4444' : s <= 2 ? '#f97316' : s <= 3 ? '#eab308' : '#22c55e';
+  const label = ['', 'Muito fraca', 'Fraca', 'Razoável', 'Boa', 'Forte'][s] || '';
+  if (!pw) return null;
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div style={{ height: 4, borderRadius: 99, background: '#e5e7eb', overflow: 'hidden' }}>
+        <div style={{ width: `${(s / 5) * 100}%`, height: '100%', background: color, borderRadius: 99, transition: 'width .3s, background .3s' }} />
+      </div>
+      <span style={{ fontSize: 11, color, fontWeight: 600, marginTop: 2, display: 'block' }}>{label}</span>
+    </div>
+  );
+}
+
+/* campo genérico */
+function AF({ label, type = 'text', value = '', onChange, placeholder, required, children }) {
+  return (
+    <label className="vtf" style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
+      <span className="vtf-label" style={{ fontSize: 13, fontWeight: 700 }}>
+        {label}{required && <i className="vtf-req" style={{ color: 'var(--teal)', marginLeft: 2, fontStyle: 'normal' }}>*</i>}
+      </span>
+      <input
+        className="vtf-input"
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{ padding: '11px 14px', borderRadius: 10, border: '1.5px solid var(--line)', fontSize: 14, fontFamily: 'inherit', background: '#fff', transition: 'border .15s' }}
+        onFocus={(e) => e.target.style.borderColor = 'var(--teal)'}
+        onBlur={(e) => e.target.style.borderColor = 'var(--line)'}
+      />
+      {children}
+    </label>
+  );
+}
+
 function AuthScreen({ onAuthed }) {
-  const [mode, setMode] = vtUseState('login');
-  const [f, setF] = vtUseState({});
-  const [err, setErr] = vtUseState('');
-  const [show, setShow] = vtUseState(false);
-  const [reset, setReset] = vtUseState(null); // null | {step:'email'|'code', email, code}
+  const [mode, setMode]     = vtUseState('login'); // 'login' | 'signup' | 'reset'
+  const [step, setStep]     = vtUseState(1);        // signup steps
+  const [f, setF]           = vtUseState({});
+  const [err, setErr]       = vtUseState('');
+  const [loading, setLoad]  = vtUseState(false);
+  const [showPw, setShowPw] = vtUseState(false);
+  const [resetState, setRS] = vtUseState(null); // {email, code?, sentCode?}
+
   const s = (k) => (v) => { setF((p) => ({ ...p, [k]: v })); setErr(''); };
-  const [rf, setRf] = vtUseState({});
-  const rs = (k) => (v) => { setRf((p) => ({ ...p, [k]: v })); setErr(''); };
 
-  const submit = () => {
-    if (mode === 'login') {
+  /* ── SUBMIT LOGIN ── */
+  const doLogin = () => {
+    if (!f.email || !f.password) return setErr('Preencha email e senha.');
+    setLoad(true);
+    setTimeout(() => {
       const r = window.VtStore.login({ email: f.email, password: f.password });
+      setLoad(false);
       if (!r.ok) return setErr(r.error);
+      if (f.remember) localStorage.setItem('vt-remember', f.email);
       onAuthed(r.user);
-    } else {
-      const r = window.VtStore.register({ name: f.name, clinic: f.clinic, email: f.email, password: f.password, demo: !!f.demo });
-      if (!r.ok) return setErr(r.error);
-      window.VtStore.migrate();
-      onAuthed(r.user);
-    }
+    }, 400);
   };
-  const onKey = (e) => { if (e.key === 'Enter') submit(); };
 
-  const sendReset = () => {
-    const r = window.VtStore.requestReset(rf.email || f.email || '');
+  /* ── SUBMIT CADASTRO ── */
+  const doSignup = () => {
+    if (!f.name || !f.email || !f.password) return setErr('Preencha todos os campos obrigatórios.');
+    if (f.password !== f.password2 && f.password2) return setErr('As senhas não conferem.');
+    if (!f.acceptTerms) return setErr('Aceite os termos de uso para continuar.');
+    setLoad(true);
+    setTimeout(() => {
+      const r = window.VtStore.register({
+        name: f.name, clinic: f.clinic, email: f.email,
+        password: f.password, demo: !!f.demo,
+      });
+      if (!r.ok) { setLoad(false); return setErr(r.error); }
+      /* salvar campos extras no perfil */
+      window.VtStore.updateProfile({ crmv: f.crmv || '', crmvUF: f.crmvuf || 'SP', phone: f.phone || '', specialty: f.specialty || 'Odontologia Veterinária' });
+      window.VtStore.migrate();
+      setLoad(false);
+      onAuthed(r.user);
+    }, 600);
+  };
+
+  /* ── RESET DE SENHA ── */
+  const doSendReset = () => {
+    const r = window.VtStore.requestReset(resetState?.email || f.email || '');
     if (!r.ok) return setErr(r.error);
-    // sem servidor real: mostramos o código na própria tela (simula o email)
-    setReset({ step: 'code', email: r.email });
-    window.vtToast(`Código enviado para ${r.email}: ${r.code}`, 'ok');
-    setRf((p) => ({ ...p, email: r.email, sentCode: r.code }));
+    setRS({ email: r.email, sentCode: r.code });
+    window.vtToast && window.vtToast(`Código (simulado): ${r.code}`, 'ok');
   };
   const doConfirmReset = () => {
-    const r = window.VtStore.confirmReset(reset.email, rf.code || '', rf.nova || '');
+    const r = window.VtStore.confirmReset(resetState.email, f.resetCode || '', f.newPw || '');
     if (!r.ok) return setErr(r.error);
-    window.vtToast('Senha redefinida! Faça login.', 'ok');
-    setReset(null); setRf({}); setMode('login'); setErr('');
+    window.vtToast && window.vtToast('Senha redefinida! Faça login.', 'ok');
+    setMode('login'); setRS(null); setF({}); setErr('');
   };
 
-  return (
-    <div className="vt-auth">
-      <div className="vt-auth-art">
-        <div className="vt-auth-brand">
-          <VtLogoMark />
-          <div className="vt-logo-text" style={{ color: '#fff' }}>VETTOOTH <span style={{ color: 'var(--teal)' }}>PRO</span></div>
-        </div>
-        <h2 className="vt-auth-tag">Odontologia veterinária<br />premium, num só lugar.</h2>
-        <ul className="vt-auth-list">
-          <li><span>🦷</span> Odontograma equino, canino e felino</li>
-          <li><span>📋</span> Prontuário, agenda e financeiro</li>
-          <li><span>🤖</span> Copiloto de IA clínica e administrativa</li>
-          <li><span>🔒</span> Seus dados salvos com segurança</li>
-        </ul>
-        <div className="vt-auth-foot">Dentalis Vet · VetTooth Pro</div>
+  /* ── AUTO-FILL remember ── */
+  vtUseEffect(() => {
+    const saved = localStorage.getItem('vt-remember');
+    if (saved) setF((p) => ({ ...p, email: saved, remember: true }));
+  }, []);
+
+  const onKey = (e) => { if (e.key === 'Enter') mode === 'login' ? doLogin() : null; };
+
+  /* ──────────────────── PAINEL ESQUERDO ──────────────────── */
+  const ArtPanel = () => (
+    <div className="vt-auth-art" style={{ position: 'relative', overflow: 'hidden' }}>
+      {/* decoração */}
+      <div style={{ position: 'absolute', top: -80, right: -80, width: 340, height: 340, borderRadius: '50%', background: 'rgba(0,201,167,.07)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: -60, left: -60, width: 260, height: 260, borderRadius: '50%', background: 'rgba(0,201,167,.05)', pointerEvents: 'none' }} />
+
+      <div className="vt-auth-brand">
+        <VtLogoMark />
+        <div className="vt-logo-text" style={{ color: '#fff' }}>VETTOOTH <span style={{ color: 'var(--teal)' }}>PRO</span></div>
       </div>
 
+      <div style={{ margin: 'auto 0', paddingBottom: 24 }}>
+        <h2 className="vt-auth-tag" style={{ lineHeight: 1.25 }}>
+          O copiloto que a odontologia veterinária merecia.
+        </h2>
+        <p style={{ color: '#94adbf', fontSize: 15, lineHeight: 1.65, margin: '0 0 32px' }}>
+          Do odontograma ao financeiro, da IA clínica ao WhatsApp com tutores — tudo num só sistema.
+        </p>
+        <ul className="vt-auth-list">
+          <li><span>🦷</span> Odontograma equino, canino e felino</li>
+          <li><span>🤖</span> VetIA Pro — diagnóstico, documentos e secretaria</li>
+          <li><span>📋</span> Prontuário, agenda, estoque e financeiro</li>
+          <li><span>📱</span> WhatsApp com tutores integrado</li>
+          <li><span>🔒</span> Dados salvos e protegidos no seu navegador</li>
+        </ul>
+      </div>
+
+      <div className="vt-auth-foot" style={{ color: '#4a6a82' }}>Dentalis Vet · VetTooth Pro · 2026</div>
+    </div>
+  );
+
+  /* ──────────────────── TELA DE LOGIN ──────────────────── */
+  if (mode === 'login') return (
+    <div className="vt-auth">
+      <ArtPanel />
       <div className="vt-auth-form-wrap">
         <div className="vt-auth-card">
-          {reset ? (
-            <div>
-              <h1 className="vt-auth-title">Recuperar senha</h1>
-              <p className="vt-auth-sub">{reset.step === 'email' ? 'Informe seu email para enviarmos um código de redefinição.' : `Enviamos um código para ${reset.email}. Digite-o abaixo e escolha a nova senha.`}</p>
-              {reset.step === 'email' ? (
-                <>
-                  <VtEmailField label="Email da conta" value={rf.email} onChange={rs('email')} required />
-                  {err && <div className="vt-auth-err">{err}</div>}
-                  <button className="vt-auth-submit" onClick={sendReset}>Enviar código</button>
-                </>
-              ) : (
-                <>
-                  {rf.sentCode && <div className="vt-auth-codebox">Código (simulado p/ este navegador): <b>{rf.sentCode}</b></div>}
-                  <VtField label="Código recebido" value={rf.code} onChange={rs('code')} placeholder="000000" required />
-                  <label className="vtf">
-                    <span className="vtf-label">Nova senha<i className="vtf-req">*</i></span>
-                    <span className="vtf-inputwrap"><input className="vtf-input" type={show ? 'text' : 'password'} value={rf.nova || ''} placeholder="Mínimo 6 caracteres" onChange={(e) => rs('nova')(e.target.value)} /><button type="button" className="vtf-eye" onClick={() => setShow(!show)}>{show ? '🙈' : '👁'}</button></span>
-                  </label>
-                  {err && <div className="vt-auth-err">{err}</div>}
-                  <button className="vt-auth-submit" onClick={doConfirmReset}>Redefinir senha</button>
-                </>
-              )}
-              <div className="vt-auth-switch"><button onClick={() => { setReset(null); setErr(''); }}>← Voltar ao login</button></div>
-            </div>
-          ) : (
-          <React.Fragment>
           <div className="vt-auth-tabs">
-            <button className={mode === 'login' ? 'active' : ''} onClick={() => { setMode('login'); setErr(''); }}>Entrar</button>
-            <button className={mode === 'signup' ? 'active' : ''} onClick={() => { setMode('signup'); setErr(''); }}>Criar conta</button>
+            <button className="active">Entrar</button>
+            <button onClick={() => { setMode('signup'); setErr(''); setStep(1); }}>Criar conta</button>
           </div>
 
-          <h1 className="vt-auth-title">{mode === 'login' ? 'Bem-vindo de volta' : 'Crie sua conta'}</h1>
-          <p className="vt-auth-sub">{mode === 'login' ? 'Acesse o painel da sua clínica.' : 'Comece a usar o VetTooth Pro agora.'}</p>
+          <h1 className="vt-auth-title">Bem-vindo de volta 👋</h1>
+          <p className="vt-auth-sub">Acesse o painel da sua clínica.</p>
 
-          {mode === 'signup' && (
-            <>
-              <VtField label="Seu nome" value={f.name} onChange={s('name')} placeholder="Dra. Sofia Silva" required />
-              <VtField label="Nome da clínica" value={f.clinic} onChange={s('clinic')} placeholder="Dentalis Vet" />
-            </>
-          )}
-          <VtEmailField label="Email" value={f.email} onChange={s('email')} required />
-          {mode === 'signup' && (
-            <label className="vt-check-inline" style={{ margin: '4px 0 10px' }}>
-              <input type="checkbox" checked={!!f.demo} onChange={(e) => s('demo')(e.target.checked)} /> Começar com dados de demonstração (senão, workspace vazio)
-            </label>
-          )}
-          <label className="vtf">
-            <span className="vtf-label">Senha<i className="vtf-req">*</i></span>
-            <span className="vtf-inputwrap">
-              <input className="vtf-input" type={show ? 'text' : 'password'} value={f.password || ''}
-                placeholder="Mínimo 6 caracteres" onChange={(e) => s('password')(e.target.value)} onKeyDown={onKey} />
-              <button type="button" className="vtf-eye" onClick={() => setShow(!show)}>{show ? '🙈' : '👁'}</button>
+          <AF label="Email profissional" type="email" value={f.email || ''} onChange={s('email')} placeholder="seu@email.com" required />
+
+          <label className="vtf" style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 4 }}>
+            <span className="vtf-label" style={{ fontSize: 13, fontWeight: 700 }}>Senha<i className="vtf-req" style={{ color: 'var(--teal)', marginLeft: 2, fontStyle: 'normal' }}>*</i></span>
+            <span className="vtf-inputwrap" style={{ position: 'relative', display: 'flex' }}>
+              <input className="vtf-input" type={showPw ? 'text' : 'password'} value={f.password || ''}
+                placeholder="••••••••" onChange={(e) => s('password')(e.target.value)} onKeyDown={onKey}
+                style={{ flex: 1, padding: '11px 46px 11px 14px', borderRadius: 10, border: '1.5px solid var(--line)', fontSize: 14, fontFamily: 'inherit' }}
+              />
+              <button type="button" className="vtf-eye" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', fontSize: 16, cursor: 'pointer' }}>{showPw ? '🙈' : '👁️'}</button>
             </span>
           </label>
 
-          {err && <div className="vt-auth-err">{err}</div>}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '8px 0 16px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: 'var(--muted)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={!!f.remember} onChange={(e) => s('remember')(e.target.checked)} style={{ accentColor: 'var(--teal)' }} />
+              Lembrar-me
+            </label>
+            <button type="button" className="vt-auth-forgot" onClick={() => { setMode('reset'); setRS({ email: f.email || '' }); setErr(''); }}>Esqueci a senha</button>
+          </div>
 
-          {mode === 'login' && !reset && <button type="button" className="vt-auth-forgot" onClick={() => { setReset({ step: 'email', email: f.email || '' }); setRf({ email: f.email || '' }); setErr(''); }}>Esqueci minha senha</button>}
+          {err && <div className="vt-auth-err" style={{ marginBottom: 12 }}>{err}</div>}
 
-          <button className="vt-auth-submit" onClick={submit}>
-            {mode === 'login' ? 'Entrar' : 'Criar conta e entrar'}
+          <button className="vt-auth-submit" onClick={doLogin} disabled={loading} style={{ position: 'relative' }}>
+            {loading ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span className="vt-spin" />Entrando...</span> : 'Entrar no painel →'}
           </button>
 
-          <div className="vt-auth-switch">
-            {mode === 'login'
-              ? <span>Não tem conta? <button onClick={() => { setMode('signup'); setErr(''); }}>Cadastre-se</button></span>
-              : <span>Já tem conta? <button onClick={() => { setMode('login'); setErr(''); }}>Entrar</button></span>}
+          <div className="vt-auth-switch" style={{ marginTop: 20 }}>
+            <span>Novo aqui? <button onClick={() => { setMode('signup'); setErr(''); setStep(1); }}>Crie sua conta grátis</button></span>
           </div>
-          {mode === 'login' && <div className="vt-auth-demo">Dica: crie uma conta — os dados ficam salvos neste navegador.</div>}
-          </React.Fragment>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* ──────────────────── TELA DE RESET ──────────────────── */
+  if (mode === 'reset') return (
+    <div className="vt-auth">
+      <ArtPanel />
+      <div className="vt-auth-form-wrap">
+        <div className="vt-auth-card">
+          <button type="button" onClick={() => { setMode('login'); setErr(''); }} style={{ border: 'none', background: 'none', color: 'var(--teal-d)', fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 16, padding: 0 }}>← Voltar ao login</button>
+          <h1 className="vt-auth-title">Recuperar senha 🔐</h1>
+
+          {!resetState?.sentCode ? (
+            <>
+              <p className="vt-auth-sub">Informe seu email para receber o código de redefinição.</p>
+              <AF label="Email da conta" type="email" value={resetState?.email || ''} onChange={(v) => setRS((r) => ({ ...r, email: v }))} placeholder="seu@email.com" required />
+              {err && <div className="vt-auth-err">{err}</div>}
+              <button className="vt-auth-submit" onClick={doSendReset}>Enviar código</button>
+            </>
+          ) : (
+            <>
+              <div className="vt-auth-codebox" style={{ marginBottom: 16 }}>
+                Código (simulado para este demo): <b style={{ fontSize: 20, letterSpacing: 4 }}>{resetState.sentCode}</b>
+              </div>
+              <AF label="Código recebido" value={f.resetCode || ''} onChange={s('resetCode')} placeholder="000000" required />
+              <label className="vtf" style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
+                <span className="vtf-label" style={{ fontSize: 13, fontWeight: 700 }}>Nova senha<i className="vtf-req" style={{ color: 'var(--teal)', marginLeft: 2, fontStyle: 'normal' }}>*</i></span>
+                <span style={{ position: 'relative', display: 'flex' }}>
+                  <input type={showPw ? 'text' : 'password'} value={f.newPw || ''} onChange={(e) => s('newPw')(e.target.value)} placeholder="Mínimo 6 caracteres"
+                    style={{ flex: 1, padding: '11px 46px 11px 14px', borderRadius: 10, border: '1.5px solid var(--line)', fontSize: 14, fontFamily: 'inherit' }} />
+                  <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', fontSize: 16, cursor: 'pointer' }}>{showPw ? '🙈' : '👁️'}</button>
+                </span>
+                <PwBar pw={f.newPw} />
+              </label>
+              {err && <div className="vt-auth-err">{err}</div>}
+              <button className="vt-auth-submit" onClick={doConfirmReset}>Redefinir senha</button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  /* ──────────────────── TELA DE CADASTRO (2 etapas) ──────────────────── */
+  const specialties = ['Odontologia Veterinária', 'Clínica Geral', 'Cirurgia', 'Diagnóstico por Imagem', 'Oncologia', 'Cardiologia', 'Outro'];
+
+  return (
+    <div className="vt-auth">
+      <ArtPanel />
+      <div className="vt-auth-form-wrap">
+        <div className="vt-auth-card" style={{ maxWidth: 440 }}>
+          <div className="vt-auth-tabs">
+            <button onClick={() => { setMode('login'); setErr(''); }}>Entrar</button>
+            <button className="active">Criar conta</button>
+          </div>
+
+          {/* steps indicator */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+            {[1, 2].map((n) => (
+              <div key={n} style={{ flex: 1, height: 4, borderRadius: 99, background: step >= n ? 'var(--teal)' : 'var(--line)', transition: 'background .3s' }} />
+            ))}
+          </div>
+
+          <h1 className="vt-auth-title" style={{ fontSize: 20 }}>
+            {step === 1 ? 'Crie sua conta 🐾' : 'Dados profissionais 🦷'}
+          </h1>
+          <p className="vt-auth-sub" style={{ marginBottom: 20 }}>
+            {step === 1 ? 'Passo 1 de 2 — Informações básicas' : 'Passo 2 de 2 — Perfil veterinário'}
+          </p>
+
+          {step === 1 && (
+            <>
+              <AF label="Nome completo" value={f.name || ''} onChange={s('name')} placeholder="Dr(a). Gabriel Martinez" required />
+              <AF label="Nome da clínica" value={f.clinic || ''} onChange={s('clinic')} placeholder="Dentalis Vet" />
+              <AF label="Email profissional" type="email" value={f.email || ''} onChange={s('email')} placeholder="seu@email.com" required />
+              <AF label="WhatsApp / Celular" type="tel" value={f.phone || ''} onChange={s('phone')} placeholder="(11) 99999-9999" />
+
+              <label className="vtf" style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 4 }}>
+                <span className="vtf-label" style={{ fontSize: 13, fontWeight: 700 }}>Senha<i className="vtf-req" style={{ color: 'var(--teal)', marginLeft: 2, fontStyle: 'normal' }}>*</i></span>
+                <span style={{ position: 'relative', display: 'flex' }}>
+                  <input type={showPw ? 'text' : 'password'} value={f.password || ''} onChange={(e) => s('password')(e.target.value)} placeholder="Mínimo 6 caracteres"
+                    style={{ flex: 1, padding: '11px 46px 11px 14px', borderRadius: 10, border: '1.5px solid var(--line)', fontSize: 14, fontFamily: 'inherit' }} />
+                  <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', fontSize: 16, cursor: 'pointer' }}>{showPw ? '🙈' : '👁️'}</button>
+                </span>
+                <PwBar pw={f.password} />
+              </label>
+
+              {err && <div className="vt-auth-err" style={{ marginBottom: 12 }}>{err}</div>}
+
+              <button className="vt-auth-submit" style={{ marginTop: 16 }} onClick={() => {
+                if (!f.name || !f.email || !f.password) return setErr('Preencha nome, email e senha.');
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return setErr('Email inválido.');
+                if (pwStrength(f.password) < 2) return setErr('Use uma senha mais forte (mín. 6 caracteres com letras e números).');
+                setErr(''); setStep(2);
+              }}>Próximo →</button>
+
+              <div className="vt-auth-switch" style={{ marginTop: 16 }}>
+                <span>Já tem conta? <button onClick={() => { setMode('login'); setErr(''); }}>Entrar</button></span>
+              </div>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              <label className="vtf" style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
+                <span className="vtf-label" style={{ fontSize: 13, fontWeight: 700 }}>Especialidade</span>
+                <select value={f.specialty || 'Odontologia Veterinária'} onChange={(e) => s('specialty')(e.target.value)}
+                  style={{ padding: '11px 14px', borderRadius: 10, border: '1.5px solid var(--line)', fontSize: 14, fontFamily: 'inherit', background: '#fff' }}>
+                  {specialties.map((sp) => <option key={sp} value={sp}>{sp}</option>)}
+                </select>
+              </label>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ flex: 2 }}>
+                  <AF label="CRMV" value={f.crmv || ''} onChange={s('crmv')} placeholder="12345" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label className="vtf" style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
+                    <span className="vtf-label" style={{ fontSize: 13, fontWeight: 700 }}>UF</span>
+                    <select value={f.crmvuf || 'SP'} onChange={(e) => s('crmvuf')(e.target.value)}
+                      style={{ padding: '11px 10px', borderRadius: 10, border: '1.5px solid var(--line)', fontSize: 14, fontFamily: 'inherit', background: '#fff' }}>
+                      {['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'].map((uf) => <option key={uf}>{uf}</option>)}
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <label className="vt-check-inline" style={{ margin: '0 0 12px', display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer' }}>
+                <input type="checkbox" checked={!!f.demo} onChange={(e) => s('demo')(e.target.checked)} style={{ accentColor: 'var(--teal)', marginTop: 2, flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>
+                  Iniciar com <b style={{ color: 'var(--ink)' }}>dados de demonstração</b> (pacientes, agenda e financeiro de exemplo para explorar o sistema)
+                </span>
+              </label>
+
+              <label className="vt-check-inline" style={{ margin: '0 0 16px', display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer' }}>
+                <input type="checkbox" checked={!!f.acceptTerms} onChange={(e) => s('acceptTerms')(e.target.checked)} style={{ accentColor: 'var(--teal)', marginTop: 2, flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>
+                  Li e aceito os <b style={{ color: 'var(--teal-d)' }}>Termos de Uso</b> e a <b style={{ color: 'var(--teal-d)' }}>Política de Privacidade</b>
+                </span>
+              </label>
+
+              {err && <div className="vt-auth-err" style={{ marginBottom: 12 }}>{err}</div>}
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => { setStep(1); setErr(''); }} style={{ flex: 1, padding: '13px', borderRadius: 11, border: '1.5px solid var(--line)', background: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', color: 'var(--muted)' }}>← Voltar</button>
+                <button className="vt-auth-submit" style={{ flex: 2, margin: 0 }} onClick={doSignup} disabled={loading}>
+                  {loading ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span className="vt-spin" />Criando conta...</span> : '✓ Criar conta e entrar'}
+                </button>
+              </div>
+            </>
           )}
         </div>
       </div>
