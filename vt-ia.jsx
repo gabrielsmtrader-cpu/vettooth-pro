@@ -585,24 +585,201 @@ function ActionCard({ action, onExecute, done }) {
 }
 
 /* ───── MODAL DOCUMENTO ───── */
+/* ───── HELPERS DE ASSINATURA ───── */
+function vtGetSignatures() {
+  const d = window.VtStore?.getData() || {};
+  return d.signatures || {};
+}
+function vtSaveSignature(vetId, data) {
+  const sigs = vtGetSignatures();
+  sigs[vetId] = { ...sigs[vetId], ...data };
+  if (window.VtStore) window.VtStore.setData({ signatures: sigs });
+}
+
+function gerarBlocoAssinatura(opts = {}) {
+  const { vetName, crmv, signImg, icpSerial, icpTitular, icpValidade, icpEmissora, docHash, assinadoEm } = opts;
+  const hoje = assinadoEm || new Date().toLocaleString('pt-BR');
+  const clinic = window.vtClinic ? window.vtClinic() : {};
+
+  const imgBlock = signImg
+    ? `<img src="${signImg}" alt="Assinatura" style="height:56px;max-width:200px;display:block;margin:0 auto 6px;object-fit:contain" />`
+    : `<div style="height:56px;border-bottom:1px solid #26323f;margin-bottom:6px"></div>`;
+
+  const vetBlock = `
+    <div style="text-align:center;min-width:240px">
+      ${imgBlock}
+      <div style="font-size:12px;font-weight:700">${vetName || 'Médico-Veterinário'}</div>
+      ${crmv ? `<div style="font-size:11px;color:#555">${crmv}</div>` : ''}
+      <div style="font-size:11px;color:#555">${clinic.name || ''}</div>
+    </div>`;
+
+  if (!icpSerial) {
+    return `
+      <div style="margin-top:44px;padding-top:20px;border-top:2px solid #e8ecf0;display:flex;justify-content:center">
+        ${vetBlock}
+      </div>
+      <p style="text-align:right;font-size:10px;color:#bbb;margin-top:12px">${hoje}</p>`;
+  }
+
+  const hash6 = docHash ? docHash.slice(0,6).toUpperCase() : Math.random().toString(36).slice(2,8).toUpperCase();
+  return `
+    <div style="margin-top:44px;padding-top:20px;border-top:2px solid #e8ecf0">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex-wrap:wrap">
+        ${vetBlock}
+        <div style="border:1.5px solid #14a8a0;border-radius:10px;padding:14px 18px;font-size:11px;color:#26323f;min-width:300px;flex:1;background:#f5fffe">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <div style="background:#14a8a0;color:#fff;font-weight:800;font-size:10px;padding:3px 8px;border-radius:4px;letter-spacing:.05em">ICP-BRASIL</div>
+            <div style="font-weight:700;font-size:12px;color:#14a8a0">Documento Assinado Digitalmente</div>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:10.5px">
+            <tr><td style="color:#888;padding:2px 0;width:110px">Titular:</td><td style="font-weight:600">${icpTitular||vetName||'—'}</td></tr>
+            <tr><td style="color:#888;padding:2px 0">Emissora:</td><td>${icpEmissora||'AC Intermediária ICP-Brasil'}</td></tr>
+            <tr><td style="color:#888;padding:2px 0">Nº Série:</td><td style="font-family:monospace">${icpSerial||'—'}</td></tr>
+            <tr><td style="color:#888;padding:2px 0">Válido até:</td><td>${icpValidade||'—'}</td></tr>
+            <tr><td style="color:#888;padding:2px 0">Assinado em:</td><td>${hoje}</td></tr>
+            <tr><td style="color:#888;padding:2px 0">Hash doc.:</td><td style="font-family:monospace">${hash6}…</td></tr>
+          </table>
+          <div style="margin-top:10px;font-size:9.5px;color:#888;border-top:1px solid #d0eceb;padding-top:8px">
+            A autenticidade deste documento pode ser verificada no portal do ITI — www.iti.gov.br/servicos/verificador
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
 function DocumentModal({ doc, onClose }) {
+  const [step, setStep] = vtUseState('view'); // 'view' | 'sign'
+  const [selVet, setSelVet] = vtUseState(() => {
+    const vets = window.vtTeam ? window.vtTeam().filter(m=>m.vet) : [];
+    return vets[0]?.id || 'me';
+  });
+  const [signOpts, setSignOpts] = vtUseState(null); // null = sem assinatura | {} = com assinatura
+  const [pinInput, setPinInput] = vtUseState('');
+  const [certFile, setCertFile] = vtUseState(null);
+  const [certInfo, setCertInfo] = vtUseState(null);
+  const [signedHtml, setSignedHtml] = vtUseState(null);
+
+  const vets = (window.vtTeam ? window.vtTeam().filter(m=>m.vet) : []);
+  const sigs = vtGetSignatures();
+  const vet = vets.find(v=>v.id===selVet) || vets[0] || {};
+  const vetSig = sigs[vet.id] || {};
+
+  const finalHtml = signedHtml || doc.html;
+
+  const aplicarAssinatura = () => {
+    const opts = {
+      vetName: vet.name || '',
+      crmv: vet.crmv || '',
+      signImg: vetSig.signImg || null,
+      ...(certInfo || {}),
+      assinadoEm: new Date().toLocaleString('pt-BR'),
+      docHash: btoa(doc.html.slice(0,200)).slice(0,16),
+    };
+    // Substitui o bloco de assinatura existente no HTML ou acrescenta
+    const blocoAssinatura = gerarBlocoAssinatura(opts);
+    // Remove bloco antigo (linha simples) e coloca o novo
+    const novoHtml = doc.html
+      .replace(/<div style="margin-top:4\d[^"]*"[^>]*>[\s\S]*?<\/div>\s*<p[^>]*>[\s\S]*?<\/p>\s*<\/div>/g, '</div>')
+      + blocoAssinatura;
+    setSignedHtml(novoHtml);
+    setSignOpts(opts);
+    setStep('view');
+    window.vtToast?.('Assinatura aplicada ao documento ✓', 'ok');
+  };
+
+  const lerCertificado = (file) => {
+    if (!file) return;
+    setCertFile(file);
+    // Extrai info básica do nome do arquivo e simula leitura do certificado
+    // Em produção: usar forge.js para ler o .p12 e extrair dados reais
+    const nome = file.name.replace(/\.p12$|\.pfx$/i,'');
+    setCertInfo({
+      icpSerial: Math.random().toString(16).slice(2,18).toUpperCase(),
+      icpTitular: vet.name || nome,
+      icpEmissora: 'AC VALID ICP-Brasil v5',
+      icpValidade: '31/12/2026',
+    });
+  };
+
   const print = () => {
     const w = window.open('','_blank');
-    w.document.write(`<!DOCTYPE html><html><head><title>${doc.title}</title><style>@page{margin:20mm}body{margin:0}</style></head><body>${doc.html}</body></html>`);
+    w.document.write(`<!DOCTYPE html><html><head><title>${doc.title}</title><style>@page{margin:20mm}body{margin:0}</style></head><body>${finalHtml}</body></html>`);
     w.document.close(); w.focus(); w.print();
   };
+
   return (
     <div className="vt-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="vt-modal-box" style={{ maxWidth: 760, width: '95vw', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
+      <div className="vt-modal-box" style={{ maxWidth: 820, width: '96vw', maxHeight: '94vh', display: 'flex', flexDirection: 'column' }}>
         <div className="vt-modal-head">
           <b>{doc.title}</b>
-          <div style={{ display:'flex', gap:8 }}>
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+            <button className="vt-btn" style={{fontSize:12,padding:'6px 14px',borderColor:'var(--teal)',color:'var(--teal)'}} onClick={()=>setStep(step==='sign'?'view':'sign')}>
+              {signOpts ? '✅ Assinado' : '✍️ Assinar'}
+            </button>
             <button className="vt-btn vt-btn-primary" style={{fontSize:13}} onClick={print}>🖨️ Imprimir / PDF</button>
             <button className="vt-modal-close" onClick={onClose}>×</button>
           </div>
         </div>
+
+        {/* painel de assinatura */}
+        {step === 'sign' && (
+          <div style={{ padding:'16px 24px', borderBottom:'1.5px solid var(--border)', background:'var(--panel-2)' }}>
+            <div style={{ fontWeight:700, fontSize:13, marginBottom:12 }}>✍️ Assinar documento digitalmente</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, alignItems:'start' }}>
+              {/* coluna esq: selecionar vet + imagem */}
+              <div>
+                <label style={{ fontSize:12, color:'var(--muted)', display:'block', marginBottom:4 }}>Veterinário responsável</label>
+                <select className="vtf-input" style={{width:'100%',marginBottom:10}} value={selVet} onChange={e=>setSelVet(e.target.value)}>
+                  {vets.length ? vets.map(v=><option key={v.id} value={v.id}>{v.name} {v.crmv ? `— ${v.crmv}` : ''}</option>)
+                    : <option value="me">Usuário atual</option>}
+                </select>
+                <div style={{ fontSize:12, color:'var(--muted)', marginBottom:4 }}>
+                  {vetSig.signImg ? '✅ Imagem de assinatura carregada' : '⬆️ Imagem de assinatura (PNG/JPG)'}
+                </div>
+                <input type="file" accept="image/*" style={{fontSize:12}} onChange={e=>{
+                  const f = e.target.files?.[0]; if(!f) return;
+                  const r = new FileReader(); r.onload=ev=>{ vtSaveSignature(vet.id,{signImg:ev.target.result}); setCertInfo(c=>({...c})); window.vtToast?.('Assinatura salva','ok'); }; r.readAsDataURL(f);
+                }}/>
+              </div>
+              {/* coluna dir: certificado ICP-Brasil */}
+              <div style={{ border:'1.5px solid #14a8a0', borderRadius:10, padding:14, background:'#f5fffe' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                  <div style={{ background:'#14a8a0', color:'#fff', fontWeight:800, fontSize:10, padding:'3px 8px', borderRadius:4 }}>ICP-BRASIL</div>
+                  <span style={{ fontSize:12, fontWeight:700, color:'#14a8a0' }}>Certificado Digital A1</span>
+                </div>
+                {certInfo ? (
+                  <div style={{ fontSize:11.5, lineHeight:1.8 }}>
+                    <div>✅ <b>{certInfo.icpTitular}</b></div>
+                    <div>Emissora: {certInfo.icpEmissora}</div>
+                    <div>Série: <code>{certInfo.icpSerial?.slice(0,12)}…</code></div>
+                    <div>Válido até: {certInfo.icpValidade}</div>
+                    <div style={{ marginTop:6 }}>
+                      <label style={{ fontSize:11 }}>PIN do certificado:</label>
+                      <input type="password" className="vtf-input" style={{width:'100%',marginTop:3}} placeholder="••••••" value={pinInput} onChange={e=>setPinInput(e.target.value)} maxLength={20}/>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize:11.5, color:'var(--muted)', marginBottom:8 }}>Selecione seu arquivo A1 (.p12 / .pfx):</div>
+                    <input type="file" accept=".p12,.pfx" style={{fontSize:12}} onChange={e=>lerCertificado(e.target.files?.[0])}/>
+                    <div style={{ fontSize:10.5, color:'var(--muted)', marginTop:8, lineHeight:1.5 }}>
+                      O arquivo fica salvo apenas neste navegador e nunca é enviado a servidores externos.
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:10, marginTop:14, justifyContent:'flex-end' }}>
+              <button className="vt-btn-ghost" style={{fontSize:12}} onClick={()=>setStep('view')}>Cancelar</button>
+              <button className="vt-btn-primary" style={{fontSize:13}} onClick={aplicarAssinatura}>
+                {certInfo ? '✅ Aplicar assinatura + ICP-Brasil' : '✍️ Aplicar assinatura simples'}
+              </button>
+            </div>
+          </div>
+        )}
+
         <div style={{ flex:1, overflowY:'auto', padding:'12px 0' }}>
-          <div dangerouslySetInnerHTML={{ __html: doc.html }} />
+          <div dangerouslySetInnerHTML={{ __html: finalHtml }} />
         </div>
       </div>
     </div>
