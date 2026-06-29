@@ -125,7 +125,7 @@ Formato dos blocos:
 REGRAS:
 • Responda sempre em português do Brasil, de forma clínica e objetiva.
 • Nunca dê diagnóstico definitivo — apresente como hipótese para validação do veterinário.
-• Ao analisar imagens: descreva os achados radiográficos/clínicos detalhadamente.
+• Ao analisar imagens radiográficas: descreva sistematicamente — (1) qualidade técnica da imagem, (2) estruturas dentárias visíveis, (3) osso alveolar e tecido periodontal, (4) achados patológicos (reabsorção, lesão periapical, fratura, calcificação, corpo estranho), (5) hipóteses diagnósticas ordenadas por probabilidade, (6) conduta recomendada. Em radiografias equinas: avalie raízes dos dentes cheios, osso mandibular/maxilar, fístulas, fragmentos. Em felinos e caninos: reserve atenção para reabsorção odontoclástica (FORL) e doença periapical. Sempre esclareça as limitações da interpretação remota por imagem.
 • Calcule doses sempre pelo peso real do paciente (use o peso cadastrado quando disponível).
 • Ao gerar documentos, inclua SEMPRE o bloco [ACAO] com os dados estruturados.
 • Seja conciso mas completo. Use listas quando possível.`;
@@ -769,16 +769,31 @@ function IAModule({ initialPrompt, contextPatientId }) {
 
     try {
       let reply = '';
-      const history = msgs.filter((m) => m.text); // histórico existente
+      const history = msgs.filter((m) => m.text);
 
-      if (window.claude && window.claude.complete && !curImg) {
-        /* modo IDE/Omelette — usa o claude interno */
+      /* imagem presente mas sem API Key — não há como analisar */
+      if (curImg && !hasKey) {
+        setShowKey(true);
+        setMsgs((m) => [...m, {
+          who: 'ia',
+          text: '🔑 **Imagem recebida** — para interpretar radiografias, exames e documentos a IA precisa da **chave de API Anthropic**. A IA local não processa imagens.\n\nClique em **"🔑 Configurar API"** no topo para inserir sua chave. Após configurar, envie a imagem novamente.',
+          cleanText: '',
+        }]);
+        setLoading(false);
+        return;
+      }
+
+      /* imagem presente: sempre usa a API real (IDE mode não suporta visão) */
+      if (curImg && hasKey) {
+        reply = await callClaudeAPI(history, q || 'Analise esta imagem e forneça seu parecer clínico detalhado.', sys, curImg, curMime);
+      } else if (window.claude && window.claude.complete) {
+        /* modo IDE/Omelette — usa o claude interno (sem imagem) */
         reply = await window.claude.complete({ system: sys, prompt: q, max_tokens: 2000 });
       } else if (hasKey) {
-        /* modo produção — usa API Anthropic diretamente */
-        reply = await callClaudeAPI(history, q, sys, curImg || null, curMime || null);
+        /* modo produção sem imagem */
+        reply = await callClaudeAPI(history, q, sys, null, null);
       } else {
-        /* sem chave — fallback smartReply */
+        /* sem chave, sem IDE — fallback smartReply */
         await new Promise((r) => setTimeout(r, 700 + Math.random()*500));
         reply = smartReply(q, roleName, contextPatientId);
       }
@@ -791,10 +806,16 @@ function IAModule({ initialPrompt, contextPatientId }) {
         setShowKey(true);
         setMsgs((m) => [...m, { who: 'ia', text: '🔑 Configure sua **chave de API** para usar a IA completa. Clique em "Configurar API" no canto superior direito.', cleanText: '' }]);
       } else {
-        await new Promise((r) => setTimeout(r, 400));
-        const fb = smartReply(q, roleName, contextPatientId);
-        const { cleanText, actions } = parseActions(fb);
-        setMsgs((m) => [...m, { who: 'ia', text: cleanText || fb, cleanText, actions }]);
+        const errMsg = e.message || '';
+        /* erro de API com imagem: informar claramente */
+        if (curImg) {
+          setMsgs((m) => [...m, { who: 'ia', text: `⚠️ Erro ao analisar imagem: ${errMsg}. Verifique se sua chave de API é válida e tem permissão para usar visão (claude-opus-4-8).`, cleanText: '' }]);
+        } else {
+          await new Promise((r) => setTimeout(r, 400));
+          const fb = smartReply(q, roleName, contextPatientId);
+          const { cleanText, actions } = parseActions(fb);
+          setMsgs((m) => [...m, { who: 'ia', text: cleanText || fb, cleanText, actions }]);
+        }
       }
     }
     setLoading(false);
