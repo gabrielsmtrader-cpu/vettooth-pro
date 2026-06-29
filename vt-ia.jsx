@@ -1015,6 +1015,9 @@ async function gerarPDFComAssinatura(htmlContent, titulo, signOpts) {
   }
 }
 
+// Expõe para outros módulos (ex.: vt-pacientes.jsx)
+window.vtGerarPDF = gerarPDFComAssinatura;
+
 function DocumentModal({ doc, onClose }) {
   const [step, setStep] = vtUseState('view'); // 'view' | 'sign'
   const [selVet, setSelVet] = vtUseState(() => {

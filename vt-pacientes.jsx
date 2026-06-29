@@ -238,7 +238,7 @@ function TransferModal({ patient, onClose, onTransfer }) {
           <>
             <div className="vt-xfer-sec">Propriedade</div>
             {prop ? (
-              <div className="vt-xfer-chip"><span><b>{prop}</b></span><button className="vt-link" onClick={() => { setProp(''); setPropQ(''); }}>Trocar</button></div>
+              <div className="vt-xfer-chip"><span><b>{prop}</b>{prop === (patient.property && patient.property.name) ? <i> (propriedade atual)</i> : null}</span><button className="vt-link" onClick={() => { setProp(''); setPropQ(''); }}>Trocar</button></div>
             ) : (
               <>
                 <div className="vt-search inline" style={{ margin: '2px 0 8px' }}><VtIcon name="search" size={16} /><input placeholder="Buscar ou digitar nova propriedade…" value={propQ} onChange={(e) => setPropQ(e.target.value)} /></div>
@@ -267,6 +267,88 @@ function TransferModal({ patient, onClose, onTransfer }) {
       </div>
     </div>
   );
+}
+
+/* ---- Gerador de PDF da ficha do paciente ---- */
+async function vtGerarFichaPDF(p, ownerData, history, includeInternal) {
+  const clinica = (window.VtStore && window.VtStore.getClinica && window.VtStore.getClinica()) || {};
+  const nomeCli = clinica.nome || 'VetTooth Pro';
+  const last = history[0] || {};
+  const addrOwner = ownerData.address ? [ownerData.address.street, ownerData.address.num, ownerData.address.district, ownerData.address.city, ownerData.address.state].filter(Boolean).join(', ') : '';
+  const tag = (label, val) => val ? `<tr><td style="color:#555;width:140px;padding:3px 8px 3px 0">${label}</td><td style="padding:3px 0"><b>${val}</b></td></tr>` : '';
+  const propBlock = (p.species === 'Cavalo' && p.property && p.property.name) ? `
+    <div style="background:#f5f0e8;border-radius:8px;padding:12px 16px;margin:16px 0">
+      <b style="color:#92633b">🐴 Propriedade: ${p.property.name}</b>
+      <table style="margin-top:6px;font-size:13px;border-collapse:collapse">
+        ${tag('Responsável', p.property.owner)}
+        ${tag('Telefone', p.property.phone)}
+        ${tag('Cidade', [p.property.city, p.property.state].filter(Boolean).join(' – '))}
+        ${tag('Endereço', [p.property.street, p.property.num].filter(Boolean).join(', '))}
+      </table>
+    </div>` : '';
+  const histRows = history.slice(0, 10).map((h) => `
+    <tr style="border-bottom:1px solid #eee">
+      <td style="padding:5px 8px">${h.date || '—'}</td>
+      <td style="padding:5px 8px">${h.type || 'Atendimento'}</td>
+      <td style="padding:5px 8px">${(h.vet || '').replace('M.V. ', '')}</td>
+      <td style="padding:5px 8px">${h.status === 'finalizado' ? '✅ Concluído' : '⏳ Andamento'}</td>
+    </tr>`).join('');
+  const internalBlock = includeInternal && p.obsInterna ? `
+    <div style="background:#fff3f3;border:1px solid #fca5a5;border-radius:8px;padding:12px 16px;margin:16px 0">
+      <b style="color:#dc2626">🔒 Notas Internas (uso clínico)</b>
+      <p style="margin:8px 0 0;font-size:13px">${p.obsInterna}</p>
+    </div>` : '';
+  const html = `
+  <div style="font-family:Arial,sans-serif;color:#1a1a2e;padding:32px;max-width:760px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;border-bottom:2px solid #14a8a0;padding-bottom:16px">
+      <div style="width:56px;height:56px;border-radius:50%;background:#14a8a0;color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center">${p.name[0]}</div>
+      <div><h1 style="margin:0;font-size:22px">${p.name} <span style="font-size:14px;color:#777">${window.vtPacienteCode ? window.vtPacienteCode(p) : p.id}</span></h1>
+        <p style="margin:4px 0 0;font-size:14px;color:#555">${p.species} · ${p.breed} · ${p.sex}${p.neutered ? ' (castrado)' : ''} · ${p.weight || '—'} · Tutor: ${p.owner}</p>
+      </div>
+      <div style="margin-left:auto;text-align:right;font-size:12px;color:#777"><b>${nomeCli}</b><br>Emitido em ${new Date().toLocaleDateString('pt-BR')}</div>
+    </div>
+    ${(p.allergies || []).length ? `<div style="background:#fef2f2;border-left:4px solid #dc2626;padding:10px 14px;margin-bottom:16px;border-radius:0 6px 6px 0"><b style="color:#dc2626">⚠ Alergias:</b> ${p.allergies.join(', ')}</div>` : ''}
+    ${p.asa && p.asa !== 'ASA I' ? `<div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 6px 6px 0"><b style="color:#d97706">⚠ Risco Anestésico: ${p.asa}</b></div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div style="background:#f8fffe;border-radius:8px;padding:14px 16px">
+        <b style="font-size:13px;text-transform:uppercase;color:#14a8a0">Dados do Paciente</b>
+        <table style="margin-top:8px;font-size:13px;border-collapse:collapse;width:100%">
+          ${tag('Nascimento', p.birth)} ${tag('Porte', p.size)} ${tag('Pelagem', p.color)}
+          ${tag('Microchip', p.chip)} ${tag('RGA', p.rga)} ${tag('ASA', p.asa)}
+          ${tag('Convênio', p.plan && p.plan !== '—' ? p.plan : '')}
+          ${(p.diseases || []).length ? tag('Doenças crônicas', p.diseases.join(', ')) : ''}
+          ${(p.meds || []).length ? tag('Uso contínuo', p.meds.join(', ')) : ''}
+        </table>
+      </div>
+      <div style="background:#f8f8ff;border-radius:8px;padding:14px 16px">
+        <b style="font-size:13px;text-transform:uppercase;color:#16395f">Dados do Responsável</b>
+        <table style="margin-top:8px;font-size:13px;border-collapse:collapse;width:100%">
+          ${tag('CPF', ownerData.cpf)} ${tag('WhatsApp', ownerData.whats)} ${tag('Telefone', ownerData.phone)}
+          ${tag('E-mail', ownerData.email)} ${tag('Nascimento', ownerData.birth)}
+          ${addrOwner ? tag('Endereço', addrOwner) : tag('Cidade', ownerData.city)}
+        </table>
+      </div>
+    </div>
+    ${propBlock}
+    ${p.obs ? `<div style="background:#f8fffe;border-radius:8px;padding:12px 16px;margin-bottom:16px"><b>Observações:</b><p style="margin:6px 0 0;font-size:13px">${p.obs}</p></div>` : ''}
+    ${internalBlock}
+    ${histRows ? `<div style="margin-top:20px"><b style="font-size:13px;text-transform:uppercase;color:#14a8a0">Histórico de Atendimentos</b>
+      <table style="width:100%;margin-top:10px;border-collapse:collapse;font-size:13px">
+        <tr style="background:#14a8a0;color:#fff"><th style="padding:7px 8px;text-align:left">Data</th><th style="padding:7px 8px;text-align:left">Tipo</th><th style="padding:7px 8px;text-align:left">Veterinário</th><th style="padding:7px 8px;text-align:left">Status</th></tr>
+        ${histRows}
+      </table></div>` : ''}
+    <div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;font-size:11px;color:#aaa;text-align:center">${nomeCli} · Documento gerado em ${new Date().toLocaleString('pt-BR')}${includeInternal ? ' · CÓPIA CLÍNICA' : ' · CÓPIA PARA O TUTOR'}</div>
+  </div>`;
+  // Usa window.vtGerarPDF (exposto por vt-ia.jsx), senão fallback para janela de impressão
+  if (typeof window.vtGerarPDF === 'function') {
+    await window.vtGerarPDF(html, `Ficha_${p.name.replace(/\s+/g,'_')}`, {});
+  } else {
+    const win = window.open('', '_blank');
+    if (!win) { window.vtToast('Permita pop-ups para gerar o PDF.', 'err'); return; }
+    win.document.write(`<!DOCTYPE html><html><head><title>Ficha – ${p.name}</title><meta charset="utf-8"></head><body style="margin:0">${html}</body></html>`);
+    win.document.close();
+    setTimeout(() => win.print(), 600);
+  }
 }
 
 function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos, openAtendimento, onEdit, onStatus, onAfterTransfer }) {
@@ -310,9 +392,21 @@ function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos,
       const t = owners.find((o) => o.name === novoTutor); novoId = t ? t.id : null;
     }
     // BUG 5B — atualiza tutorId + owner do paciente e propaga p/ o estado do módulo + perfil
-    const updated = { ...p, owner: novoTutor || p.owner, tutorId: novoId, property: novaProp != null ? (novaProp ? { ...(p.property || {}), name: novaProp } : p.property) : p.property };
+    const isHorse = p.species === 'Cavalo';
+    const newProp = novaProp != null ? (novaProp ? { ...(p.property || {}), name: novaProp } : p.property) : p.property;
+    const updated = { ...p, owner: novoTutor || p.owner, tutorId: novoId, property: newProp };
     const next = list.map((x) => x.id === p.id ? updated : x);
-    if (window.VtStore) window.VtStore.setData({ patients: next, owners });
+    // cascata em propriedades[] para cavalos
+    let propriedades = (d.propriedades || []).slice();
+    if (isHorse && novaProp && novaProp !== (p.property && p.property.name)) {
+      if (!propriedades.some((pr) => pr.name === novaProp)) {
+        propriedades = [{ id: 'PR-' + Date.now().toString(36), name: novaProp, owner: novoTutor || p.owner, phone: '' }, ...propriedades];
+      } else {
+        // atualiza owner da propriedade se o responsável mudou
+        propriedades = propriedades.map((pr) => pr.name === novaProp ? { ...pr, owner: novoTutor || pr.owner } : pr);
+      }
+    }
+    if (window.VtStore) window.VtStore.setData({ patients: next, owners, propriedades });
     setXfer(false); window.vtToast('Paciente transferido para ' + (novoTutor || '—') + '.', 'ok');
     if (onAfterTransfer) onAfterTransfer(updated, next);
     else if (onBack) onBack();
@@ -434,7 +528,14 @@ function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos,
               {tab === 'exames' && <div><h3 className="vt-sec-title">Exames</h3>{history.flatMap((h) => (h.exames || []).map((e, i) => <div key={h.id + i} className="vt-clin-row"><span>{e}</span><span className="vt-muted">{h.date}</span></div>))}{history.every((h) => !(h.exames || []).length) && <p className="pf-empty">Nenhum exame solicitado.</p>}</div>}
               {tab === 'fotos' && <div><h3 className="vt-sec-title">Fotos</h3><div className="pf-anexos">{history.flatMap((h) => (h.anexos || []).filter((a) => a.preview)).map((a, i) => <div key={i} className="pf-anexo"><img src={a.preview} alt="" /><span>{a.nome}</span></div>)}</div>{history.every((h) => !(h.anexos || []).some((a) => a.preview)) && <p className="pf-empty">Nenhuma foto.</p>}</div>}
               {tab === 'arquivos' && <div><h3 className="vt-sec-title">Arquivos</h3>{history.flatMap((h) => (h.anexos || [])).map((a, i) => <div key={i} className="vt-clin-row"><span>{a.nome}</span><span className="vt-muted">{a.size || ''}</span></div>)}{history.every((h) => !(h.anexos || []).length) && <p className="pf-empty">Nenhum arquivo.</p>}</div>}
-              {tab === 'notas' && <div><h3 className="vt-sec-title">Notas internas</h3><p className="pf-text">{p.obsInterna || p.obs || <span className="pf-empty">Sem notas.</span>}</p></div>}
+              {tab === 'notas' && (
+                <div>
+                  <h3 className="vt-sec-title">Observações do prontuário <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--teal-d)' }}>✅ Visível ao tutor</span></h3>
+                  <p className="pf-text" style={{ marginBottom: 20 }}>{p.obs || <span className="pf-empty">Sem observações.</span>}</p>
+                  <h3 className="vt-sec-title">Notas internas <span style={{ fontSize: 11, fontWeight: 600, color: '#dc2626' }}>🔒 USO CLÍNICO — NÃO enviado ao tutor</span></h3>
+                  <p className="pf-text">{p.obsInterna || <span className="pf-empty">Sem notas internas.</span>}</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -482,8 +583,8 @@ function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos,
             <button className="pf-act teal" onClick={() => onOpenOdonto(p.id)}><VtIcon name="tooth" size={16} /> Abrir Odontograma</button>
             <button className="pf-act navy" onClick={() => openAtendimento(p.id)}><VtIcon name="plus" size={16} /> Novo Procedimento</button>
             <button className="pf-act" style={{ background: 'linear-gradient(135deg,#6d28d9,#4f46e5)', color: '#fff' }} onClick={() => window.vtOpenIA && window.vtOpenIA(`Resumo completo e sugestão de conduta clínica para o paciente ${p.name} (${p.species}, ${p.breed}, ${p.sex}, ${p.weight||'?'}kg, tutor: ${p.owner}).`, p.id)}><VtIcon name="spark" size={16} /> Consultar VetIA</button>
-            <button className="pf-act navy" onClick={() => window.vtToast('PDF do prontuário gerado.', 'ok')}><VtIcon name="receipt" size={16} /> Gerar PDF do Prontuário</button>
-            <button className="pf-act navy" onClick={() => window.vtToast('Prontuário enviado ao tutor por e-mail.', 'ok')}>✉ Enviar ao Tutor (E-mail)</button>
+            <button className="pf-act navy" onClick={() => vtGerarFichaPDF(p, ownerData, history, true)}><VtIcon name="receipt" size={16} /> Gerar PDF do Prontuário</button>
+            <button className="pf-act navy" onClick={() => vtGerarFichaPDF(p, ownerData, history, false)}>✉ PDF para Tutor (sem notas internas)</button>
           </div>
           <div className="vt-card pf-alerts">
             <h3 className="pf-aside-title alert"><VtIcon name="alert" size={17} /> Alertas</h3>

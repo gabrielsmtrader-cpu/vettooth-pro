@@ -301,6 +301,7 @@ function PropModal({ f, s, onClose, onSave }) {
    — mesmos campos do cadastro completo de paciente (vt-pacientes) */
 function QuickAnimalModal({ ownerName, onClose, onSaved }) {
   const [f, setF] = vtUseState({ species: 'Cão', sex: 'Macho', status: 'Ativo' });
+  const isHorse = f.species === 'Cavalo';
   const [err, setErr] = vtUseState('');
   const photoRef = vtUseRef(null);
   const s = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
@@ -328,9 +329,16 @@ function QuickAnimalModal({ ownerName, onClose, onSaved }) {
       cpf: (ow.cpf && ow.cpf !== '—') ? ow.cpf : '', whats: ow.whats || '', phone: (ow.phone && ow.phone !== '—') ? ow.phone : '', phone2: ow.phone2 || '',
       email: (ow.email && ow.email !== '—') ? ow.email : '', ownerBirth: ow.birth || '',
       address: ow.address || null,
-      lastVisit: 'Novo', card: '', odontograma: isHorse, property: null,
+      lastVisit: 'Novo', card: '', odontograma: isHorse,
+      property: isHorse ? { name: f.propName || '', owner: f.propOwner || '', phone: f.propPhone || '', city: f.propCity || '', state: f.propState || '', street: f.propStreet || '', num: f.propNum || '' } : null,
     };
-    window.VtStore.setData({ patients: [patient, ...pats] });
+    let propriedades = d.propriedades || [];
+    if (isHorse && f.propName && f.propName.trim()) {
+      if (!propriedades.some((pr) => pr.name === f.propName.trim())) {
+        propriedades = [{ id: 'PR-' + Date.now().toString(36), name: f.propName.trim(), owner: f.propOwner || ownerName, phone: f.propPhone || '' }, ...propriedades];
+      }
+    }
+    window.VtStore.setData({ patients: [patient, ...pats], propriedades });
     window.vtToast(`${patient.name} adicionado a ${ownerName}.`, 'ok');
     onSaved && onSaved(patient);
     onClose();
@@ -421,6 +429,25 @@ function QuickAnimalModal({ ownerName, onClose, onSaved }) {
             </label>
           </div>
         </div>
+
+        {isHorse && (
+          <>
+            <div className="vt-form-sec">🐴 Propriedade (equino)</div>
+            <div className="vt-form-row">
+              <VtField label="Nome da propriedade" value={f.propName || ''} onChange={s('propName')} placeholder="Ex.: Haras Bela Vista" width="48%" />
+              <VtField label="Proprietário" value={f.propOwner || ''} onChange={s('propOwner')} placeholder="Responsável" width="48%" />
+            </div>
+            <div className="vt-form-row">
+              <VtField label="Telefone" value={f.propPhone || ''} onChange={(v) => s('propPhone')(window.maskPhone ? window.maskPhone(v) : v)} placeholder="(00) 00000-0000" width="30%" />
+              <VtField label="Cidade" value={f.propCity || ''} onChange={s('propCity')} width="44%" />
+              <VtField label="UF" value={f.propState || ''} onChange={s('propState')} width="20%" />
+            </div>
+            <div className="vt-form-row">
+              <VtField label="Endereço" value={f.propStreet || ''} onChange={s('propStreet')} width="74%" />
+              <VtField label="Número" value={f.propNum || ''} onChange={s('propNum')} width="22%" />
+            </div>
+          </>
+        )}
 
         <div className="vt-form-row" style={{ marginTop: 10 }}>
           <label className="vtf" style={{ width: '52%' }}><span className="vtf-label">Observações gerais / histórico cirúrgico</span>
