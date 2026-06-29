@@ -359,116 +359,363 @@ function smartReply(q, role, contextPatientId) {
   const { patients, ats, inv, fin, agenda, lowStock, pendentes, fatMes, agToday, atsMes } = ctx;
   const AVISO = '\n\n⚠️ _Sugestão VetIA — revise antes de validar clinicamente._';
 
+  /* ═══════════════════════════════════════════════════
+     HELPER: extrai peso da pergunta (ex: "5kg", "3,5 kg")
+  ═══════════════════════════════════════════════════ */
+  const getPeso = () => { const m = /(\d+[\.,]?\d*)\s*kg/i.exec(lower); return m ? parseFloat(m[1].replace(',','.')) : 0; };
+  const getEsp  = () => {
+    if (/\b(felino|gato|gata|cat)\b/.test(lower)) return 'felino';
+    if (/\b(equino|cavalo|égua|horse|pony)\b/.test(lower)) return 'equino';
+    if (/\b(canino|cão|cao|cachorro|dog)\b/.test(lower)) return 'canino';
+    if (/\b(ave|pássaro|papagaio|calopsita|periquito|bird)\b/.test(lower)) return 'ave';
+    if (/\b(réptil|reptil|lagarto|cobra|tartaruga|iguana)\b/.test(lower)) return 'reptil';
+    if (/\b(coelho|rabbit)\b/.test(lower)) return 'coelho';
+    if (/\b(hamster|roedor)\b/.test(lower)) return 'roedor';
+    return 'canino';
+  };
+  const peso = getPeso();
+  const esp  = getEsp();
+  const kg   = (mg_kg) => peso > 0 ? ` = **${(peso*mg_kg).toFixed(2).replace(/\.?0+$/,'')} mg**` : '';
+  const mcg  = (mcg_kg) => peso > 0 ? ` = **${(peso*mcg_kg).toFixed(1)} mcg**` : '';
+  const ml   = (ml_kg)  => peso > 0 ? ` = **${(peso*ml_kg).toFixed(2).replace(/\.?0+$/,'')} mL**` : '';
+
   let pat = contextPatientId ? patients.find((p) => p.id === contextPatientId) : null;
   if (!pat) pat = patients.find((p) => p.name && lower.includes(p.name.toLowerCase()));
   const patAts = pat ? ats.filter((a) => a.patientId === pat.id) : [];
-  const lastAt = patAts.slice().sort((a,b) => (b.date||'').localeCompare(a.date||''))[0];
+  const patPeso = pat ? parseFloat((pat.weight||'').replace(',','.')) || peso : peso;
+  const patEsp  = pat ? (pat.species||'').toLowerCase() : esp;
 
-  if (role === 'admin' || role === 'Administradora') {
-    if (lower.includes('estoque') || lower.includes('reposi')) {
-      if (!lowStock.length) return '✅ Estoque em dia! Todos os itens acima do mínimo.' + AVISO;
-      return `🚨 **${lowStock.length} item(s) abaixo do mínimo:**\n\n${lowStock.map((i) => `• **${i.name}**: ${i.qty} ${i.unit} (mín. ${i.min})`).join('\n')}\n\nRecomendo emitir pedido de compra imediatamente.` + AVISO;
+  /* ═══════════════════════════════════════════════════
+     MODO SECRETÁRIA — agendamentos, leads, cadastro
+  ═══════════════════════════════════════════════════ */
+  if (role === 'secretaria' || role === 'Secretária') {
+    /* mensagem de confirmação de consulta */
+    if (lower.includes('confirmar') || lower.includes('confirmação') || lower.includes('lembrete')) {
+      const nome = pat ? pat.owner : '[Tutor]'; const pet = pat ? pat.name : '[Pet]';
+      return `[ACAO:whatsapp]{"para":"${nome}","mensagem":"Olá, ${nome}! 😊 Passando para confirmar a consulta do *${pet}* amanhã. Por favor, responda SIM para confirmar ou NOS avise caso precise reagendar. Qualquer dúvida estou à disposição! 🐾"}[/ACAO]\n\n📱 **Mensagem de confirmação pronta!** Revise e clique em Abrir WhatsApp.` + AVISO;
     }
-    if (lower.includes('financ') || lower.includes('receita') || lower.includes('caixa')) {
-      const pendVal = pendentes.reduce((s,t) => s+t.value, 0);
-      return `💰 **Resumo financeiro:**\n• Faturamento do mês: **${iaBRL(fatMes)}**\n• A receber: **${iaBRL(pendVal)}** (${pendentes.length} pendente(s))\n• Atendimentos no mês: ${atsMes.length}` + AVISO;
+    /* lead / orçamento / fechar consulta */
+    if (lower.includes('lead') || lower.includes('orçamento') || lower.includes('fechamento') || lower.includes('converter') || lower.includes('novo cliente')) {
+      const clinic = window.vtClinic ? window.vtClinic() : {};
+      return `🎯 **Script de Vendas — Converter Lead em Consulta:**\n\n**1. Primeira resposta (dentro de 5 min do contato):**\n> "Olá! 😊 Vi sua mensagem! Aqui é a ${clinic.name||'nossa clínica'}. Posso ajudar com o que precisa para o seu pet? Me conta o que está acontecendo."\n\n**2. Criar empatia e identificar necessidade:**\n> "Entendo, que situação difícil! A saúde do seu pet é muito importante. 🐾 Temos horários disponíveis ainda esta semana — qual seria melhor para você?"\n\n**3. Apresentar valor (não só preço):**\n> "Nossa equipe é especializada e usamos equipamentos modernos de radiografia digital. A consulta inclui exame completo e orientação personalizada."\n\n**4. Fechar o agendamento:**\n> "Tenho uma vaga amanhã às 10h ou sexta às 14h. Qual prefere? Posso já reservar seu horário agora! 📅"\n\n**5. Cadastro pós-confirmação:**\n> Solicite: nome do tutor, nome do pet, espécie/raça, data de nascimento, telefone e e-mail.\n\n[ACAO:agendar]{"paciente":"Novo paciente","kind":"Consulta","obs":"Lead via WhatsApp — confirmar cadastro"}[/ACAO]` + AVISO;
+    }
+    /* cadastrar cliente */
+    if (lower.includes('cadastrar') || lower.includes('cadastro') || lower.includes('novo paciente') || lower.includes('registrar')) {
+      return `[ACAO:cadastrar]{"tipo":"cliente_paciente","obs":"Cadastro solicitado via IA"}[/ACAO]\n\n📋 **Para cadastrar novo cliente e paciente, preciso de:**\n\n**Tutor:**\n• Nome completo\n• CPF (opcional)\n• Telefone/WhatsApp\n• E-mail\n• Endereço\n\n**Pet:**\n• Nome do animal\n• Espécie e raça\n• Data de nascimento (ou idade aproximada)\n• Sexo e status (castrado/inteiro)\n• Peso atual\n\nForneça os dados acima e farei o cadastro completo!` + AVISO;
+    }
+    /* reagendar / cancelar */
+    if (lower.includes('reagendar') || lower.includes('cancelar') || lower.includes('remarcar')) {
+      const nome = pat ? pat.owner : '[Tutor]'; const pet = pat ? pat.name : '[Pet]';
+      return `[ACAO:whatsapp]{"para":"${nome}","mensagem":"Olá, ${nome}! Precisamos reagendar a consulta do *${pet}*. Pedimos desculpas pelo inconveniente! Por favor, nos diga quais datas e horários são melhores para você. 📅 Faremos o possível para encaixar rapidamente. 🐾"}[/ACAO]\n\n📅 **Mensagem de reagendamento gerada!**` + AVISO;
+    }
+    /* retorno pós-operatório */
+    if (lower.includes('retorno') || lower.includes('pós-op') || lower.includes('pos-op') || lower.includes('pós-cirúrg')) {
+      const nome = pat ? pat.owner : '[Tutor]'; const pet = pat ? pat.name : '[Pet]';
+      return `[ACAO:whatsapp]{"para":"${nome}","mensagem":"Olá, ${nome}! 🐾 Como ${pet} está se recuperando? Qualquer sinal de desconforto, inchaço, sangramento ou mudança de comportamento, entre em contato imediatamente. Lembre-se: alimentação leve por 24h, collar elizabetano em uso e repouso. O retorno está marcado em 10 dias. Conte conosco! 💙"}[/ACAO]` + AVISO;
+    }
+    /* enviar documento */
+    if (lower.includes('enviar documento') || lower.includes('mandar receitu') || lower.includes('enviar laudo') || lower.includes('compartilhar')) {
+      const nome = pat ? pat.owner : '[Tutor]'; const pet = pat ? pat.name : '[Pet]';
+      return `[ACAO:whatsapp]{"para":"${nome}","mensagem":"Olá, ${nome}! Segue em anexo o documento do ${pet}. Qualquer dúvida sobre as orientações, estamos à disposição! 🐾"}[/ACAO]\n\n📎 **Dica:** Gere o documento na aba Clínica → Documentos, faça o download em PDF e anexe junto com esta mensagem no WhatsApp.` + AVISO;
+    }
+    /* agenda do dia */
+    if (lower.includes('agenda') || lower.includes('hoje') || lower.includes('amanhã') || lower.includes('horário')) {
+      return `📅 **Agenda de hoje:** ${agToday.length} compromisso(s)\n\n${agToday.map((a,i)=>`${i+1}. **${a.time||'--:--'}** — ${a.patient||a.paciente||'?'} (${a.kind||a.tipo||'Consulta'})${a.owner ? `\n   Tutor: ${a.owner}` : ''}`).join('\n\n') || '• Agenda livre hoje!'}\n\n💡 Para agendar novo atendimento, informe: nome do pet, tutor, data, horário e tipo de procedimento.` + AVISO;
+    }
+    return `Como **Secretária IA**, posso:\n• Redigir mensagens de WhatsApp personalizadas\n• Confirmar, reagendar e cancelar consultas\n• Converter leads em agendamentos (script de vendas)\n• Cadastrar novos clientes e pacientes\n• Enviar documentos e laudos\n• Gerenciar a agenda do dia\n\nDescreva o que precisa!` + AVISO;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     MODO ADMIN / FINANCEIRO / CONTADOR
+  ═══════════════════════════════════════════════════ */
+  if (role === 'admin' || role === 'Administradora') {
+    const allTx = (fin.tx || []);
+    const totalRec = allTx.filter(t=>vtIsReceita(t)&&t.status==='pago').reduce((s,t)=>s+vtTxVal(t),0);
+    const totalCusto = allTx.filter(t=>vtIsCusto(t)).reduce((s,t)=>s+vtTxVal(t),0);
+    const lucro = totalRec - totalCusto;
+    const pendVal = pendentes.reduce((s,t)=>s+vtTxVal(t),0);
+
+    if (lower.includes('estoque') || lower.includes('reposi') || lower.includes('compra')) {
+      if (!lowStock.length) return '✅ **Estoque em dia!** Todos os itens acima do mínimo.\n\n📦 Total de produtos cadastrados: ' + inv.length + AVISO;
+      return `🚨 **${lowStock.length} item(s) abaixo do mínimo:**\n\n${lowStock.map((i) => `• **${i.name}**: ${vtStockQty(i)} ${i.unit||''} (mín. ${i.min||0})`).join('\n')}\n\n**Ação recomendada:** emitir pedido de compra imediatamente e registrar o custo ao receber.\n\n[ACAO:financeiro]{"tipo":"custo","desc":"Pedido de reposição de estoque","obs":"${lowStock.map(i=>i.name).join(', ')}"}[/ACAO]` + AVISO;
+    }
+    if (lower.includes('conta') || lower.includes('receber') || lower.includes('inadimpl') || lower.includes('pendente')) {
+      return `📋 **Contas a Receber:**\n\n• Pendentes: **${pendentes.length}** lançamento(s)\n• Total a receber: **${iaBRL(pendVal)}**\n\n${pendentes.slice(0,8).map(t=>`• ${t.desc||t.name||'Serviço'} — ${iaBRL(vtTxVal(t))} (${t.date||t.paidAt||'—'})`).join('\n')}\n\n**Ação:** entre em contato com os tutores pendentes. Deseja que eu redija mensagens de cobrança amigável?` + AVISO;
+    }
+    if (lower.includes('cobran') || lower.includes('cobrança') || lower.includes('boleto')) {
+      const nome = pat ? pat.owner : '[Tutor]';
+      return `[ACAO:whatsapp]{"para":"${nome}","mensagem":"Olá, ${nome}! Passando para lembrá-lo sobre o pagamento referente ao atendimento do seu pet. Qualquer dúvida ou dificuldade, entre em contato — podemos negociar a melhor forma para você! 💙"}[/ACAO]\n\n💰 **Mensagem de cobrança amigável gerada!**` + AVISO;
+    }
+    if (lower.includes('fluxo de caixa') || lower.includes('dre') || lower.includes('resultado') || lower.includes('lucro') || lower.includes('margem')) {
+      const margem = totalRec > 0 ? ((lucro/totalRec)*100).toFixed(1) : '0';
+      return `📊 **DRE Simplificado — Período atual:**\n\n| Item | Valor |\n|------|-------|\n| (+) Receitas pagas | **${iaBRL(totalRec)}** |\n| (-) Custos/Despesas | **${iaBRL(totalCusto)}** |\n| (=) Resultado | **${iaBRL(lucro)}** |\n| Margem líquida | **${margem}%** |\n\n• Receitas pendentes: ${iaBRL(pendVal)}\n• Atendimentos no mês: ${atsMes.length}\n• Ticket médio: ${iaBRL(atsMes.length ? fatMes/atsMes.length : 0)}\n\n💡 **Meta de crescimento:** aumento de 15% no faturamento = ${iaBRL(totalRec*0.15)} em novas receitas.` + AVISO;
+    }
+    if (lower.includes('financ') || lower.includes('receita') || lower.includes('caixa') || lower.includes('faturamento')) {
+      return `💰 **Resumo financeiro do mês:**\n• Faturamento: **${iaBRL(fatMes)}**\n• A receber: **${iaBRL(pendVal)}** (${pendentes.length} pendente(s))\n• Custos do mês: **${iaBRL(totalCusto)}**\n• Resultado: **${iaBRL(fatMes-totalCusto)}**\n• Atendimentos: ${atsMes.length}\n• Estoque crítico: ${lowStock.length} item(s)\n\n[ACAO:financeiro]{"tipo":"resumo","desc":"Resumo mensal"}[/ACAO]` + AVISO;
+    }
+    if (lower.includes('lançar') || lower.includes('registrar') || lower.includes('entrada') || lower.includes('saída') || lower.includes('despesa')) {
+      return `[ACAO:financeiro]{"tipo":"lancamento","desc":"Novo lançamento financeiro"}[/ACAO]\n\n💼 **Para registrar um lançamento, informe:**\n• Tipo: Receita ou Despesa\n• Descrição do serviço/item\n• Valor\n• Data\n• Status: pago ou pendente\n• Forma de pagamento (dinheiro, cartão, PIX, etc.)` + AVISO;
     }
     if (lower.includes('agenda') || lower.includes('hoje')) {
-      return `📅 **Hoje:** ${agToday.length} consulta(s)\n${agToday.map((a)=>`• ${a.patient} — ${a.kind}`).join('\n') || '• Sem agendamentos.'}` + AVISO;
+      return `📅 **Hoje:** ${agToday.length} consulta(s)\n${agToday.map((a)=>`• ${a.time||'--:--'} — ${a.patient||'?'} (${a.kind||'Consulta'})`).join('\n') || '• Sem agendamentos.'}\n\n📊 **Mês:** ${atsMes.length} atendimentos · ${iaBRL(fatMes)} faturados` + AVISO;
     }
-    return `📊 **Desempenho do mês:**\n• Pacientes: ${patients.length} · Atendimentos: ${atsMes.length}\n• Receita: ${iaBRL(fatMes)} · A receber: ${iaBRL(pendentes.reduce((s,t)=>s+t.value,0))}\n• Estoque crítico: ${lowStock.length} item(s)` + AVISO;
+    return `📊 **Desempenho — mês atual:**\n• Pacientes: ${patients.length} cadastrados\n• Atendimentos: ${atsMes.length}\n• Receita: ${iaBRL(fatMes)} · Pendente: ${iaBRL(pendVal)}\n• Custos: ${iaBRL(totalCusto)} · Resultado: ${iaBRL(fatMes-totalCusto)}\n• Estoque crítico: ${lowStock.length} item(s)\n\nPergunte sobre: fluxo de caixa, DRE, contas a receber, estoque, cobranças.` + AVISO;
   }
 
-  if (role === 'secretaria' || role === 'Secretária') {
-    if (lower.includes('mensagem') || lower.includes('whatsapp') || lower.includes('lembrete')) {
-      const nome = pat ? pat.owner : '[Tutor]'; const pet = pat ? pat.name : '[Pet]';
-      return `📱 **Mensagem sugerida:**\n\nOlá, ${nome}! Passando para confirmar a consulta do ${pet}. Por favor, confirme sua presença respondendo esta mensagem.\n\nAtenciosamente, Clínica` + AVISO;
-    }
-    if (lower.includes('retorno') || lower.includes('pós-op')) {
-      return `📱 **Mensagem pós-operatório:**\n\nOlá${pat ? ', ' + pat.owner : ''}! Como ${pat ? pat.name : 'seu pet'} está se recuperando? Qualquer dúvida ou sinal de desconforto, entre em contato. Retorno em 10 dias. 🐾` + AVISO;
-    }
-    if (lower.includes('cancelar') || lower.includes('reagendar')) {
-      return `📱 **Mensagem de reagendamento:**\n\nOlá! Precisamos reagendar sua consulta. Entre em contato para escolhermos um novo horário. Pedimos desculpas pelo transtorno!` + AVISO;
-    }
-    return `Posso redigir mensagens de WhatsApp, lembretes, confirmações de consulta e comunicados. Descreva o que precisa!` + AVISO;
-  }
-
-  /* CLÍNICA */
-  if (pat) {
-    if (lower.includes('dose') || lower.includes('medica') || lower.includes('analgesia')) {
-      const peso = parseFloat((pat.weight||'').replace(',','.')) || 0;
-      const esp = (pat.species||'').toLowerCase();
-      if (peso > 0) {
-        const linhas = esp.includes('felino') || esp.includes('gato')
-          ? [`Meloxicam 0,05 mg/kg = **${(peso*0.05).toFixed(2)} mg** VO 1x/dia (2d)`,`Tramadol 1 mg/kg = **${(peso*1).toFixed(1)} mg** VO 12/12h`,`Amoxicilina+Clav 20 mg/kg = **${(peso*20).toFixed(0)} mg** VO 12/12h (7d)`]
-          : esp.includes('equino') || esp.includes('cavalo')
-          ? [`Meloxicam 0,6 mg/kg = **${(peso*0.6).toFixed(0)} mg** VO 1x/dia`,`Fenilbutazona 4,4 mg/kg = **${(peso*4.4).toFixed(0)} mg** VO 12/12h`]
-          : [`Meloxicam 0,1 mg/kg = **${(peso*0.1).toFixed(2)} mg** VO 1x/dia (3d)`,`Tramadol 3 mg/kg = **${(peso*3).toFixed(1)} mg** VO 8/8h`,`Amoxicilina+Clav 20 mg/kg = **${(peso*20).toFixed(0)} mg** VO 12/12h (7d)`];
-        return `💊 **Doses para ${pat.name} (${peso}kg):**\n\n${linhas.map((l)=>`• ${l}`).join('\n')}` + AVISO;
-      }
-    }
-    if (lower.includes('plano') || lower.includes('tratamento') || lower.includes('conduta')) {
-      const esp = (pat.species||'').toLowerCase();
-      if (esp.includes('felino') || esp.includes('gato'))
-        return `🐱 **Plano para ${pat.name} (felino):**\n\n1. Radiografia intraoral (EOTRH, reabsorção)\n2. Analgesia pré-op: meloxicam 0,05 mg/kg\n3. Profilaxia + sondagem periodontal sob anestesia\n4. Extrações indicadas\n5. Pós: amoxicilina+clav 20 mg/kg 12/12h 7d + dieta pastosa` + AVISO;
-      if (esp.includes('canino') || esp.includes('cão'))
-        return `🐶 **Plano para ${pat.name} (canino):**\n\n1. Avaliação clínica completa (halitose, bolsas, mobilidade)\n2. Radiografia das regiões suspeitas\n3. Profilaxia supragengival e subgengival\n4. Extrações seletivas se indicado\n5. Pós: meloxicam 0,1 mg/kg 1x/dia 3d + higiene com clorexidina` + AVISO;
-      if (esp.includes('equino') || esp.includes('cavalo'))
-        return `🐴 **Plano para ${pat.name} (equino):**\n\n1. Exame com espéculo (pontas, ondas, diastemas)\n2. Sedação + nivelamento odontológico\n3. Extrações indicadas\n4. AINE pós-op: meloxicam 0,6 mg/kg\n5. Reavaliação em 6–12 meses` + AVISO;
+  /* ═══════════════════════════════════════════════════
+     MODO CLÍNICA — doses com paciente em contexto
+  ═══════════════════════════════════════════════════ */
+  if (pat && (lower.includes('dose') || lower.includes('medica') || lower.includes('analgesia') || lower.includes('antibiótico') || lower.includes('antibiotic'))) {
+    const p = patPeso; const e = patEsp;
+    if (p > 0) {
+      const linhas = e.includes('felino') || e.includes('gato')
+        ? [`Meloxicam 0,05 mg/kg = **${(p*0.05).toFixed(2)} mg** VO 1x/dia (2d — máx 3d)`,`Tramadol 1–2 mg/kg = **${(p*1.5).toFixed(1)} mg** VO 12/12h`,`Amoxicilina+Clav 20 mg/kg = **${(p*20).toFixed(0)} mg** VO 12/12h (7d)`,`Doxiciclina 5 mg/kg = **${(p*5).toFixed(1)} mg** VO 12/12h (7d)`]
+        : e.includes('equino') || e.includes('cavalo')
+        ? [`Meloxicam 0,6 mg/kg = **${(p*0.6).toFixed(0)} mg** VO 1x/dia`,`Fenilbutazona 4,4 mg/kg = **${(p*4.4).toFixed(0)} mg** VO 12/12h (máx 5d)`,`Flunixin meglumine 1,1 mg/kg = **${(p*1.1).toFixed(0)} mg** IV 1x/dia`]
+        : [`Meloxicam 0,1 mg/kg = **${(p*0.1).toFixed(2)} mg** VO 1x/dia (3d)`,`Tramadol 3–5 mg/kg = **${(p*4).toFixed(1)} mg** VO 8/8h`,`Amoxicilina+Clav 20 mg/kg = **${(p*20).toFixed(0)} mg** VO 12/12h (7d)`,`Enrofloxacino 5 mg/kg = **${(p*5).toFixed(0)} mg** VO 1x/dia (7d)`];
+      return `💊 **Doses para ${pat.name} (${p}kg — ${pat.species||'?'}):**\n\n${linhas.map((l)=>`• ${l}`).join('\n')}` + AVISO;
     }
   }
+  if (pat && (lower.includes('plano') || lower.includes('tratamento') || lower.includes('conduta') || lower.includes('protocolo'))) {
+    const e = patEsp;
+    if (e.includes('felino') || e.includes('gato'))
+      return `🐱 **Plano para ${pat.name} (felino):**\n\n1. Radiografia intraoral completa (FORL, reabsorção, periapical)\n2. Analgesia pré-op: meloxicam 0,05 mg/kg SC\n3. Profilaxia + sondagem periodontal sob anestesia\n4. Extrações indicadas com radiografia confirmatória\n5. Pós-op: amoxicilina+clav 20 mg/kg 12/12h 7d + tramadol 1 mg/kg 12/12h 3d\n6. Dieta pastosa 7 dias · retorno em 7–10 dias` + AVISO;
+    if (e.includes('canino') || e.includes('cão') || e.includes('cao'))
+      return `🐶 **Plano para ${pat.name} (canino):**\n\n1. Avaliação clínica completa (halitose, bolsas, mobilidade dentária)\n2. Radiografia das regiões suspeitas\n3. Profilaxia supragengival e subgengival\n4. Extrações seletivas se indicado\n5. Pós-op: meloxicam 0,1 mg/kg 1x/dia 3d + higiene com clorexidina 0,12% gel\n6. Retorno em 7 dias para avaliação de cicatrização` + AVISO;
+    if (e.includes('equino') || e.includes('cavalo'))
+      return `🐴 **Plano para ${pat.name} (equino):**\n\n1. Exame com espéculo bocal + boroscópio\n2. Sedação (xilazina 0,5–1 mg/kg IV + butorfanol)\n3. Nivelamento odontológico + remoção de pontas/ganchos\n4. Extrações indicadas\n5. AINE pós-op: meloxicam 0,6 mg/kg VO 3–5d\n6. Reavaliação em 6–12 meses` + AVISO;
+  }
 
-  /* ── Diagnóstico diferencial ── */
+  /* ═══════════════════════════════════════════════════
+     CARDIOLOGIA
+  ═══════════════════════════════════════════════════ */
+  if (lower.includes('cardiomiopatia') || lower.includes('dcm') || lower.includes('mvd') || lower.includes('insuficiência cardíaca') || lower.includes('insuficiencia cardiaca') || lower.includes('sopro') || lower.includes('cardio')) {
+    if (lower.includes('felino') || lower.includes('gato') || esp==='felino')
+      return `❤️ **Cardiomiopatia Hipertrófica Felina (CMH):**\n\n**Diagnóstico:** ecocardiografia (parede VE ≥ 6mm em diástole), exclusão de hipertireoidismo e HAS.\n\n**Tratamento — Fase assintomática:**\n• Não há evidência de benefício em tratar preventivamente (REVEAL study)\n• Atenolol 6,25 mg/gato VO 12/12h se FC > 220 bpm ou obstrução dinâmica\n\n**Fase ICC (edema pulmonar):**\n• Furosemida 1–2 mg/kg IV/IM até estabilização → manutenção 1–2 mg/kg VO 12/12h\n• Clopidogrel 18,75 mg/gato VO 1x/dia (profilaxia de trombose)\n• Atenolol ou diltiazem se FC elevada\n• Benazepril 0,25–0,5 mg/kg VO 1x/dia (ICC classe III–IV)\n\n**Monitoração:** RX tórax mensal, ecocardiografia 6/6 meses.` + AVISO;
+    if (lower.includes('equino') || lower.includes('cavalo') || esp==='equino')
+      return `❤️ **Cardiopatia Equina:**\n\n**Sopros fisiológicos:** comuns em equinos atletas — sopro de fluxo pulmonar e TS no 3° EIE são benignos.\n\n**Fibrilação atrial (FA):** arritmia mais comum. Dx: ECG. Tx: quinidina VO (protocolo clínico) ou cardioversão elétrica transvenosa. Prognóstico: bom se FA < 4 meses.\n\n**Insuficiência valvar:** IT e IR são as mais frequentes. Ecocardiografia para classificar. Restrição de atividade atlética se moderada/grave.` + AVISO;
+    return `❤️ **Cardiopatia — Cão (MVD / DCM):**\n\n**MVD (endocardiose mitral) — mais comum em raças pequenas:**\n• Estadiamento ACVIM: A→B1→B2→C→D\n• B2 (remodelamento cardíaco): pimobendan 0,25 mg/kg VO 12/12h (EPIC trial)\n• C (ICC): furosemida 2 mg/kg VO 8–12/12h + pimobendan + benazepril 0,25 mg/kg\n• D (refratário): espironolactona 2 mg/kg VO 1x/dia + hidroclorotizida\n\n**DCM — raças grandes:**\n• Pimobendan + enalapril + furosemida\n• Suplementar taurina (Golden/Cocker) e L-carnitina\n• Monitorar com Holter (arritmias ventriculares)\n\n**Exames:** RX tórax, ECG, ecocardiografia, pressão arterial (alvo < 160 mmHg).` + AVISO;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     DERMATOLOGIA
+  ═══════════════════════════════════════════════════ */
+  if (lower.includes('dermatite') || lower.includes('prurido') || lower.includes('coceira') || lower.includes('alergia') || lower.includes('piodermite') || lower.includes('sarna') || lower.includes('otite') || lower.includes('dermatol')) {
+    if (lower.includes('sarna') || lower.includes('demodex') || lower.includes('sarcopt')) {
+      return `🔬 **Sarna — Diagnóstico e Tratamento:**\n\n**Sarna Sarcóptica (Sarcoptes scabiei):**\n• Prurido intenso, crostas, lesões em cotovelos, orelhas, abdômen\n• Dx: raspado superficial (sensibilidade baixa) — tratar empiricamente se suspeita forte\n• Tx: isoxazolinas (fluralaner, sarolaner, afoxolaner) — dose única resolve\n• Alternativa: ivermectina 0,2–0,4 mg/kg SC 2x com intervalo 14 dias (cuidado: raças MDR1)\n\n**Sarna Demodécica (Demodex canis):**\n• Focal/juvenil: resolução espontânea frequente — monitorar\n• Generalizada: isoxazolina mensal 3–6 meses + tratamento de fatores predisponentes\n• Acompanhar com raspado profundo mensal até 2 negativos consecutivos\n• Investigar imunossupressão subjacente (hipotireoidismo, Cushing)` + AVISO;
+    }
+    if (lower.includes('otite')) {
+      return `👂 **Otite Externa — Protocolo:**\n\n**1. Diagnóstico:**\n• Citologia auricular: bactérias (cocos/bastonetes), leveduras (Malassezia), neutrófilos\n• Otoscopia: canal, membrana timpânica\n• Se crônica: cultura + antibiograma\n\n**2. Tratamento:**\n• **Malassezia:** miconazol ou clotrimazol + dexametasona tópico 14–21d\n• **Staphylococcus:** enrofloxacino ou amoxicilina tópico\n• **Pseudomonas (crônica):** polimixina B ou tobramicina tópico (baseado em cultura)\n• **Inflamação intensa:** prednisolona 0,5–1 mg/kg VO 7d (redução progressiva)\n\n**3. Limpeza:** solução de limpeza auricular 1–2x/semana\n**4. Tratar causa primária:** alergia, hipotireoidismo, corpo estranho, pólipo` + AVISO;
+    }
+    return `🐾 **Dermatologia — Diagnóstico Diferencial Prurido:**\n\n**Causas mais comuns (por ordem):**\n1. **Parasitas:** pulgas (DAPP), sarnas, cheyletiella\n2. **Alergia alimentar:** prurido facial, pododermite, otite recorrente\n3. **Atopia (DAc):** sazonal, zonas de dobras, dorso, orelhas\n4. **Piodermite superficial:** eritema, colarinhos, pápulas\n5. **Malassezia:** pele oleosa, odor rançoso, eritema ventral\n\n**Workup inicial:**\n• Controle rigoroso de ectoparasitas (todos os pets da casa)\n• Citologia cutânea (impressão + fita)\n• Raspado cutâneo\n• Considerar dieta de exclusão 8–12 semanas\n\n**Tratamento sintomático:** oclacitinib (Apoquel) 0,4–0,6 mg/kg VO 12/12h 14d → 1x/dia; ou lokivetmab (Cytopoint) 2 mg/kg SC q4-8sem.` + AVISO;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     NEUROLOGIA
+  ═══════════════════════════════════════════════════ */
+  if (lower.includes('convulsão') || lower.includes('epilepsia') || lower.includes('crise') || lower.includes('ataxia') || lower.includes('disco intervertebral') || lower.includes('div') || lower.includes('paresia') || lower.includes('paralisia') || lower.includes('neurolog')) {
+    if (lower.includes('convulsão') || lower.includes('epilepsia') || lower.includes('crise epiléptica')) {
+      return `🧠 **Epilepsia — Diagnóstico e Tratamento:**\n\n**Classificação:**\n• Epilepsia idiopática (EI): 1–5 anos, raças predispostas, exames normais\n• Epilepsia estrutural: lesão identificável (tumor, inflamação, trauma)\n• Epilepsia reativa: hipoglicemia, uremia, toxinas, portossistêmica\n\n**Investigação:** hemograma + bioquímica + bile acids (pré/pós-prandial) + RNM + LCR\n\n**Tratamento de manutenção:**\n• **Fenobarbital** 2,5 mg/kg VO 12/12h → dosar nível sérico em 2 semanas (alvo 20–40 µg/mL)\n• **Brometo de potássio** adjuvante: 30–40 mg/kg VO 1x/dia (levam 3–4 meses p/ estabilizar)\n• **Levetiracetam** 20 mg/kg VO 8/8h (menos hepatotóxico, boa opção felinos)\n\n**Status epiléptico — EMERGÊNCIA:**\n1. Diazepam 0,5–1 mg/kg IV (pode repetir 2x)\n2. Se não ceder: fenobarbital 15–20 mg/kg IV lento\n3. Propofol CRI se refratário\n4. Suporte: O₂, glicose IV, temperatura corporal` + AVISO;
+    }
+    if (lower.includes('disco') || lower.includes('div') || lower.includes('hérnia')) {
+      return `🧠 **Doença do Disco Intervertebral (DIV):**\n\n**Tipos:**\n• Hansen I: extrusão aguda (condrodistrófico — Dachshund, Bulldog, Pekingês)\n• Hansen II: protrusão crônica (grandes raças)\n\n**Graus (Frankel adaptado):**\n• I: dor apenas → analgesia + restrição 4–6 sem\n• II: ataxia → tratamento conservador vs. cirurgia\n• III: paraparesia ambulatória → cirurgia recomendada\n• IV: paraplegia com nocicepção → cirurgia urgente\n• V: paraplegia sem nocicepção → cirurgia emergência (< 24h melhora prognóstico)\n\n**Tratamento conservador:** restrição absoluta 4–6 sem, meloxicam 0,1 mg/kg VO, omeprazol 1 mg/kg VO (gastro-proteção), fisioterapia\n\n**Cirurgia:** hemilaminectomia (torácolombar) ou ventral slot (cervical)\n\n**Diagnóstico:** RNM (padrão ouro) ou TC + mielografia` + AVISO;
+    }
+    return `🧠 **Neurologia — Avaliação Inicial:**\n\n**Localização da lesão:**\n• Intracraniana: déficits de nervos cranianos, convulsões, alteração mental\n• C1–C5: tetraparesia espástica, cervicalgia\n• C6–T2: tetraparesia com déficit de MN inferior nos membros anteriores\n• T3–L3: paraparesia espástica\n• L4–S3: paraparesia flácida, disfunção vesical/fecal\n\n**Exames:** RNM (padrão ouro), TC, LCR, EMG, potencial evocado\n\nInforme os sinais clínicos e localização para protocolo específico!` + AVISO;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     ORTOPEDIA
+  ═══════════════════════════════════════════════════ */
+  if (lower.includes('ortopedia') || lower.includes('fratura') && !lower.includes('dental') || lower.includes('displasia') || lower.includes('coxofemoral') || lower.includes('ligamento cruzado') || lower.includes('lca') || lower.includes('luxação de patela') || lower.includes('osteossarcoma')) {
+    if (lower.includes('displasia') || lower.includes('coxofemoral') || lower.includes('hip dysplasia')) {
+      return `🦴 **Displasia Coxofemoral (DCF):**\n\n**Diagnóstico:** RX em extensão (PennHIP ou OFA), avaliação do ângulo de Norberg\n\n**Tratamento conservador (graus leves):**\n• Controle de peso (IMC ideal)\n• Meloxicam 0,1 mg/kg VO 1x/dia (crises)\n• Fisioterapia + hidroginástica\n• Condroprotegentes: meloxicam + ômega-3 + glucosamina/condroitina\n\n**Tratamento cirúrgico:**\n• < 10 meses: Triple/Double Pelvic Osteotomy (TPO/DPO)\n• Adulto jovem (< 18 meses) leve: FHO ou artrodese\n• Adulto: Prótese total de quadril (PTQ) — melhor resultado funcional\n• Alternativa econômica: ressecção da cabeça femoral (FHO)` + AVISO;
+    }
+    if (lower.includes('cruzado') || lower.includes('lca') || lower.includes('joelho')) {
+      return `🦴 **Ruptura de Ligamento Cruzado Cranial (LCCr):**\n\n**Sinais:** claudicação súbita ou progressiva, teste da gaveta positivo, teste de compressão tibial positivo\n\n**Diagnóstico:** palpação + RX (efusão articular, osteofitos), artroscopia confirma lesão\n\n**Tratamento cirúrgico (recomendado > 15kg):**\n• **TPLO** (tibial plateau leveling osteotomy) — padrão ouro\n• **TTA** (tibial tuberosity advancement)\n• **Lateral suture** — animais pequenos < 15 kg\n\n**Pós-op:** fisioterapia intensiva semanas 1–8, restrição de atividade 8–12 semanas, retorno gradual à atividade normal em 4–6 meses\n\n**Menisco:** avaliar no intraoperatório — meniscoliberação ou meniscectomia parcial se lesado` + AVISO;
+    }
+    return `🦴 **Ortopedia — Protocolo geral:**\n\nInforme: espécie, peso, localização da lesão e apresentação (aguda x crônica, claudicação, dor à palpação).\n\nPosso ajudar com: displasia coxofemoral, ruptura de LCCr, luxação de patela, fraturas (fechadas/expostas), osteossarcoma, osteoartrite.` + AVISO;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     OFTALMOLOGIA
+  ═══════════════════════════════════════════════════ */
+  if (lower.includes('olho') || lower.includes('ocular') || lower.includes('córnea') || lower.includes('cornea') || lower.includes('úlcera ocular') || lower.includes('catarata') || lower.includes('glaucoma') || lower.includes('uveíte') || lower.includes('oftalm')) {
+    if (lower.includes('úlcera') || lower.includes('ulcera') || lower.includes('córnea') || lower.includes('cornea')) {
+      return `👁️ **Úlcera de Córnea:**\n\n**Classificação:** superficial → estromal → descemetocele → perfuração\n\n**Diagnóstico:** fluoresceína (detecta estromal e superficial), biomicroscopia, cultura se purulenta/recorrente\n\n**Tratamento:**\n• **Superficial (não infecciosa):** colírio ATB (tobramicina ou ciprofloxacino) 4–6x/dia + atropina 1% 2x/dia (midríase analgésica) + colar elizabetano\n• **Infecciosa/bacteriana:** cultura + ciprofloxacino ou gentamicina intensivo\n• **Fungica (equinos):** voriconazol 1% tópico + lavagem conjuntival\n• **Descemetocele/perfuração:** cirurgia urgente (enxerto conjuntival, cola cianoacrilato)\n• **Úlceras indolentes (SCCED):** desbridamento mecânico + keratectomia superficial com diamante\n\n**Braquicéfalos:** vigilância aumentada (exoftalmia, triquíase) — úlceras complicam rapidamente` + AVISO;
+    }
+    if (lower.includes('glaucoma')) {
+      return `👁️ **Glaucoma:**\n\n**Primário (PAG/PAF):** predisposição racial (Cocker, Beagle, Basset, Chow Chow)\n**Secundário:** uveíte, deslocamento de lente, hifema, neoplasia\n\n**Emergência (PIO > 40 mmHg):**\n1. Manitol 1–2 g/kg IV em 20 min\n2. Dorzolamida tópica 2% + timolol 0,5% 3x/dia\n3. Latanoprost 0,005% (cuidado: contra-indicado em glaucoma por uveíte)\n\n**Manutenção:** dorzolamida + timolol 2x/dia, latanoprost se CAF\n\n**Cirurgia:** shunt de drenagem, fotocoagulação do corpo ciliar (ciclofotocoagulação)\n\n**Monitoração:** tonometria mensal (alvo PIO < 20 mmHg)` + AVISO;
+    }
+    return `👁️ **Oftalmologia — Avaliação básica:**\n\n**Exame:** PL (reflexo pupilar), reflexo de ameaça, dazzle, tonometria (alvo < 20 mmHg), fluoresceína, biomicroscopia\n\n**Diagnósticos comuns:**\n• Úlcera de córnea → fluorescência positiva\n• Conjuntivite → secreção, hiperemia conjuntival\n• Uveíte → miose, flare, hipópio, PIO baixa\n• Catarata → opacidade de cristalino, cirurgia de facoemulsificação\n• Glaucoma → PIO > 25 mmHg, dor, buftalmia\n• Epiphora → excesso de lacrimejamento, avalie duto nasolacrimal` + AVISO;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     ONCOLOGIA
+  ═══════════════════════════════════════════════════ */
+  if (lower.includes('tumor') || lower.includes('neoplasia') || lower.includes('câncer') || lower.includes('cancer') || lower.includes('mastocitoma') || lower.includes('linfoma') || lower.includes('onco')) {
+    if (lower.includes('mastocitoma') || lower.includes('mast cell')) {
+      return `🔬 **Mastocitoma Cutâneo (MCT):**\n\n**Estadiamento:**\n• Grau I (Patnaik/Kiupel): baixo grau, comportamento benigno\n• Grau II: intermediário — biologia imprevisível\n• Grau III / alto grau (Kiupel): comportamento maligno, metástase frequente\n\n**Diagnóstico:** CAAF (diagnóstico citológico), biópsia + IHQ (Ki-67, c-Kit), ecografia abdominal, citologia de linfonodo\n\n**Tratamento:**\n• Cirurgia: margens de 2–3 cm + 1 plano profundo\n• Alto grau/margem comprometida: vinblastina + prednisolona (protocolo MOPP)\n• Mutação c-Kit: toceranib (Palladia) 2,75 mg/kg EOD ou masitinibe\n• Baixo grau + margens limpas: monitoração\n\n**Pré-op:** difenidramina 2 mg/kg IM + omeprazol (prevenir síndrome de degranulação)` + AVISO;
+    }
+    if (lower.includes('linfoma')) {
+      return `🔬 **Linfoma Canino:**\n\n**Tipos:** multicêntrico (80%), alimentar, mediastinal, cutâneo\n**Estadiamento:** I (único) → V (medula + sangue) — OMS\n\n**Diagnóstico:** citologia FNA de LN + biópsia + imunofenotipagem (B vs T)\n• B-cell: melhor prognóstico (~12 meses com tratamento)\n• T-cell: pior prognóstico (~6 meses)\n\n**Protocolo CHOP (padrão ouro):**\n• Ciclofosfamida 200 mg/m² IV semana 1, 4, 7...\n• Doxorrubicina 30 mg/m² IV semana 1, 4, 7...\n• Vincristina 0,7 mg/m² IV semanal\n• Prednisolona 2 mg/kg VO diário → redução progressiva\n• Duração: 19 semanas\n\n**Felinos:** linfoma alimentar (baixo grau) → clorambucil + prednisolona (protocolo oral simples, sobrevida >2 anos)` + AVISO;
+    }
+    return `🔬 **Oncologia — Princípios gerais:**\n\n**Tumores mais comuns em cães:** mastocitoma, histiocitoma, adenoma perianal, osteossarcoma, hemangiossarcoma, carcinoma mamário\n\n**Tumores mais comuns em gatos:** carcinoma de células escamosas, linfoma, fibrossarcoma, adenocarcinoma mamário\n\n**Investigação padrão:** CAAF → biópsia → estadiamento (RX tórax 3 planos, ecografia abdominal, citologia de linfonodos)\n\nInforme tipo e localização do tumor, espécie e raça para protocolo específico!` + AVISO;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     GASTROENTEROLOGIA
+  ═══════════════════════════════════════════════════ */
+  if (lower.includes('vômito') || lower.includes('vomito') || lower.includes('diarreia') || lower.includes('pancreatite') || lower.includes('ibd') || lower.includes('doença inflamatória') || lower.includes('obstrução intestinal') || lower.includes('gastro')) {
+    if (lower.includes('pancreatite')) {
+      return `🫁 **Pancreatite:**\n\n**Diagnóstico:** lipase pancreática específica (cPLI/fPLI), ecografia abdominal (painel hiperecóico peripancreático, efusão)\n\n**Tratamento — Suporte:**\n• Fluidoterapia IV (NaCl 0,9% ou Ringer lactato) — pilar principal\n• Analgesia: buprenorfina 0,01–0,02 mg/kg IV/IM 6–8h _ou_ metadona 0,2–0,3 mg/kg IV\n• Antieméticos: maropitant 1 mg/kg SC 1x/dia + metoclopramida CRI 0,01–0,02 mg/kg/h\n• Protetor gástrico: omeprazol 1 mg/kg IV/VO 1x/dia\n• Alimentação precoce (< 24h): jejum prolongado piora evolução\n• Dieta hipogordurosa na recuperação\n\n**Formas graves:** plasma fresco congelado (FFC) para trombocitopenia/CID, vitamina K, antibióticos se infecção secundária suspeita\n\n**Felinos:** frequentemente associada a colangiohepatite e IBD ("triadite")` + AVISO;
+    }
+    if (lower.includes('obstrução') || lower.includes('corpo estranho') && !lower.includes('oral')) {
+      return `🚨 **Obstrução Intestinal — EMERGÊNCIA:**\n\n**Sinais:** vômito profuso (bilioso se pós-pilórico), depressão, dor abdominal, desidratação, anorexia\n\n**Diagnóstico:** RX abdominal (dilatação de alças, padrão escada, gás), ecografia (peristaltismo ausente, massa, corpo estranho), contraste se dúvida\n\n**Conduta:**\n1. Estabilização: fluidoterapia agressiva IV, correção de eletrólitos\n2. Cirurgia: enterotomia ou ressecção e anastomose\n3. Antibióticos peri-operatórios: amoxicilina+clav + metronidazol\n4. Analgesia pós-op: metadona + meloxicam + CRI de fentanil se necessário\n\n**Não procrastinar** — risco de necrose intestinal, sepse e peritonite!` + AVISO;
+    }
+    if (lower.includes('diarreia')) {
+      return `💊 **Diarreia — Diagnóstico e Tratamento:**\n\n**Aguda (< 3 semanas):**\n• Causas: dietética, parasitária, infecciosa, tóxica\n• Tratamento: dieta bland (frango + arroz) + probióticos (Enterococcus faecium) + metronidazol 15 mg/kg VO 12/12h 5–7d\n• Investigar: coproparasitológico, parvo (filhotes), Giardia\n\n**Crônica (> 3 semanas):**\n• IBD, linfangiectasia, enteropatia perdedora de proteínas\n• Workup: biópsia endoscópica, B12/folato, albumina, proteínas totais\n• IBD linfocítico: prednisolona 2 mg/kg/dia + dieta hipoalergênica\n• IBD eosinofílico: prednisolona + ciclosporina\n• Linfangiectasia: dieta ultra-hipogordurosa + prednisolona` + AVISO;
+    }
+    return `🫁 **Gastroenterologia — síntese:**\n\n• **Vômito agudo:** antieméticos (maropitant), fluidos, omeprazol, dieta bland\n• **Vômito crônico:** exclusão de doença renal, hepática, diabetes, pielonefrite, RX + ecografia\n• **Diarreia:** ver protocolo específico\n• **Pancreatite:** fluidos + analgesia + antieméticos\n• **Obstrução:** emergência cirúrgica\n\nDescreva os sinais, duração e exames para diagnóstico mais preciso!` + AVISO;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     NEFROLOGIA / UROLOGIA
+  ═══════════════════════════════════════════════════ */
+  if (lower.includes('renal') || lower.includes('rim') || lower.includes('nefro') || lower.includes('irc') || lower.includes('ira') || lower.includes('uremia') || lower.includes('urina') || lower.includes('itu') || lower.includes('cistite')) {
+    if (lower.includes('irc') || lower.includes('doença renal crônica') || lower.includes('drc')) {
+      return `🫘 **Doença Renal Crônica (DRC) — IRIS Staging:**\n\n| Estágio | Creatinina (cão) | Creatinina (gato) |\n|---------|-----------------|-------------------|\n| I | < 1,4 | < 1,6 |\n| II | 1,4–2,0 | 1,6–2,8 |\n| III | 2,1–5,0 | 2,9–5,0 |\n| IV | > 5,0 | > 5,0 |\n\n**Subestadio:** pressão arterial (normotensivo/hipertensivo) + proteinúria (UPC: < 0,2 / 0,2–0,5 / > 0,5)\n\n**Tratamento:**\n• Dieta renal hipoproteica, hiperenergetica, restrita em fósforo\n• Hidratação: encorajar ingestão hídrica; fluidoterapia SC domiciliar em casos avançados\n• Controlar HAS: amlodipina 0,625 mg/gato VO ou 0,1 mg/kg/cão VO\n• Proteinúria: benazepril 0,25–0,5 mg/kg VO ou telmisartan 1 mg/kg VO (gatos)\n• Anemia (PCV < 20%): eritropoietina ou darbepoetina SC\n• Hiperfosfatemia: quelantes de fósforo (carbonato de Ca, sevelamer)\n• Acidose: bicarbonato de sódio 8–12 mg/kg/dia VO` + AVISO;
+    }
+    if (lower.includes('itu') || lower.includes('cistite') || lower.includes('infecção urinária')) {
+      return `🫘 **Infecção do Trato Urinário (ITU):**\n\n**Diagnóstico:** urinálise + urocutura (cistocente ou jato médio)\n\n**ITU não complicada (1ª vez, fêmea jovem):**\n• Amoxicilina+clav 13,75 mg/kg VO 12/12h por 7 dias (se E. coli sensível)\n• Alternativa: trimetoprima-sulfa 15 mg/kg VO 12/12h 7 dias\n\n**ITU complicada (macho, recorrente, DRC, diabetes):**\n• Basear no antibiograma — 14–28 dias\n• Investigar causas subjacentes: urólitos, anomalias anatômicas, ecografia vesical\n\n**Cistite idiopática felina (FIC):**\n• Forma mais comum de DTUFI em gatos jovens\n• NÃO tem infecção bacteriana — antibióticos não são indicados\n• Manejo: enriquecimento ambiental, dieta úmida, aumento ingestão hídrica, amitriptilina se recorrente` + AVISO;
+    }
+    return `🫘 **Nefrologia — Avaliação:**\n\nInvestigação renal básica: creatinina, ureia, SDMA, fósforo, potássio, albumina, urinálise, UPC, PA.\n\nInforme os valores laboratoriais para estadiamento IRIS e protocolo de tratamento específico.` + AVISO;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     ENDOCRINOLOGIA
+  ═══════════════════════════════════════════════════ */
+  if (lower.includes('diabetes') || lower.includes('cushing') || lower.includes('hipotireoidismo') || lower.includes('hipertireoidismo') || lower.includes('addison') || lower.includes('endocrin') || lower.includes('insulina') || lower.includes('tireoide') || lower.includes('cortisol')) {
+    if (lower.includes('diabetes')) {
+      const e2 = (esp === 'felino' || lower.includes('felino') || lower.includes('gato'));
+      if (e2) return `💉 **Diabetes Mellitus Felina:**\n\n**Insulina de escolha:** glargina (Lantus) 0,5 UI/gato SC 12/12h → ajuste até glicemia 60–150 mg/dL\n• Alternativa: PZI 0,25–0,5 UI/kg SC 12/12h\n\n**Monitoração:** curva glicêmica (3h–9h pós-dose) ou sensor contínuo (Freestyle Libre)\n\n**Dieta:** ração úmida hipocarboidratos (< 25% CHO na matéria seca) — melhora controle glicêmico\n\n**Remissão diabética:** 50–70% dos gatos atingem remissão com controle adequado nos primeiros 6 meses (especialmente com glargina + dieta low-carb)\n\n**Hipoglicemia (emergência):** glicose 50% IV 0,5–1 mL/kg diluída — reverter imediatamente` + AVISO;
+      return `💉 **Diabetes Mellitus Canina:**\n\nInsulina: insulina NPH (humana) 0,5 UI/kg SC 12/12h com alimentação → ajuste progressivo\n\nMeta: glicemia nadir 80–150 mg/dL · glicemia pré-dose < 250 mg/dL\n\nCurva glicêmica: cada 1–2 semanas inicialmente\n\nFruutosamina: monitoração controle glicêmico a longo prazo (alvo < 400 µmol/L)` + AVISO;
+    }
+    if (lower.includes('cushing') || lower.includes('hiperadrenocorticismo') || lower.includes('cortisol')) {
+      return `🧬 **Hiperadrenocorticismo (HAC / Síndrome de Cushing):**\n\n**Sinais:** PU/PD, polifagia, abdômen pendular, alopecia bilateral simétrica, calcinose cutânea, hepatomegalia\n\n**Diagnóstico:**\n• Triagem: LDDS (dexametasona baixa dose) ou cortisol urinário/creatinina\n• Diferenciação: HDDS (discrimina hipófise vs adrenal) + ecografia adrenal + dosagem ACTH\n\n**Tratamento:**\n• **PDH (hipofisário — 85%):** trilostano 2,2–6,7 mg/kg VO 1x/dia → ACTH estimulação 4–6h pós-dose (alvo 2–5 µg/dL)\n• **ADH (adrenal — tumor):** adrenalectomia cirúrgica\n• Mitotano: alternativa (protocolo de ataque + manutenção)` + AVISO;
+    }
+    if (lower.includes('hipotireoidismo')) {
+      return `🧬 **Hipotireoidismo Canino:**\n\n**Sinais:** obesidade, letargia, alopecia não-pruriginosa, mixedema, bradicardia, hipotermia\n\n**Diagnóstico:** T4 total + T4 livre (equilibrio diálise) + TSH canino\n• T4 total baixo + TSH elevado = confirmatório\n\n**Tratamento:** levotiroxina 0,02 mg/kg VO 12/12h → T4 pós-dose (4–6h) alvo: metade superior do intervalo de referência\n\n**Felino:** hipertireoidismo (T4 total elevado) → metimazol 2,5–5 mg/gato VO 12/12h ou iodo radioativo` + AVISO;
+    }
+    return `🧬 **Endocrinologia — resumo:**\n\nInforme sinais e exames para diagnóstico específico.\n• Diabetes: insulina + dieta + monitoração\n• Cushing: trilostano\n• Hipotireoidismo: levotiroxina\n• Hipertireoidismo felino: metimazol\n• Addison (hipoadrenocorticismo): desoxicorticosterona (DOCP) + prednisolona` + AVISO;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     DOENÇAS INFECCIOSAS / PARASITOLOGIA
+  ═══════════════════════════════════════════════════ */
+  if (lower.includes('parvo') || lower.includes('cinomose') || lower.includes('distemper') || lower.includes('leptospira') || lower.includes('leishmaniose') || lower.includes('erliquiose') || lower.includes('infecciosa') || lower.includes('zoonose') || lower.includes('vacin')) {
+    if (lower.includes('parvo') || lower.includes('parvovírus') || lower.includes('parvovirus')) {
+      return `🦠 **Parvovirose Canina — Emergência:**\n\n**Diagnóstico:** SNAP Parvo (fezes) — sensibilidade ~80%; confirmar com PCR se negativo e alta suspeita\n\n**Tratamento — Suporte intensivo:**\n1. Fluidoterapia IV agressiva (NaCl 0,9% + KCl conforme ionograma)\n2. Antieméticos: maropitant 1 mg/kg SC + ondansetrona 0,1–0,2 mg/kg SC\n3. Antibióticos (barreira intestinal comprometida): ampicilina 22 mg/kg IV + metronidazol 15 mg/kg IV\n4. Nutrição enteral precoce — sonda NG se necessário\n5. Plasma hiperimune (se disponível) — 2 mL/kg IV\n6. Monitorar: proteínas (albumina), glicemia, hematócrito\n\n**Prognóstico:** boa sobrevivência com suporte intensivo precoce (70–90%)` + AVISO;
+    }
+    if (lower.includes('leishmaniose') || lower.includes('leishmania')) {
+      return `🦠 **Leishmaniose Visceral Canina (LVC):**\n\n**Diagnóstico:** RIFI ≥ 1:40 + sorologia ELISA ou PCR (LN/medula)\n\n**Tratamento (CFMV Res. 1.000/2012 — uso exclusivo em saúde animal não endêmica):**\n• Alopurinol 10 mg/kg VO 12/12h (crônico — supressão, não cura)\n• Miltefosina 2 mg/kg VO 28 dias + alopurinol (maiores taxas de cura)\n• Antimoniato de N-metilglucamina: uso restrito, esquema varia\n\n**Monitoração:** proteinograma, UPC, creatinina a cada 6 meses\n\n**Eutanásia:** exigida por lei em municípios endêmicos com soropositivo (Lei 14.515/2022 regulamentação estadual)` + AVISO;
+    }
+    return `🦠 **Doenças Infecciosas — Calendário Vacinal:**\n\n**Cão:**\n• V10 (núcleo: CDV, CPV, CAV): filhote 6–8–10–12s + 1 ano + trienal\n• Raiva: filhote ≥ 12 semanas + anual\n• Leptospirose: bivalente/tetravalente — anual (endêmico)\n• Bordetella: anual em animais de risco (canil, pet shop)\n\n**Gato:**\n• Tríplice (HHC = herpesvírus + calicivírus + panleucopenia): filhote 8–12–16s + 1 ano + trienal\n• Raiva: anual\n• FeLV: filhote 9–12s reforço 4 sem + anual (soronegativo em risco)\n\nInforme doença específica para protocolo detalhado!` + AVISO;
+  }
+  if (lower.includes('parasit') || lower.includes('carrapato') || lower.includes('pulga') || lower.includes('giardia') || lower.includes('verme') || lower.includes('toxocara') || lower.includes('heartworm') || lower.includes('dirofilaria') || lower.includes('ancilostomo')) {
+    return `🦟 **Parasitologia — Controle:**\n\n**Ectoparasitas:**\n• Carrapatos/pulgas: isoxazolinas (fluralaner, afoxolaner, sarolaner) — primeira linha, eficácia 99%+\n• Alternativa: fipronil + S-metoprene mensal\n\n**Endoparasitas:**\n• Roundworms (Toxocara, Toxascaris): pirantel 5–10 mg/kg VO _ou_ fenbendazol 50 mg/kg 3d\n• Ancilostoma: fenbendazol, pirantel, milbemicina\n• Giardia: metronidazol 15 mg/kg VO 12/12h 5–7d _ou_ fenbendazol 50 mg/kg 5d\n• Dipylidium (tênia): praziquantel 5 mg/kg VO dose única\n\n**Dirofilariose (heartworm):**\n• Profilaxia: milbemicina ou ivermectina mensais em áreas endêmicas\n• Tratamento: melarsomina IM (protocolo CAPC 3 doses) — estabilização prévia` + AVISO;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     EMERGÊNCIA / URGÊNCIA
+  ═══════════════════════════════════════════════════ */
+  if (lower.includes('emergência') || lower.includes('urgência') || lower.includes('crise') && !lower.includes('epilepsia') || lower.includes('intoxicação') || lower.includes('choque') || lower.includes('rcp') || lower.includes('parada cardíaca') || lower.includes('trauma')) {
+    if (lower.includes('intoxicação') || lower.includes('envenenamento') || lower.includes('veneno')) {
+      return `🚨 **Intoxicação — Protocolo de Emergência:**\n\n**Primeiros passos:**\n1. Estabilizar via aérea, circulação e temperatura\n2. Identificar o tóxico (nome do produto, quantidade, tempo de exposição)\n3. Ligar para centro de toxicologia: CVP-Campinas (19) 3243-7777 / CEATOX-SP (11) 3081-1033\n\n**Descontaminação (se < 2h ingestão + animal consciente):**\n• Vômito: apomorfina 0,03 mg/kg IV _ou_ H₂O₂ 3% 1 mL/kg VO (cão)\n• Carvão ativado: 1–4 g/kg + catártico (sulfato de sódio) — NÃO usar se cáustico\n\n**Tóxicos comuns:**\n• **Rodenticida anticoagulante:** vitamina K1 2,5–5 mg/kg VO 30d\n• **Organofosforado:** atropina 0,2 mg/kg IV + pralidoxima 20 mg/kg IM\n• **Paracetamol (gatos):** N-acetilcisteína 140 mg/kg VO/IV loading + 70 mg/kg q6h\n• **Chocolte:** diazepam se convulsão, fluidos, manter alerta cardíaco\n• **Uva/passa:** induzir vômito + fluidos + monitorar renal` + AVISO;
+    }
+    if (lower.includes('rcp') || lower.includes('parada cardíaca') || lower.includes('ressuscitação')) {
+      return `🚨 **RCP Veterinária (RECOVER 2012):**\n\n**BLS (Basic Life Support):**\n• 100–120 compressões/minuto\n• 1/3 da largura do tórax de profundidade\n• Relação 30:2 (comprimir:ventilar) se 1 socorrista · 15:2 se 2\n• Via aérea: intubação com O₂ a 100%\n\n**ALS:**\n• Acesso IV/IO\n• Adrenalina 0,01 mg/kg IV a cada 3–5 min\n• Vasopressina 0,8 UI/kg IV (1ª ou 2ª dose alternada)\n• Atropina 0,04 mg/kg IV (assistolia/bradicardia)\n\n**Desfibrilação (FV/TVSP):**\n• Monofásica: 4–6 J/kg · Bifásica: 2–4 J/kg\n• RCP imediatamente pós-choque por 2 min\n\n**Causas reversíveis (6H + 6T):**\nHipoxemia, Hipovolemia, Hipotermia, Hipo/hipercalemia, Hipoglicemia, H+ acidose\nTamponamento, Tensão pneumotórax, Tromboembolismo, Toxinas, Trauma, Trombose coronária` + AVISO;
+    }
+    return `🚨 **Emergência — Triagem rápida:**\n\n**Sinais de emergência absoluta:**\n• Dificuldade respiratória grave → O₂ imediato, posição esternal\n• Colapso / choque → acesso IV, Ringer lactato 20 mL/kg em bólus\n• Convulsão ativa → diazepam 0,5 mg/kg IV\n• Trauma → imobilização, avaliação ABC\n• Cólica equina grave → sonda nasogástrica, fluidoterapia, analgesia\n\nInforme o quadro completo para protocolo específico!` + AVISO;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     REPRODUÇÃO
+  ═══════════════════════════════════════════════════ */
+  if (lower.includes('piometra') || lower.includes('gestação') || lower.includes('parto') || lower.includes('distocia') || lower.includes('criptorquida') || lower.includes('reprodução') || lower.includes('ciclo') || lower.includes('prenhez')) {
+    if (lower.includes('piometra')) {
+      return `🚨 **Piometra — Emergência cirúrgica:**\n\n**Diagnóstico:** anamnese (cio recente), descarga vulvar (aberta) ou ausência (fechada), leucocitose com desvio à esquerda, ecografia uterina (conteúdo anecoico/ecogênico)\n\n**Tratamento:**\n• **Padrão:** ovário-histerectomia (OH) de urgência após estabilização\n• Estabilização pré-op: fluidos IV, antibióticos (amoxicilina+clav IV ou cefazolina), correção de eletrólitos\n• **Conservador (raças de criação, piometra aberta, risco anestésico baixo):** aglepristona 10 mg/kg SC dias 1, 2 e 8 + enrofloxacino — monitoração rigorosa\n\n**Pós-op:** antibióticos 7–10 dias (amoxicilina+clav), analgesia, suporte nutricional` + AVISO;
+    }
+    return `🐾 **Reprodução — resumo:**\n\n• **Progestagens exógenos:** contraindicados por risco de piometra e neoplasia mamária\n• **Prevenção:** castração precoce (antes do 1° cio reduz risco de neoplasia mamária de 8% para 0,5%)\n• **Gestação:** diagnóstico por ecografia (28–35 dias) ou RX (45+ dias para contar filhotes)\n• **Distocia:** se > 2h de contrações sem filhote → intervenção (ocitocina 0,5–2 UI/cão IM _ou_ cesariana)\n• **Criptorquidismo:** orquiectomia bilateral recomendada (risco de torção e neoplasia)` + AVISO;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     ANIMAIS EXÓTICOS
+  ═══════════════════════════════════════════════════ */
+  if (lower.includes('ave') || lower.includes('pássaro') || lower.includes('papagaio') || lower.includes('calopsita') || lower.includes('periquito') || lower.includes('bird') || lower.includes('psitac')) {
+    return `🦜 **Medicina de Aves (Psitacídeos):**\n\n**Princípios básicos:**\n• Temperatura corporal normal: 40–42°C\n• Não palpação abdominal agressiva — risco de regurgitação e aspiração\n• Coleta de sangue: veia jugular direita (< 1% do peso corporal)\n\n**Doenças comuns:**\n• **Doença de Pacheco (herpesvírus):** morte súbita, aciclovir profilático em contatos\n• **Aspergillus:** imunossupressão + itraconazol 10 mg/kg VO 12/12h\n• **Psitacose (Chlamydophila):** tetraciclina ou doxiciclina 25–50 mg/kg VO 45d — ZOONOSE!\n• **Doença do bico e penas (PBFD):** circovírus — não há tratamento, suporte\n• **Deficiência de vitamina A:** hipovitaminose A → suplementar + dieta rica em beta-caroteno\n\n**Anestesia:** isoflurano máscara, monitorar glicemia (hipoglicemia frequente)\n**Analgesia:** butorfanol 1–2 mg/kg IM, meloxicam 0,5 mg/kg VO 12/12h` + AVISO;
+  }
+  if (lower.includes('réptil') || lower.includes('lagarto') || lower.includes('cobra') || lower.includes('tartaruga') || lower.includes('iguana')) {
+    return `🦎 **Medicina de Répteis:**\n\n**Princípios:**\n• Animais ectotérmicos — temperatura ambiental critica (POTZ: preferred optimal thermal zone)\n• Iguana/Dragão de Barba: 28–35°C dia · 22–25°C noite\n• Cobra: 28–32°C\n\n**Doenças comuns:**\n• **Estomatite infecciosa (boca podre):** amoxicilina+clav ou enrofloxacino IM + limpeza local\n• **Pneumonia:** enrofloxacino 5 mg/kg IM a cada 48h + nebulização\n• **Disecdise:** banhos mornos + óleo mineral — investigar umidade insuficiente\n• **Deficiência de cálcio (MBD):** suplementação Ca + vitamina D + UVB\n• **Abscesso:** drenagem cirúrgica + cultura + ATB\n\n**Anestesia:** propofol IV (veia coccígea ventral), quetamina IM para sedação\n**Dica:** Salmonella — risco de zoonose — orientar higiene do tutor` + AVISO;
+  }
+  if (lower.includes('coelho') || lower.includes('rabbit')) {
+    return `🐰 **Medicina de Coelhos:**\n\n**Dieta:** feno ilimitado (80%) + folhas verdes + ração peletizada restrita (5% do peso/dia)\n\n**Doenças comuns:**\n• **GI stasis (estase):** emergência! Fluidos SC + motilidade (metoclopramida ou ranitidina) + analgesia + estimular alimentação com feno\n• **Doença hemorrágica viral (RHDV2):** vacina bianual — ALTA mortalidade\n• **Myxomatose:** vacina — prevenção\n• **Abscesso:** anaeróbios frequentes — rifampicina + azitromicina ou penicilina IM\n• **Sarna de ouvido (Psoroptes):** ivermectina 0,2 mg/kg SC 2 doses/14 dias\n\n**NUNCA usar:** amoxicilina, ampicilina, clindamicina VO — causam disbiose fatal\n\n**Castração:** recomendada em ambos os sexos (prevenção de adenocarcinoma uterino em fêmeas)` + AVISO;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     ODONTOLOGIA / DENTAL (mantida e expandida)
+  ═══════════════════════════════════════════════════ */
+  /* ── Diagnóstico diferencial oral ── */
   if (lower.includes('diagnóstico diferencial') || lower.includes('diferencial') || lower.includes('halitose') || lower.includes('sialorreia')) {
     const sinais = lower.includes('sialorreia') || lower.includes('dificuldade de mastigação') || lower.includes('dificuldade mastigação');
-    if (sinais || lower.includes('felino') || lower.includes('gato')) {
-      return `🔎 **Diagnóstico diferencial — felino com halitose + sialorreia + disfagia:**\n\n**1° Doença periodontal grau III–IV** (mais provável)\n• Acúmulo de cálculo, bolsas periodontais profundas, exposição de furca\n• Dx: sondagem + radiografia intraoral\n\n**2° Estomatite crônica felina (GECF)**\n• Inflamação difusa de mucosa oral, dor intensa, sialorreia profusa\n• Associação com FCV, FHV-1, FIV/FeLV\n• Dx: biópsia + sorologias\n\n**3° Lesões de reabsorção dentária (RL)**\n• Dor aguda à sondagem no colo dentário\n• Dx: radiografia intraoral (lesões radiolúcidas subgengivais)\n\n**4° Neoplasia oral**\n• Carcinoma de células escamosas (localizado em língua/amígdala/gengiva)\n• Crescimento rápido, ulceração, halitose fétida\n• Dx: biópsia + TC\n\n**5° Corpo estranho oral**\n• Sialorreia aguda, dor localizada, meneio de cabeça\n• Dx: inspeção + radiografia\n\n**Conduta imediata:** hemograma + bioquímica, sorologias FIV/FeLV, radiografia intraoral sob anestesia.` + AVISO;
+    if (sinais || lower.includes('felino') || lower.includes('gato') || esp==='felino') {
+      return `🔎 **Diagnóstico diferencial — felino com halitose + sialorreia + disfagia:**\n\n**1° Doença periodontal grau III–IV** (mais provável)\n• Cálculo, bolsas profundas, exposição de furca · Dx: sondagem + Rx intraoral\n\n**2° Estomatite crônica felina (GECF)**\n• Inflamação difusa além da linha mucogengival · FCV/FHV-1/FIV/FeLV\n• Dx: biópsia + sorologias\n\n**3° FORL / Lesões de reabsorção (RL)**\n• Dor à sondagem no colo · Dx: Rx intraoral (radiolucências subgengivais)\n\n**4° Neoplasia oral (CEC)**\n• Crescimento rápido, ulceração, halitose fétida · Dx: biópsia + TC\n\n**5° Corpo estranho oral**\n• Sialorreia aguda, dor localizada · Dx: inspeção + Rx\n\n**Conduta:** hemograma + bioquímica + sorologias FIV/FeLV + Rx intraoral anestesia.` + AVISO;
     }
-    return `🔎 **Diagnóstico diferencial para halitose:**\n\n• **Doença periodontal** — causa mais comum em cães e gatos\n• **Corpo estranho oral** — osso, espinho, graveto\n• **Neoplasia oral** — crescimento, úlcera, sangramento\n• **IRC (uremia)** — halitose de amônia em animais geriátricos\n• **Diabetes mellitus** — halitose cetônica\n• **Estomatite felina (GECF)** — em gatos com sialorreia\n\nInforme a espécie, sinais e duração para diagnóstico mais preciso.` + AVISO;
+    return `🔎 **Diagnóstico diferencial para halitose:**\n\n• **Doença periodontal** — causa mais comum\n• **Corpo estranho oral** — osso, espinho, graveto\n• **Neoplasia oral** — crescimento, úlcera, sangramento\n• **IRC (uremia)** — halitose de amônia\n• **Diabetes mellitus** — halitose cetônica\n• **Estomatite felina (GECF)** — sialorreia + disfagia\n\nInforme a espécie, sinais e duração para diagnóstico mais preciso.` + AVISO;
   }
 
-  /* ── Anestesia / protocolos ── */
+  /* ── Protocolos anestésicos ── */
   if (lower.includes('cetamina') || lower.includes('propofol') || lower.includes('midazolam') || lower.includes('dexmedeto') || lower.includes('protocolo anestés')) {
-    const hasPeso = /(\d+[\.,]?\d*)\s*kg/.exec(lower);
-    const peso = hasPeso ? parseFloat(hasPeso[1].replace(',','.')) : null;
-    const especie = lower.includes('gato') || lower.includes('felino') ? 'felino' : lower.includes('equino') || lower.includes('cavalo') ? 'equino' : 'canino';
-    if (especie === 'canino') {
-      const base = peso ? `(para ${peso}kg)` : '';
-      return `💉 **Protocolo anestésico canino ${base}:**\n\n**MPA (30–40 min antes):**\n• Acepromazina 0,02–0,05 mg/kg IM ${peso ? `= ${(peso*0.03).toFixed(2)}mg` : ''}\n• Meperidina 4–5 mg/kg IM ${peso ? `= ${(peso*4.5).toFixed(0)}mg` : ''} _ou_ Morfina 0,2–0,5 mg/kg IM\n\n**Indução IV:**\n• Propofol 4–6 mg/kg IV lento ${peso ? `= ${(peso*5).toFixed(0)}mg` : ''}\n_ou_\n• Cetamina 5 mg/kg + Midazolam 0,3 mg/kg IV ${peso ? `= Ket ${(peso*5).toFixed(0)}mg + Mida ${(peso*0.3).toFixed(1)}mg` : ''}\n\n**Manutenção:** Isoflurano 1,2–2% em O₂\n\n**Analgesia peri-op:**\n• Meloxicam 0,2 mg/kg IV/SC pré-op ${peso ? `= ${(peso*0.2).toFixed(2)}mg` : ''}\n• Tramadol 2–4 mg/kg IM ${peso ? `= ${(peso*3).toFixed(0)}mg` : ''}\n\n**Bloqueio locoregional:** lidocaína 2% + bupivacaína 0,5% para nervos alveolares.` + AVISO;
+    const anEsp = lower.includes('gato') || lower.includes('felino') ? 'felino' : lower.includes('equino') || lower.includes('cavalo') ? 'equino' : 'canino';
+    if (anEsp === 'canino') {
+      return `💉 **Protocolo anestésico canino${peso?' ('+peso+'kg)':''}:**\n\n**MPA (30–40 min antes):**\n• Acepromazina 0,03 mg/kg IM${kg(0.03)}\n• Meperidina 4 mg/kg IM${kg(4)} _ou_ Morfina 0,3 mg/kg IM\n\n**Indução IV:**\n• Propofol 4–6 mg/kg IV lento${kg(5)}\n_ou_ Cetamina 5 mg/kg + Midazolam 0,3 mg/kg IV\n\n**Manutenção:** Isoflurano 1,2–2% em O₂\n\n**Analgesia peri-op:**\n• Meloxicam 0,2 mg/kg IV/SC${kg(0.2)} · Tramadol 3 mg/kg IM${kg(3)}\n• Bloqueio locoregional: lidocaína 2% + bupivacaína 0,5%` + AVISO;
     }
-    if (especie === 'felino') {
-      return `💉 **Protocolo anestésico felino ${peso ? `(${peso}kg)` : ''}:**\n\n**MPA:**\n• Dexmedetomidina 10–20 mcg/kg IM ${peso ? `= ${(peso*15).toFixed(0)}mcg` : ''}\n• Butorfanol 0,2–0,4 mg/kg IM ${peso ? `= ${(peso*0.3).toFixed(2)}mg` : ''}\n\n**Indução:**\n• Cetamina 5 mg/kg + Midazolam 0,2 mg/kg IM ${peso ? `= Ket ${(peso*5).toFixed(0)}mg + Mida ${(peso*0.2).toFixed(1)}mg` : ''}\n_ou_ Propofol 3–5 mg/kg IV lento\n\n**Manutenção:** Isoflurano 1,0–1,5% em O₂\n\n**Analgesia:**\n• Meloxicam 0,05 mg/kg SC ${peso ? `= ${(peso*0.05).toFixed(2)}mg` : ''} (1 dose)\n• Bloqueio infraorbital com bupivacaína 0,25% (0,1 mL/ponto)` + AVISO;
+    if (anEsp === 'felino') {
+      return `💉 **Protocolo anestésico felino${peso?' ('+peso+'kg)':''}:**\n\n**MPA:**\n• Dexmedetomidina 10–20 mcg/kg IM${mcg(15)}\n• Butorfanol 0,3 mg/kg IM${kg(0.3)}\n\n**Indução:**\n• Cetamina 5 mg/kg + Midazolam 0,2 mg/kg IM${peso?'= Ket '+(peso*5).toFixed(0)+'mg + Mida '+(peso*0.2).toFixed(1)+'mg':''}\n_ou_ Propofol 3–5 mg/kg IV lento\n\n**Manutenção:** Isoflurano 1,0–1,5%\n\n**Analgesia:** Meloxicam 0,05 mg/kg SC${kg(0.05)} (1 dose) · Bloqueio infraorbital bupivacaína 0,25%` + AVISO;
     }
-    if (especie === 'equino') {
-      return `💉 **Protocolo anestésico equino ${peso ? `(${peso}kg)` : ''}:**\n\n**Sedação em estação (campo):**\n• Xilazina 1,1 mg/kg IV ${peso ? `= ${(peso*1.1).toFixed(0)}mg` : ''}\n• Butorfanol 0,02–0,05 mg/kg IV ${peso ? `= ${(peso*0.03).toFixed(0)}mg` : ''}\n\n**Indução (campo):**\n• Cetamina 2,2 mg/kg IV ${peso ? `= ${(peso*2.2).toFixed(0)}mg` : ''}\n• Midazolam 0,05–0,1 mg/kg IV ${peso ? `= ${(peso*0.07).toFixed(0)}mg` : ''}\n\n**Manutenção (clínica):** Isoflurano em circuito fechado equino\n\n**AINE:** Flunixin meglumine 1,1 mg/kg IV ${peso ? `= ${(peso*1.1).toFixed(0)}mg` : ''} ou Meloxicam 0,6 mg/kg VO` + AVISO;
+    if (anEsp === 'equino') {
+      return `💉 **Protocolo anestésico equino${peso?' ('+peso+'kg)':''}:**\n\n**Sedação em estação:**\n• Xilazina 1,1 mg/kg IV${kg(1.1)} · Butorfanol 0,03 mg/kg IV${kg(0.03)}\n\n**Indução (decúbito):**\n• Cetamina 2,2 mg/kg IV${kg(2.2)} + Midazolam 0,07 mg/kg IV${kg(0.07)}\n\n**Manutenção:** Isoflurano circuito equino\n\n**AINE:** Flunixin 1,1 mg/kg IV${kg(1.1)} _ou_ Meloxicam 0,6 mg/kg VO${kg(0.6)}` + AVISO;
     }
   }
 
   /* ── Odontoplastia equina ── */
-  if (lower.includes('odontoplastia') || lower.includes('nivelamento') || lower.includes('diastema') || lower.includes('gancho') || lower.includes('ponta de esmalte')) {
-    return `🐴 **Protocolo de Odontoplastia Equina:**\n\n**1. Preparo e sedação**\n• Xilazina 0,5–1,0 mg/kg IV + Butorfanol 0,02 mg/kg IV\n• Espéculo oral + fonte de luz\n• Avaliação com sonda dentária e espelho odontológico\n\n**2. Nivelamento odontológico**\n• Remoção de pontas de esmalte (burs manuais ou elétricos)\n• Eliminar ganchos no 106/206 (maxila) e 311/411 (mandíbula)\n• Corrigir degraus e ondas\n• Redução de diastemas com cureta periodontal\n\n**3. Extrações (se indicado)**\n• Dentes de lobo (pré-molares rudimentares) com elevador periosteal\n• Elementos com mobilidade grau III ou suporte ósseo < 25%\n\n**4. Pós-procedimento**\n• Meloxicam 0,6 mg/kg VO 1x/dia por 3–5 dias\n• Dieta de feno macio 5–7 dias\n• Evitar pellet duro por 10 dias\n• Reavaliação em 6 meses\n\n**Equipamentos:** boroscopio bucal + afastadores labiais + burs de tungstênio + seringa de irrigação com solução salina.` + AVISO;
-  }
+  if (lower.includes('odontoplastia') || lower.includes('nivelamento') || lower.includes('diastema') || lower.includes('gancho') || lower.includes('ponta de esmalte'))
+    return `🐴 **Protocolo de Odontoplastia Equina:**\n\n1. Sedação: Xilazina 0,5–1,0 mg/kg IV + Butorfanol 0,02 mg/kg IV\n2. Espéculo + boroscópio + avaliação sistematizada\n3. Remoção de pontas de esmalte (burs elétricos ou manuais)\n4. Eliminar ganchos no 106/206 e 311/411 (mandíbula)\n5. Corrigir degraus, ondas e diastemas\n6. Extrações indicadas (mobilidade grau III ou dentes de lobo)\n7. Pós-op: meloxicam 0,6 mg/kg VO 3–5d · feno macio 7d · reavaliação 6 meses` + AVISO;
 
   /* ── Estomatite felina ── */
-  if (lower.includes('estomatite') || lower.includes('gecf') || lower.includes('gengivoestomatite')) {
-    return `**Estomatite Crônica Felina (GECF):**\n\n**Clínica:** sialorreia, anorexia, disfagia, perda de peso, halitose intensa, mucosa avermelhada/ulcerada além da linha mucogengival\n\n**Diagnóstico:** biópsia (plasmócitos + linfócitos), sorologias FIV/FeLV/FCV\n\n**Tratamento:**\n• **1ª linha:** extração de todos os dentes pré-molares e molares (± caninos e incisivos)\n• Remissão em 60–80% dos casos com extração total\n• **Pós-op:** prednisolona 1 mg/kg/dia reduzindo em 4 semanas\n• ATB: amoxicilina+clav 20 mg/kg 12/12h por 10 dias\n• Interferon ômega felino (se disponível) 1M UI/dia por 90 dias\n\n**Prognóstico:** depende da extensão; resposta parcial pode requerer imunomodulação de longo prazo.` + AVISO;
-  }
+  if (lower.includes('estomatite') || lower.includes('gecf') || lower.includes('gengivoestomatite'))
+    return `**Estomatite Crônica Felina (GECF):**\n\n**Clínica:** sialorreia, anorexia, disfagia, perda de peso, halitose intensa, mucosa ulcerada além da linha mucogengival\n\n**Diagnóstico:** biópsia (plasmócitos/linfócitos), sorologias FIV/FeLV/FCV\n\n**1ª linha:** extração total de PM e M (± caninos/incisivos) → remissão 60–80%\n\n**Pós-op:** prednisolona 1 mg/kg/dia (reduzir em 4sem) + amoxicilina+clav 20 mg/kg 12/12h 10d\n\n**Interferon ômega felino:** 1M UI/dia 90d se disponível` + AVISO;
 
   if (lower.includes('eotrh'))
-    return '**EOTRH:** Lesões nodulares em incisivos/caninos de equinos. Dx: radiografia intraoral. Tx: exodontia + AINE. Pós-op: lavagem das cavernosas + retorno em 10–14 dias.' + AVISO;
+    return '**EOTRH equino:** Lesões nodulares incisivos/caninos. Dx: Rx intraoral. Tx: exodontia + AINE + lavagem de cavernosas. Retorno 10–14 dias.' + AVISO;
   if (lower.includes('periodontite') || lower.includes('doença periodontal'))
     return '**Doença Periodontal:**\n• Grau I: profilaxia + higiene\n• Grau II: curetagem + ATB\n• Grau III: exodontia seletiva + ATB\n• Grau IV: exodontia\n\nATB: Amoxicilina+Clav 20 mg/kg 12/12h 7–10d' + AVISO;
   if (lower.includes('profilaxia') || lower.includes('limpeza dental') || lower.includes('detartragem'))
     return '**Protocolo Profilaxia:** US supragengival → curetagem manual → sondagem → radiografias → polimento → extrações indicadas → orientação do tutor' + AVISO;
   if (lower.includes('receituário') || lower.includes('receita') || lower.includes('prescri'))
-    return '**Modelo Receituário:**\n• Meloxicam [dose] VO 1x/dia [X]d\n• Amoxicilina+Clav [dose] VO 12/12h 7d\n• Clorexidina 0,12% gel 2x/dia 7d\n• Dieta pastosa [X] dias\n• Retorno em [X] dias' + AVISO;
+    return '**Modelo Receituário:**\n• Meloxicam [dose] VO 1x/dia [X]d\n• Amoxicilina+Clav [dose] VO 12/12h 7d\n• Clorexidina 0,12% gel 2x/dia 7d\n• Dieta pastosa [X] dias · Retorno em [X] dias' + AVISO;
   if (lower.includes('pré-anest') || lower.includes('exame pré') || lower.includes('hemograma'))
     return '**Exames pré-anestésicos:**\n• Mínimo: hemograma + ALT + FA + ureia + creatinina\n• Idosos/ASA II+: + proteínas, albumina, glicose, ECG, Rx tórax\n• Equinos: + hemogasometria + fibrinogênio' + AVISO;
-  if (lower.includes('fratura') || lower.includes('dente fraturado') || lower.includes('coroa fraturada')) {
-    return `**Fratura Dentária — Classificação e Conduta:**\n\n**Classe I (esmalte):** desgaste com punta diamantada, polimento, aplicação de flúor\n**Classe II (esmalte + dentina, polpa fechada):** restauração com ionômero de vidro + resina\n**Classe III (exposição de polpa, recente):** pulpotomia vital + restauração _ou_ endodontia\n**Classe IV (exposição de polpa, crônica):** endodontia ou exodontia\n**Classe V (fratura de raiz):** exodontia cirúrgica\n\nDx: sondagem + radiografia intraoral + teste de vitalidade pulpar.` + AVISO;
-  }
+  if (lower.includes('fratura') && (lower.includes('dente') || lower.includes('dental') || lower.includes('coroa')))
+    return `**Fratura Dentária — Classificação:**\n• Classe I (esmalte): polimento + flúor\n• Classe II (dentina, polpa fechada): ionômero + resina\n• Classe III (polpa exposta recente): pulpotomia vital\n• Classe IV (polpa exposta crônica): endodontia ou exodontia\n• Classe V (fratura de raiz): exodontia cirúrgica\n\nDx: sondagem + Rx intraoral + teste de vitalidade.` + AVISO;
 
-  return `Como copiloto **Clínica**, posso ajudar com:\n• Diagnóstico diferencial (descreva os sinais)\n• Protocolos anestésicos (informe espécie e peso)\n• Planos terapêuticos passo a passo\n• Cálculo de doses\n• Laudos, receituários e termos\n• Odontoplastia equina, estomatite felina, EOTRH, periodontite\n\nDescreva o caso!` + AVISO;
+  /* ── NUTRIÇÃO ── */
+  if (lower.includes('obeso') || lower.includes('obesidade') || lower.includes('dieta') || lower.includes('nutrição') || lower.includes('ração') || lower.includes('alimentação'))
+    return `🥗 **Nutrição — Controle de Peso:**\n\n**Diagnóstico:** Escore de condição corporal (ECC) 1–9 (ideal: 4–5) · peso atual vs. peso ideal\n\n**Plano de emagrecimento:**\n• Meta: redução de 1–2% do peso corporal/semana\n• Restricão calórica: 70–80% da necessidade de manutenção do PESO IDEAL\n• Dieta hipocalórica específica (ex: Hill's Metabolic, Royal Canin Satiety)\n• Aumentar fibras (saciedade) + proteínas magras\n• Exercício gradual adaptado à condição clínica\n\n**Dieta renal:** hipoproteica (18–25% MS), hiperenergetica, baixo fósforo (<0,4% MS), suplementação EPA/DHA\n\n**Dieta hepática:** proteína moderada de alta qualidade, rica em arginina e zinco, BCAA\n\n**Dieta urinária (urólito struvita):** urina ácida alvo (pH 6,0–6,5) + restrição de magnésio + umidade` + AVISO;
+
+  /* ═══════════════════════════════════════════════════
+     DEFAULT
+  ═══════════════════════════════════════════════════ */
+  return `Como copiloto **VetIA Pro**, sou especialista em **todas as áreas da medicina veterinária** e também atuo como secretária e setor financeiro. Posso ajudar com:\n\n🩺 **Clínica:** diagnóstico diferencial, planos terapêuticos, dosagens (cão, gato, equino, aves, répteis, exóticos)\n💉 **Anestesia:** protocolos completos com doses calculadas pelo peso\n❤️ **Especialidades:** cardiologia, dermatologia, neurologia, ortopedia, oftalmologia, oncologia, nefrologia, endocrinologia, reprodução, emergência\n🦜 **Exóticos:** aves psitacídeas, répteis, coelhos, roedores\n📱 **Secretária:** agendamentos, WhatsApp, leads, cadastros\n💰 **Financeiro:** DRE, contas a receber, fluxo de caixa, cobranças\n\nDescreva o caso com espécie, peso e sinais clínicos para resposta precisa!` + AVISO;
 }
 
 /* ───── FORMATADOR DE TEXTO ───── */
@@ -520,8 +767,9 @@ function ActionCard({ action, onExecute, done }) {
     laudo: { icon: '📄', title: 'Laudo Odontológico', btn: 'Abrir Laudo' },
     orientacao: { icon: '🐾', title: 'Orientações ao Tutor', btn: 'Abrir Orientações' },
     whatsapp: { icon: '📱', title: `WhatsApp${action.para ? ' → ' + action.para : ''}`, btn: 'Abrir WhatsApp' },
-    agendar: { icon: '📅', title: 'Agendamento sugerido', btn: 'Ir para Agenda' },
-    financeiro: { icon: '💰', title: 'Registro financeiro', btn: 'Registrar lançamento' },
+    agendar: { icon: '📅', title: 'Agendar consulta', btn: '📅 Ir para Agenda' },
+    cadastrar: { icon: '📋', title: 'Cadastrar cliente/paciente', btn: '📋 Ir para Cadastro' },
+    financeiro: { icon: '💰', title: 'Registro financeiro', btn: '💰 Registrar lançamento' },
   }[action.type] || { icon: '⚡', title: 'Ação disponível', btn: 'Executar' };
 
   /* card especial para WhatsApp */
@@ -647,6 +895,63 @@ function gerarBlocoAssinatura(opts = {}) {
     </div>`;
 }
 
+/* ───── PDF GENERATOR ───── */
+async function gerarPDFComAssinatura(htmlContent, titulo, signOpts) {
+  try {
+    const { jsPDF } = window.jspdf || {};
+    if (!jsPDF || !window.html2canvas) throw new Error('Libs PDF não carregadas');
+
+    /* renderiza HTML em div oculta */
+    const container = document.createElement('div');
+    container.style.cssText = 'position:fixed;top:-9999px;left:0;width:794px;background:#fff;font-family:Arial,sans-serif;font-size:12px;color:#000;padding:40px 48px;box-sizing:border-box;';
+    container.innerHTML = htmlContent;
+    document.body.appendChild(container);
+
+    const canvas = await window.html2canvas(container, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' });
+    document.body.removeChild(container);
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = pdf.internal.pageSize.getWidth();
+    const H = pdf.internal.pageSize.getHeight();
+    const ratio = canvas.height / canvas.width;
+    const imgH = W * ratio;
+    const margin = 10;
+
+    let y = margin;
+    if (imgH <= H - 2 * margin) {
+      pdf.addImage(imgData, 'PNG', margin, y, W - 2 * margin, imgH - 2 * margin);
+    } else {
+      /* múltiplas páginas */
+      const pageH = (H - 2 * margin) / (W - 2 * margin) * canvas.width * 2;
+      let offset = 0;
+      while (offset < canvas.height) {
+        const slice = document.createElement('canvas');
+        slice.width = canvas.width;
+        slice.height = Math.min(pageH, canvas.height - offset);
+        const ctx = slice.getContext('2d');
+        ctx.drawImage(canvas, 0, offset, canvas.width, slice.height, 0, 0, canvas.width, slice.height);
+        const sliceData = slice.toDataURL('image/png');
+        if (offset > 0) pdf.addPage();
+        pdf.addImage(sliceData, 'PNG', margin, margin, W - 2 * margin, slice.height / (canvas.width / (W - 2 * margin)));
+        offset += pageH;
+      }
+    }
+
+    /* metadados */
+    pdf.setProperties({ title: titulo, author: signOpts?.vetName || 'VetTooth Pro', creator: 'VetTooth Pro', subject: titulo });
+
+    /* download */
+    const nome = titulo.replace(/[^a-z0-9]/gi,'_').toLowerCase() + '_' + new Date().toISOString().slice(0,10) + '.pdf';
+    pdf.save(nome);
+    return true;
+  } catch (err) {
+    console.error('gerarPDF erro:', err);
+    window.vtToast?.('Erro ao gerar PDF: ' + err.message, 'err');
+    return false;
+  }
+}
+
 function DocumentModal({ doc, onClose }) {
   const [step, setStep] = vtUseState('view'); // 'view' | 'sign'
   const [selVet, setSelVet] = vtUseState(() => {
@@ -701,10 +1006,18 @@ function DocumentModal({ doc, onClose }) {
     });
   };
 
+  const [pdfLoading, setPdfLoading] = vtUseState(false);
+
   const print = () => {
     const w = window.open('','_blank');
-    w.document.write(`<!DOCTYPE html><html><head><title>${doc.title}</title><style>@page{margin:20mm}body{margin:0}</style></head><body>${finalHtml}</body></html>`);
+    w.document.write(`<!DOCTYPE html><html><head><title>${doc.title}</title><style>@page{margin:20mm}body{margin:0;font-family:Arial,sans-serif;padding:20mm}</style></head><body>${finalHtml}</body></html>`);
     w.document.close(); w.focus(); w.print();
+  };
+
+  const downloadPDF = async () => {
+    setPdfLoading(true);
+    await gerarPDFComAssinatura(finalHtml, doc.title, signOpts);
+    setPdfLoading(false);
   };
 
   return (
@@ -716,7 +1029,10 @@ function DocumentModal({ doc, onClose }) {
             <button className="vt-btn" style={{fontSize:12,padding:'6px 14px',borderColor:'var(--teal)',color:'var(--teal)'}} onClick={()=>setStep(step==='sign'?'view':'sign')}>
               {signOpts ? '✅ Assinado' : '✍️ Assinar'}
             </button>
-            <button className="vt-btn vt-btn-primary" style={{fontSize:13}} onClick={print}>🖨️ Imprimir / PDF</button>
+            <button className="vt-btn vt-btn-primary" style={{fontSize:13}} onClick={downloadPDF} disabled={pdfLoading}>
+              {pdfLoading ? '⏳ Gerando PDF…' : '📥 Baixar PDF'}
+            </button>
+            <button className="vt-btn" style={{fontSize:13}} onClick={print}>🖨️ Imprimir</button>
             <button className="vt-modal-close" onClick={onClose}>×</button>
           </div>
         </div>
