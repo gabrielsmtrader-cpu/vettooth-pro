@@ -110,15 +110,30 @@ window.VtData = (function () {
 
   return { patients, owners, week, appointments, treatments, inventory, finance,
     consultTypes: [
-      { id: 'consulta', label: 'Consulta', dur: 30, price: 'R$ 180,00' },
-      { id: 'retorno', label: 'Retorno', dur: 20, price: 'R$ 0,00' },
-      { id: 'profilaxia', label: 'Profilaxia odontológica', dur: 90, price: 'R$ 350,00' },
-      { id: 'avaliacao', label: 'Avaliação odontológica', dur: 45, price: 'R$ 250,00' },
-      { id: 'exodontia', label: 'Exodontia', dur: 120, price: 'R$ 620,00' },
-      { id: 'cirurgia', label: 'Cirurgia oral', dur: 180, price: 'R$ 1.200,00' },
-      { id: 'sedacao', label: 'Sedação', dur: 60, price: 'R$ 300,00' },
-      { id: 'vacinacao', label: 'Vacinação', dur: 20, price: 'R$ 120,00' },
-      { id: 'exame', label: 'Exames', dur: 30, price: 'R$ 220,00' },
+      /* ── Clínica Geral ─────────────────────────────────── */
+      { id: 'consulta-geral',      label: 'Consulta – Clínica Geral',          dur: 40,  price: 'R$ 200,00',    model: 'geral'  },
+      { id: 'retorno',             label: 'Retorno / Reavaliação',              dur: 20,  price: 'R$ 0,00',      model: 'geral'  },
+      { id: 'vacinacao',           label: 'Vacinação',                          dur: 20,  price: 'R$ 120,00',    model: 'geral'  },
+      { id: 'exames-gerais',       label: 'Coleta / Solicitação de Exames',     dur: 30,  price: 'R$ 80,00',     model: 'geral'  },
+      /* ── Odontológica ──────────────────────────────────── */
+      { id: 'avaliacao-odonto',    label: 'Avaliação Odontológica',             dur: 45,  price: 'R$ 250,00',    model: 'odonto' },
+      { id: 'profilaxia',          label: 'Profilaxia Odontológica',            dur: 90,  price: 'R$ 380,00',    model: 'odonto' },
+      { id: 'exodontia-simples',   label: 'Exodontia Simples',                  dur: 60,  price: 'R$ 320,00',    model: 'odonto' },
+      { id: 'exodontia-cirurgica', label: 'Exodontia Cirúrgica',                dur: 120, price: 'R$ 680,00',    model: 'odonto' },
+      { id: 'trat-periodontal',    label: 'Tratamento Periodontal',             dur: 90,  price: 'R$ 480,00',    model: 'odonto' },
+      { id: 'cirurgia-oral',       label: 'Cirurgia Oral',                      dur: 180, price: 'R$ 1.500,00',  model: 'odonto' },
+      { id: 'endodontia',          label: 'Endodontia / Tratamento de Canal',   dur: 120, price: 'R$ 750,00',    model: 'odonto' },
+      { id: 'rx-odonto',           label: 'Radiografia Intraoral',              dur: 30,  price: 'R$ 180,00',    model: 'odonto' },
+      /* ── Dermatológica ─────────────────────────────────── */
+      { id: 'consulta-derma',      label: 'Consulta – Dermatológica',           dur: 50,  price: 'R$ 220,00',    model: 'derma'  },
+      { id: 'citologia-raspad',    label: 'Citologia / Raspado Cutâneo',        dur: 30,  price: 'R$ 150,00',    model: 'derma'  },
+      { id: 'trat-otite',          label: 'Tratamento de Otite',                dur: 30,  price: 'R$ 140,00',    model: 'derma'  },
+      /* ── Ortopédica ────────────────────────────────────── */
+      { id: 'consulta-orto',       label: 'Consulta – Ortopédica',              dur: 50,  price: 'R$ 220,00',    model: 'orto'   },
+      { id: 'fisiote',             label: 'Fisioterapia / Reabilitação',        dur: 60,  price: 'R$ 180,00',    model: 'orto'   },
+      /* ── Avaliação Anestésica ──────────────────────────── */
+      { id: 'avaliacao-anest',     label: 'Avaliação Anestésica (Pré-op)',      dur: 30,  price: 'R$ 180,00',    model: 'anest'  },
+      { id: 'anestesia',           label: 'Anestesia / Sedação',                dur: 60,  price: 'R$ 380,00',    model: 'anest'  },
     ],
     vets: [
       { id: 'v1', name: 'Sofia Silva', role: 'Odontologia', color: '#2f6fed' },

@@ -13,14 +13,11 @@ window.PR = (function () {
   const nowHM = () => new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
   const consultModels = [
-    { id: 'geral', label: 'Clínica geral', icon: 'stethoscope', desc: 'Anamnese + exame físico completo' },
-    { id: 'odonto', label: 'Odontológica', icon: 'tooth', desc: 'Avaliação e odontograma' },
-    { id: 'equina', label: 'Equina', icon: 'paw', desc: 'Avaliação de equinos' },
-    { id: 'felina', label: 'Felina', icon: 'paw', desc: 'Protocolo gato-amigável' },
-    { id: 'retorno', label: 'Retorno', icon: 'calendar', desc: 'Reavaliação pós-procedimento' },
-    { id: 'anest', label: 'Avaliação anestésica', icon: 'spark', desc: 'Risco e pré-operatório' },
-    { id: 'derma', label: 'Dermatológica', icon: 'receipt', desc: 'Pele, pelos e anexos' },
-    { id: 'orto', label: 'Ortopédica', icon: 'chart', desc: 'Aparelho locomotor' },
+    { id: 'geral',  label: 'Clínica Geral',         icon: 'stethoscope', desc: 'Anamnese + exame físico completo + diagnóstico' },
+    { id: 'odonto', label: 'Odontológica',           icon: 'tooth',       desc: 'Avaliação periodontal, odontograma e protocolo dental' },
+    { id: 'derma',  label: 'Dermatológica',          icon: 'receipt',     desc: 'Pele, pelos, anexos e protocolo de alergias' },
+    { id: 'orto',   label: 'Ortopédica',             icon: 'chart',       desc: 'Aparelho locomotor, testes ortopédicos e neurológicos' },
+    { id: 'anest',  label: 'Avaliação Anestésica',   icon: 'spark',       desc: 'Pré-operatório, risco ASA e protocolo anestésico' },
   ];
 
   const anamnese = [
@@ -108,11 +105,12 @@ function prBlank(patient, base) {
     status: 'em_andamento',
     date: window.PR.todayBR(),
     time: window.PR.nowHM(),
-    type: 'Consulta',
+    type: 'Consulta – Clínica Geral',
     vet: 'M.V. ' + (window.vtCurrentVet ? window.vtCurrentVet() : 'Veterinário'),
     vetColor: (window.vtVets ? (window.vtVets()[0] || {}).color : null) || '#14a8a0',
     local: 'Clínica própria',
     motivo: '', queixa: '',
+    consultModel: (base && base.type && window.vtModelForType) ? window.vtModelForType(base && base.type) : 'geral',
     weight: patient.weight || '',
     anamnese: {}, exame: {}, exameObs: '', roteiro: {},
     sistemas: {}, odonto: { flags: {}, obs: '', plano: '', charts: [] },

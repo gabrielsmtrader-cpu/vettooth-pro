@@ -21,14 +21,202 @@ window.vtSaveConsults = function (list) {
    Cada tipo avalia coisas diferentes. Itens são marcados Normal/Alterado/N-A
    pelo veterinário na aba Consulta. Personalizáveis em Configurações. */
 window.PR_ROTEIROS_DEFAULT = {
-  geral: { label: 'Clínica geral', items: ['Estado geral / atitude', 'Mucosas', 'Hidratação (turgor)', 'Linfonodos', 'Ausculta cardíaca', 'Ausculta pulmonar', 'Palpação abdominal', 'Temperatura', 'Escore corporal (ECC)', 'Pele e pelos'] },
-  odonto: { label: 'Odontológica', items: ['Halitose', 'Índice de placa', 'Cálculo dentário', 'Gengivite', 'Doença periodontal', 'Mobilidade dentária', 'Fraturas dentárias', 'Reabsorções dentárias', 'Oclusão', 'Dor à palpação oral'] },
-  equina: { label: 'Equina', items: ['Avaliação à distância', 'Locomoção / claudicação', 'Cavidade oral (pontas de esmalte)', 'Ausculta dos 4 quadrantes intestinais', 'Avaliação dos cascos', 'Escore de Henneke', 'Sinais de cólica', 'Comportamento'] },
-  felina: { label: 'Felina', items: ['Nível de estresse (gato-amigável)', 'Palpação de tireoide', 'Palpação renal', 'Cavidade oral (estomatite/reabsorção)', 'Ausculta cardíaca (sopro/galope)', 'Escore corporal (ECC)', 'Avaliação comportamental'] },
-  retorno: { label: 'Retorno', items: ['Evolução desde a última consulta', 'Resposta ao tratamento', 'Reavaliação dos parâmetros alterados', 'Adesão à medicação', 'Necessidade de ajuste terapêutico'] },
-  anest: { label: 'Avaliação anestésica', items: ['Classificação ASA', 'Ausculta cardíaca', 'Ausculta pulmonar', 'Jejum confirmado', 'Hemograma / bioquímico', 'Histórico anestésico prévio', 'Peso preciso', 'Risco anestésico'] },
-  derma: { label: 'Dermatológica', items: ['Tipo de lesão', 'Distribuição das lesões', 'Escala de prurido (0–10)', 'Raspado cutâneo', 'Citologia', 'Tricograma', 'Otite associada', 'Histórico ambiental / alimentar'] },
-  orto: { label: 'Ortopédica', items: ['Grau de claudicação', 'Palpação articular', 'Amplitude de movimento', 'Teste de gaveta', 'Dor à manipulação', 'Atrofia muscular', 'Avaliação da marcha', 'Indicação de radiografia'] },
+  /* ─── CLÍNICA GERAL ──────────────────────────────────────────────────── */
+  geral: { label: 'Clínica Geral', items: [
+    'Atitude e comportamento (alerta / deprimido / prostrado)',
+    'Escore de condição corporal — ECC 1-9 (Laflamme)',
+    'Mucosas: cor, umidade, icterícia, cianose',
+    'TPC — Tempo de Preenchimento Capilar (< 2 s normal)',
+    'Grau de hidratação: turgor cutâneo e mucosas',
+    'Temperatura retal (°C)',
+    'Ausculta cardíaca: ritmo, FC, sopros (grau I-VI)',
+    'Ausculta pulmonar: murmúrio vesicular, crepitações, sibilos',
+    'Frequência respiratória e padrão respiratório',
+    'Pulso femoral: frequência, amplitude, ritmo',
+    'Palpação abdominal: dor, tensão, organomegalia, massas',
+    'Linfonodos: tamanho, consistência, mobilidade, dor',
+    'Pele e pelos: alopecia, ectoparasitas, lesões, brilho',
+    'Olhos: secreção, conjuntiva, opacidade, reflexo pupilar',
+    'Ouvidos: odor, secreção, eritema, prurido',
+    'Cavidade nasal: secreção, simetria, permeabilidade',
+    'Cavidade oral: mucosa, tártaro, gengivite, dentes',
+    'Sistema locomotor: marcha, apoio, assimetria',
+    'Estado neurológico: reflexos e propriocepção',
+    'Avaliação de dor — Escala multidimensional 0-10 (Melbourne/Glasgow)',
+  ] },
+  /* ─── ODONTOLÓGICA ───────────────────────────────────────────────────── */
+  odonto: { label: 'Odontológica', items: [
+    'Halitose: ausente / leve / moderada / intensa',
+    'Índice de placa bacteriana: 0 (ausente) → 3 (>2/3 da coroa)',
+    'Grau de cálculo dentário: 0 → 4 (AVDC/EVDS)',
+    'Índice gengival: 0 (normal) → 3 (sangramento espontâneo)',
+    'Estadiamento de doença periodontal: PD1 → PD4 (AVDC 2019)',
+    'Profundidade de sondagem por quadrante (mm)',
+    'Sangramento à sondagem (BOP %)',
+    'Mobilidade dentária: 0 (nenhuma) → 3 (> 1 mm)',
+    'Comprometimento de furca: F1 → F3',
+    'Fraturas dentárias: classe 1 → 6 (Saunders)',
+    'Reabsorção dentária (TORL/FORL): tipo 1 → 5 (AVDC)',
+    'Oclusão: normoclusão / maloclusão (classe I / II / III)',
+    'Persistência de dentes decíduos',
+    'Lesões de mucosa oral: ulcerações, massas, coloração',
+    'Avaliação da língua e palato (fissuras, lesões)',
+    'Dor à palpação extra-oral: ATM, glândulas salivares, linfonodos',
+    'Transilluminação dentária (fraturas não visíveis)',
+    'Indicação de radiografia intraoral (projeção)',
+  ] },
+  /* ─── DERMATOLÓGICA ─────────────────────────────────────────────────── */
+  derma: { label: 'Dermatológica', items: [
+    'Topografia das lesões (mapa corporal)',
+    'Distribuição: focal / multifocal / generalizada / simétrica / assimétrica',
+    'Lesão primária: eritema / pápula / pústula / vesícula / nódulo / urticária / comedão',
+    'Lesão secundária: crosta / escama / erosão / úlcera / liquenificação / hiperpigmentação / alopecia',
+    'Tipo de alopecia: auto-induzida (prurido) vs. não-pruriginosa (endócrina/folicular)',
+    'Escala de prurido PVAS: 0 (sem prurido) → 10 (contínuo e intenso)',
+    'Regiões de prurido: face / patas / axilas / virilha / abdômen / dorso / ouvidos',
+    'Otite: unilateral / bilateral / externa / média — citologia auricular',
+    'Interdigital: eritema, maceração, coloração ferrugem (Malassezia)',
+    'Seborreia: oleosa (seborreia oleosa) / seca (seborreia sicca) / mista',
+    'Citologia cutânea: técnica usada — tape strip / swab / squash prep',
+    'Resultado citologia: cocos / bastonetes / leveduras / células acantolíticas / neutrófilos',
+    'Raspado cutâneo superficial (Sarcoptes) e profundo (Demodex)',
+    'Tricograma: fase do ciclo folicular (anágena/telógena/distrófica)',
+    'Onicodistrofia / paroniquia',
+    'Lesões em almofadas plantares',
+    'Avaliação de glândulas perianais',
+    'Histopatologia indicada? (justificativa)',
+  ] },
+  /* ─── ORTOPÉDICA ────────────────────────────────────────────────────── */
+  orto: { label: 'Ortopédica', items: [
+    'Grau de claudicação: 0 (sem) → 5 (sem apoio) — WSAVA/Brinker',
+    'Membro(s) afetado(s): AD / AE / PD / PE',
+    'Avaliação à distância: postura em estação, simetria muscular',
+    'Avaliação da marcha: trote / passo — superfície dura e mole',
+    'Apoio em estação: suporte total / parcial / ausente (knuckling)',
+    'Temperatura local (calor articular)',
+    'Palpação muscular: atrofia, simetria, tensão',
+    'Articulação coxofemural: teste de Ortolani, dor em extensão, ângulo de redução',
+    'Articulação femoropatelar (joelho): efusão, crepitação, dor, patela',
+    'Teste de gaveta cranial (LCCa) e caudal (LCCu)',
+    'Teste de compressão tibial — Henderson (LCCa)',
+    'Amplitude de movimento — Goniometria (flexão e extensão em graus)',
+    'Coluna vertebral: palpação espinosa, dor, cifose/lordose/escoliose',
+    'Reflexos neurológicos: patelar, flexor, tibial cranial',
+    'Propriocepção consciente (patas anteriores e posteriores)',
+    'Atrofia muscular (circunferência comparativa em cm)',
+    'Indicação de radiografia (projeção, sedação necessária?)',
+    'Indicação de TC, artroscopia ou artrocentese',
+  ] },
+  /* ─── AVALIAÇÃO ANESTÉSICA ──────────────────────────────────────────── */
+  anest: { label: 'Avaliação Anestésica', items: [
+    'Classificação ASA: I (saudável) → V (moribundo) → E (emergência)',
+    'Procedimento cirúrgico/diagnóstico indicado',
+    'Jejum sólido confirmado (horas): cão/gato ≥ 8 h; équino ≥ 12–24 h',
+    'Jejum hídrico confirmado (horas): cão/gato ≥ 4 h; félinos ≥ 2 h',
+    'Peso em balança calibrada (kg) — no dia da consulta',
+    'Temperatura retal (°C)',
+    'Frequência cardíaca em repouso (bpm)',
+    'Frequência respiratória em repouso (mpm)',
+    'Mucosas: cor, umidade, TPC',
+    'Ausculta cardíaca: ritmo sinusal, sopros (grau I-VI/VI), galope',
+    'Ausculta pulmonar: murmúrio vesicular, estertores',
+    'Pulso: amplitude, regularidade, déficit de pulso',
+    'Acesso venoso periférico: localização, calibre (gauge)',
+    'Nível de estresse / cooperação (escala 1-5)',
+    'Hemograma e bioquímica pré-anestésica: avaliados e dentro do prazo?',
+    'ECG pré-anestésico: indicado? realizado?',
+    'Radiografia torácica: indicada? avaliada?',
+    'Protocolo anestésico planejado: MPA / indução / manutenção / bloqueio loco-regional',
+  ] },
+};
+
+/* ─── ANAMNESES ESPECÍFICAS POR ESPECIALIDADE ──────────────────────────── */
+/* Usadas como padrão quando não há override salvo pelo usuário.
+   Cada array segue o mesmo schema de window.PR.anamnese (k, q, type, opts). */
+window.PR_ANAMNESE_BY_MODEL = {
+  geral: [
+    { k: 'queixa',       q: 'Queixa principal / motivo da consulta',    type: 'text' },
+    { k: 'inicio',       q: 'Início dos sintomas',                       type: 'quick', opts: ['Hoje', 'Ontem', 'Há 2–3 dias', 'Há 1 semana', 'Há 2 semanas', '+ de 1 mês'] },
+    { k: 'evolucao',     q: 'Evolução do quadro',                        type: 'quick', opts: ['Agudo', 'Progressivo', 'Crônico estável', 'Intermitente'] },
+    { k: 'alimentacao',  q: 'Alimentação',                               type: 'quick', opts: ['Ração seca', 'Ração úmida', 'Natural (BARF)', 'Mista', 'Outro'] },
+    { k: 'hidrica',      q: 'Ingestão hídrica',                         type: 'quick', opts: ['Normal', 'Aumentada (polidipsia)', 'Reduzida'] },
+    { k: 'urina',        q: 'Urina',                                     type: 'quick', opts: ['Normal', 'Aumentada (poliúria)', 'Reduzida', 'Com sangue', 'Escura/amarelada'] },
+    { k: 'fezes',        q: 'Fezes',                                     type: 'quick', opts: ['Normais', 'Diarreia líquida', 'Diarreia pastosa', 'Ressecadas', 'Com sangue', 'Acólicas'] },
+    { k: 'vomito',       q: 'Vômitos',                                   type: 'quick', opts: ['Ausentes', '1–2x ao dia', 'Múltiplos/dia', 'Após alimentação', 'Bile em jejum'] },
+    { k: 'contato',      q: 'Contato com outros animais',                type: 'quick', opts: ['Não', 'Sim (domésticos)', 'Sim (animais silvestres)', 'Sim (animais de rua)'] },
+    { k: 'vacinacao',    q: 'Vacinação',                                 type: 'quick', opts: ['Em dia', 'Atrasada', 'Nunca vacinado', 'Não sabe informar'] },
+    { k: 'vermifugacao', q: 'Vermifugação',                              type: 'quick', opts: ['Em dia (< 3 meses)', 'Atrasada', 'Nunca'] },
+    { k: 'ectoparasita', q: 'Controle de pulgas/carrapatos',             type: 'quick', opts: ['Em dia', 'Atrasado', 'Não usa'] },
+    { k: 'medicacoes',   q: 'Medicações em uso',                         type: 'text' },
+    { k: 'cirurgias',    q: 'Cirurgias / internações anteriores',        type: 'text' },
+    { k: 'doencas',      q: 'Doenças crônicas conhecidas',               type: 'text' },
+    { k: 'obsTutor',     q: 'Observações adicionais do tutor',           type: 'text' },
+  ],
+  odonto: [
+    { k: 'queixa',       q: 'Queixa principal',                          type: 'quick', opts: ['Halitose', 'Dificuldade para comer', 'Dor à mastigação', 'Sangramento oral', 'Sialorreia', 'Dente quebrado/mole', 'Avaliação de rotina'] },
+    { k: 'inicio',       q: 'Início dos sinais orais',                   type: 'quick', opts: ['Recente (< 1 semana)', 'Há 2–4 semanas', 'Há 1–3 meses', 'Há mais de 3 meses'] },
+    { k: 'halitose',     q: 'Intensidade da halitose',                   type: 'quick', opts: ['Ausente', 'Leve', 'Moderada', 'Intensa (incomoda à distância)'] },
+    { k: 'alimentacao',  q: 'Dieta atual',                               type: 'quick', opts: ['Ração seca (croquetes)', 'Ração úmida (sachê/lata)', 'Natural (BARF)', 'Mista', 'Outro'] },
+    { k: 'higiene',      q: 'Higiene oral em casa',                      type: 'quick', opts: ['Diária (escovação)', 'Semanal', 'Irregular / raramente', 'Nunca', 'Snacks dentais apenas'] },
+    { k: 'profilaxias',  q: 'Histórico de profilaxias dentais',          type: 'quick', opts: ['Nunca realizou', 'Há menos de 6 meses', 'Há 6–12 meses', 'Há 1–2 anos', 'Há mais de 2 anos'] },
+    { k: 'dor',          q: 'Sinais de dor oral',                        type: 'quick', opts: ['Ausentes', 'Evita lado da boca', 'Queda de ração ao comer', 'Vocaliza ao comer', 'Não toca focinho'] },
+    { k: 'sangramento',  q: 'Sangramento oral observado',                type: 'quick', opts: ['Não', 'Ao comer', 'Ao brincar/mastigar', 'Espontâneo'] },
+    { k: 'sialorreia',   q: 'Sialorreia (salivação excessiva)',          type: 'quick', opts: ['Ausente', 'Discreta', 'Moderada', 'Intensa'] },
+    { k: 'medicacoes',   q: 'Medicações em uso',                         type: 'text' },
+    { k: 'anestesias',   q: 'Anestesias anteriores — complicações?',     type: 'quick', opts: ['Sem intercorrências', 'Com complicações (descrever)', 'Nunca anestesiado'] },
+    { k: 'vacinacao',    q: 'Vacinação',                                 type: 'quick', opts: ['Em dia', 'Atrasada', 'Não vacinado'] },
+    { k: 'obsTutor',     q: 'Observações adicionais do tutor',           type: 'text' },
+  ],
+  derma: [
+    { k: 'queixa',       q: 'Queixa principal',                          type: 'quick', opts: ['Coceira intensa', 'Queda de pelo/alopecia', 'Lesões de pele', 'Feridas/crostas', 'Odor de pele', 'Problema de ouvido', 'Pelo sem brilho'] },
+    { k: 'inicio',       q: 'Início dos sinais dermatológicos',          type: 'quick', opts: ['Recente (< 1 semana)', 'Há 2–4 semanas', 'Há 1–3 meses', 'Há mais de 3 meses', 'Recorrente (já ocorreu antes)'] },
+    { k: 'sazonalidade', q: 'Sazonalidade dos sintomas',                 type: 'quick', opts: ['O ano inteiro', 'Piora na primavera/verão', 'Piora no outono/inverno', 'Não há padrão sazonal'] },
+    { k: 'prurido',      q: 'Intensidade do prurido (PVAS)',             type: 'quick', opts: ['0 – sem coceira', '1-3 – leve', '4-6 – moderado', '7-9 – intenso', '10 – contínuo e severo'] },
+    { k: 'locaisProur',  q: 'Regiões de maior prurido',                  type: 'quick', opts: ['Face / focinho', 'Patas (interdigital)', 'Axilas', 'Virilha / abdômen', 'Dorso', 'Ouvidos', 'Cauda / períneo'] },
+    { k: 'alimentacao',  q: 'Alimentação atual e há quanto tempo',       type: 'text' },
+    { k: 'dietaAnteri',  q: 'Dieta nos últimos 2 anos (marcas)',         type: 'text' },
+    { k: 'ambiente',     q: 'Ambiente',                                  type: 'quick', opts: ['Exclusivamente indoor', 'Indoor + jardim', 'Livre acesso à rua', 'Rural / fazenda'] },
+    { k: 'pulgas',       q: 'Infestação por pulgas confirmada / suspeita', type: 'quick', opts: ['Não', 'Suspeita', 'Sim — confirmada'] },
+    { k: 'ectoCtrl',     q: 'Controle de pulgas/carrapatos atual',       type: 'quick', opts: ['Em dia (< 1 mês)', 'Atrasado', 'Não realiza'] },
+    { k: 'banhos',       q: 'Frequência de banhos',                      type: 'quick', opts: ['Semanal', 'Quinzenal', 'Mensal', 'A cada 2 meses', 'Irregular'] },
+    { k: 'shampoo',      q: 'Shampoo utilizado',                         type: 'text' },
+    { k: 'tratAnteri',   q: 'Tratamentos anteriores para pele',          type: 'text' },
+    { k: 'corticoide',   q: 'Uso de corticoide: resposta e duração',    type: 'quick', opts: ['Nunca usou', 'Boa resposta mas recidiva', 'Resposta parcial', 'Sem resposta', 'Não informado'] },
+    { k: 'alergias',     q: 'Alergias alimentares ou ambientais suspeitas', type: 'text' },
+    { k: 'familia',      q: 'Outros animais na casa com sinais similares', type: 'quick', opts: ['Não', 'Sim (provável contagioso)', 'Sim (provável alérgico)'] },
+    { k: 'obsTutor',     q: 'Observações adicionais do tutor',           type: 'text' },
+  ],
+  orto: [
+    { k: 'queixa',       q: 'Queixa principal',                          type: 'quick', opts: ['Claudicação / mancando', 'Dificuldade para subir', 'Dificuldade para descer', 'Recusa levantar', 'Grito / vocalização de dor', 'Aumento de volume em membro', 'Rigidez ao acordar'] },
+    { k: 'membro',       q: 'Membro(s) afetado(s)',                      type: 'quick', opts: ['Anterior direito (AD)', 'Anterior esquerdo (AE)', 'Posterior direito (PD)', 'Posterior esquerdo (PE)', 'Múltiplos membros', 'Coluna vertebral'] },
+    { k: 'inicio',       q: 'Início da claudicação',                     type: 'quick', opts: ['Agudo (trauma recente)', 'Há 2–7 dias', 'Há 2–4 semanas', 'Há 1–3 meses', 'Crônico (> 3 meses)'] },
+    { k: 'causa',        q: 'Causa provável',                            type: 'quick', opts: ['Traumática (atropelamento, queda, briga)', 'Espontânea sem causa evidente', 'Após exercício intenso', 'Progressiva / degenerativa', 'Não sabe informar'] },
+    { k: 'evolucao',     q: 'Evolução do quadro',                        type: 'quick', opts: ['Estável', 'Piora progressiva', 'Melhora espontânea', 'Intermitente (piora e melhora)'] },
+    { k: 'repouso',      q: 'Piora após repouso (típico de artrite/displasia)', type: 'quick', opts: ['Não', 'Sim — rigidez matinal', 'Sim — durante o dia'] },
+    { k: 'exercicio',    q: 'Piora após exercício',                      type: 'quick', opts: ['Não', 'Sim — após exercício moderado', 'Sim — após exercício leve', 'Sim — intolerância a qualquer atividade'] },
+    { k: 'atividadeFis', q: 'Atividade física habitual',                 type: 'quick', opts: ['Sedentário', 'Passeios leves (30 min/dia)', 'Moderado (1 h/dia)', 'Intenso (esportivo)', 'Trabalho / serviço'] },
+    { k: 'medicacoes',   q: 'Medicações em uso (AINE, condroprotettores)', type: 'text' },
+    { k: 'cirurgias',    q: 'Cirurgias ortopédicas anteriores',          type: 'text' },
+    { k: 'peso',         q: 'Tendência ao sobrepeso',                    type: 'quick', opts: ['Não', 'Sim — ECC > 6/9', 'Em controle de peso'] },
+    { k: 'obsTutor',     q: 'Observações adicionais do tutor',           type: 'text' },
+  ],
+  anest: [
+    { k: 'procedimento', q: 'Procedimento a ser realizado',              type: 'text' },
+    { k: 'cirurgiao',    q: 'Veterinário cirurgião responsável',         type: 'text' },
+    { k: 'jejumSolido',  q: 'Jejum sólido confirmado (horas)',           type: 'quick', opts: ['4–6 h (filhotes/mini)', '8 h (cão/gato adulto)', '10 h', '12 h', '> 12 h', 'Emergência — jejum não realizado'] },
+    { k: 'jejumLiq',     q: 'Jejum hídrico confirmado (horas)',          type: 'quick', opts: ['2 h (felino)', '4 h (canino)', '6 h', 'Emergência — sem jejum'] },
+    { k: 'doencas',      q: 'Doenças sistêmicas conhecidas',             type: 'text' },
+    { k: 'cardiaco',     q: 'Histórico cardíaco',                        type: 'quick', opts: ['Sem alterações', 'Sopro cardíaco (grau)', 'Arritmia diagnosticada', 'ICC / cardiopatia diagnosticada', 'Suspeita não investigada'] },
+    { k: 'respiratorio', q: 'Histórico respiratório',                    type: 'quick', opts: ['Sem alterações', 'Colapso traqueal', 'Braquicéfalo (síndrome)', 'Doença pulmonar diagnosticada', 'Tosse crônica'] },
+    { k: 'racaRisco',    q: 'Raça de risco anestésico',                  type: 'quick', opts: ['Sem risco específico de raça', 'Braquicéfalo (Bulldog, Pug, Shih Tzu…)', 'Sighthound (Greyhound, Galgo)', 'MDR1/ABCB1 mutação (Collie, Aussie)', 'Hipocondroplasmia (Basset, Corgi)'] },
+    { k: 'anestesias',   q: 'Anestesias anteriores — complicações?',     type: 'quick', opts: ['Sem intercorrências', 'Com complicações (descrever)', 'Nunca anestesiado'] },
+    { k: 'medicacoes',   q: 'Medicações em uso (especialmente: corticoide, AINE, anticoagulante, digoxina)', type: 'text' },
+    { k: 'alergias',     q: 'Alergias a medicamentos conhecidas',        type: 'text' },
+    { k: 'hepatoRenal',  q: 'Hepatopatia / nefropatia conhecida',       type: 'quick', opts: ['Não', 'Hepatopatia diagnosticada', 'Nefropatia / DRC diagnosticada', 'Suspeita não investigada'] },
+    { k: 'gestacao',     q: 'Gestação possível?',                        type: 'quick', opts: ['Não (castrado/a)', 'Não (fora do ciclo)', 'Possível', 'Confirmada'] },
+    { k: 'exames',       q: 'Exames pré-anestésicos em mãos',           type: 'quick', opts: ['Hemograma + bioquímica em dia', 'Apenas hemograma', 'Apenas bioquímica', 'ECG realizado', 'RX tórax realizado', 'Nenhum (risco aceito)'] },
+    { k: 'obsTutor',     q: 'Observações adicionais do tutor / cirurgião', type: 'text' },
+  ],
 };
 window.vtConsultRoteiros = function () {
   const d = window.VtStore && window.VtStore.getData();
@@ -36,6 +224,17 @@ window.vtConsultRoteiros = function () {
 };
 window.vtSaveConsultRoteiros = function (map) {
   if (window.VtStore) window.VtStore.setData({ consultRoteiros: map });
+};
+/* Mapeia label de tipo de atendimento → id do modelo de prontuário */
+window.vtModelForType = function (typeLabel) {
+  const ct = window.vtConsults().find((c) => c.label === typeLabel);
+  if (ct && ct.model) return ct.model;
+  const l = (typeLabel || '').toLowerCase();
+  if (/odont|profilax|exodont|canal|endodont|period|cirurg.*oral|rx.*dent/.test(l)) return 'odonto';
+  if (/derma|pele|citol|otite|raspad/.test(l)) return 'derma';
+  if (/orto|claudic|fisiot/.test(l)) return 'orto';
+  if (/anest|sedac|pré.?op|pre.?op/.test(l)) return 'anest';
+  return 'geral';
 };
 /* inclusão de seções por modelo + listas globais personalizáveis */
 window.PR_DIAG_DEFAULT = [
@@ -58,7 +257,7 @@ window.vtSaveConsultInclude = function (modelId, inc) {
 };
 window.vtAnamneseCfg = function () { const d = window.VtStore && window.VtStore.getData(); return (d && d.anamneseCfg) || window.PR.anamnese; };
 window.vtSaveAnamneseCfg = function (l) { if (window.VtStore) window.VtStore.setData({ anamneseCfg: l }); };
-window.vtAnamneseFor = function (modelId) { const d = window.VtStore && window.VtStore.getData(); const m = (d && d.anamneseByModel) || {}; return m[modelId] || window.vtAnamneseCfg(); };
+window.vtAnamneseFor = function (modelId) { const d = window.VtStore && window.VtStore.getData(); const m = (d && d.anamneseByModel) || {}; return m[modelId] || (window.PR_ANAMNESE_BY_MODEL && window.PR_ANAMNESE_BY_MODEL[modelId]) || window.vtAnamneseCfg(); };
 window.vtHasAnamneseOverride = function (modelId) { const d = window.VtStore && window.VtStore.getData(); return !!((d && d.anamneseByModel) || {})[modelId]; };
 window.vtSaveAnamneseFor = function (modelId, list) { const d = window.VtStore && window.VtStore.getData(); const m = Object.assign({}, (d && d.anamneseByModel) || {}); if (list) m[modelId] = list; else delete m[modelId]; if (window.VtStore) window.VtStore.setData({ anamneseByModel: m }); };
 window.vtExamCfg = function () { const d = window.VtStore && window.VtStore.getData(); return (d && d.examCfg) || window.PR.examParams; };
