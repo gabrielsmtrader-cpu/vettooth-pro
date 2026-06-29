@@ -380,8 +380,11 @@ function IAModule({ initialPrompt, contextPatientId }) {
 
 /* launcher global — chamado de outros módulos */
 window.vtOpenIA = function (prompt, patientId) {
-  window._vtIAFocus = { prompt: prompt || '', patientId: patientId || null };
-  if (window._vtSetActive) window._vtSetActive('ia');
+  if (window._vtOpenIA) {
+    window._vtOpenIA(prompt || '', patientId || null);
+  } else if (window._vtSetActive) {
+    window._vtSetActive('ia');
+  }
 };
 
 Object.assign(window, { IAModule });

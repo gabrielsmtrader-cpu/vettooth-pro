@@ -440,8 +440,9 @@ function App() {
 
   if (!user) return <AuthScreen onAuthed={(u) => { setUser(u); setActive('dashboard'); }} />;
 
-  // expõe setActive para o launcher global da IA
+  // expõe setActive e openIA para launchers globais
   window._vtSetActive = setActive;
+  window._vtOpenIA = (prompt, patientId) => { setFocusIA({ prompt: prompt || '', patientId: patientId || null }); setActive('ia'); };
 
   const logout = () => { window.VtStore.logout(); setUser(null); };
   const openPatient = (id) => { setFocusPatient(id); setActive('pacientes'); };
