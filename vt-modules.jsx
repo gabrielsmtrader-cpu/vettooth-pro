@@ -117,6 +117,39 @@ window.PR_ROTEIROS_DEFAULT = {
     'Radiografia torácica: indicada? avaliada?',
     'Protocolo anestésico planejado: MPA / indução / manutenção / bloqueio loco-regional',
   ] },
+  /* ─── NEUROLOGIA ────────────────────────────────────────────────────── */
+  neuro: { label: 'Neurologia', items: [
+    'Estado mental: alerta / deprimido / obtuso / semi-coma / coma',
+    'Comportamento: normal / alterado (descrever)',
+    'Postura: normal / déficit postural / torção cervical / opistótono / pleurotótono',
+    'Marcha: normal / ataxia vestibular / ataxia sensitiva / ataxia cerebelar / paresia / paralisia',
+    'Reações posturais — salto proprioceptivo (AD / AE / PD / PE)',
+    'Reações posturais — placing tátil e visual (AD / AE / PD / PE)',
+    'Nervos cranianos — II: PLR direto e consensual / III: ptose, estrabismo ventrolateral',
+    'Nervos cranianos — V: sensibilidade facial / VII: parésia/paralisia facial',
+    'Nervos cranianos — VIII: nistagmo (direção, tipo) / IX-X: deglutição, vômito',
+    'Reflexos espinhais — patelar, tibial cranial, flexor, perineal, anal',
+    'Percepção de dor superficial e profunda',
+    'Neurolocalização: C1-C5 / C6-T2 / T3-L3 / L4-S3 / multifocal / intracranianos',
+    'Avaliação de coluna: dor à palpação (cervical / torácica / lombar / sacral)',
+    'Exame oftálmico: fundo de olho, reflexo de ameaça, PLR',
+  ] },
+  /* ─── NUTRIÇÃO ──────────────────────────────────────────────────────── */
+  nutri: { label: 'Nutrição', items: [
+    'ECC — Escore de Condição Corporal: 1-9 (Laflamme) / descrever',
+    'ECM — Escore de Condição Muscular: 0 (ausente) → 3 (normal)',
+    'Peso atual (kg) e peso ideal estimado (kg)',
+    'RER = 70 × (peso ideal)^0,75 kcal/dia',
+    'DER = RER × fator (neutro: 1,6 / castrado: 1,4 / obeso: 1,0 / doente: variável)',
+    'Dieta atual: tipo (ração seca / úmida / natural), marca, quantidade/dia, frequência',
+    'Apetite: normal / aumentado / reduzido / seletivo / ausente',
+    'Ingestão hídrica: normal / aumentada / reduzida',
+    'Condição gastrointestinal: normal / vômitos / diarreia / constipação',
+    'Suplementos e snacks oferecidos',
+    'Hidratação: normal / desidratação leve / moderada / grave',
+    'Nível de atividade física: sedentário / leve / moderado / intenso',
+    'Plano alimentar recomendado e meta de peso',
+  ] },
 };
 
 /* ─── ANAMNESES ESPECÍFICAS POR ESPECIALIDADE ──────────────────────────── */
@@ -206,6 +239,31 @@ window.PR_ANAMNESE_BY_MODEL = {
     { k: 'exames',       q: 'Exames pré-anestésicos em mãos',           type: 'quick', opts: ['Hemograma + bioquímica em dia', 'Apenas hemograma', 'Apenas bioquímica', 'ECG realizado', 'RX tórax realizado', 'Nenhum (risco aceito)'] },
     { k: 'obsTutor',     q: 'Observações adicionais do tutor / cirurgião', type: 'text' },
   ],
+  neuro: [
+    { k: 'queixa',       q: 'Queixa principal',                            type: 'quick', opts: ['Convulsão / crise epiléptica', 'Desequilíbrio / queda', 'Fraqueza progressiva', 'Paralisia', 'Dor / hiperestesia', 'Cegueira súbita', 'Alteração comportamental', 'Giro em círculos'] },
+    { k: 'inicio',       q: 'Início dos sinais',                           type: 'quick', opts: ['Agudo (< 24 h)', 'Subagudo (dias)', 'Crônico (semanas)', 'Crônico agudizado (piora súbita)'] },
+    { k: 'progressao',   q: 'Progressão',                                  type: 'quick', opts: ['Estável', 'Progressivo', 'Melhora espontânea', 'Intermitente (episódios)'] },
+    { k: 'trauma',       q: 'Histórico de trauma',                         type: 'quick', opts: ['Não', 'Sim — acidente / queda (descrever)', 'Possível — não testemunhado'] },
+    { k: 'convulsao',    q: 'Tipo de crise (se convulsão)',                type: 'quick', opts: ['Não se aplica', 'Focal (cabeça / membro isolado)', 'Generalizada (todo o corpo)', 'Cluster (> 2 em 24 h)', 'Estado de mal epiléptico'] },
+    { k: 'frequenciaEp', q: 'Frequência dos episódios',                   type: 'quick', opts: ['Único episódio', '1–2x por semana', 'Diário', 'Múltiplos por dia', 'Não se aplica'] },
+    { k: 'episodiosAnt', q: 'Episódios anteriores / histórico neurológico', type: 'text' },
+    { k: 'medicacoes',   q: 'Medicações em uso (anticonvulsivantes, corticoide)', type: 'text' },
+    { k: 'doencasPrev',  q: 'Doenças sistêmicas prévias',                 type: 'text' },
+    { k: 'obsTutor',     q: 'Observações adicionais do tutor',            type: 'text' },
+  ],
+  nutri: [
+    { k: 'queixa',       q: 'Queixa principal',                            type: 'quick', opts: ['Emagrecimento progressivo', 'Ganho de peso / obesidade', 'Falta de apetite', 'Hiperapetite', 'Vômitos pós-refeição', 'Diarreia relacionada à dieta', 'Transição de dieta'] },
+    { k: 'dietaAtual',   q: 'Dieta atual (marca, tipo, quantidade/dia)',   type: 'text' },
+    { k: 'freqAlim',     q: 'Frequência de alimentação',                   type: 'quick', opts: ['1x ao dia', '2x ao dia', '3x ao dia', 'Ad libitum (livre acesso)', 'Irregular'] },
+    { k: 'apetite',      q: 'Apetite',                                     type: 'quick', opts: ['Normal', 'Aumentado', 'Reduzido', 'Seletivo (recusa certos alimentos)', 'Ausente'] },
+    { k: 'histPeso',     q: 'Histórico de peso',                           type: 'quick', opts: ['Estável', 'Perda progressiva', 'Ganho progressivo', 'Flutuante'] },
+    { k: 'pesoAnterior', q: 'Peso anterior registrado e data',            type: 'text' },
+    { k: 'suplementos',  q: 'Suplementos, snacks e petiscos',             type: 'text' },
+    { k: 'restricoes',   q: 'Restrições alimentares / alergias',          type: 'text' },
+    { k: 'exercicio',    q: 'Nível de atividade física',                   type: 'quick', opts: ['Sedentário', 'Leve (passeios curtos)', 'Moderado (1 h/dia)', 'Intenso (esportivo / trabalho)'] },
+    { k: 'ambiente',     q: 'Ambiente',                                    type: 'quick', opts: ['Exclusivamente indoor', 'Indoor + jardim', 'Livre acesso externo', 'Rural / fazenda'] },
+    { k: 'obsTutor',     q: 'Observações adicionais do tutor',            type: 'text' },
+  ],
 };
 window.vtConsultRoteiros = function () {
   const d = window.VtStore && window.VtStore.getData();
@@ -221,6 +279,8 @@ window.vtModelForType = function (typeLabel) {
   const l = (typeLabel || '').toLowerCase();
   if (/odont|profilax|exodont|canal|endodont|period|cirurg.*oral|rx.*dent/.test(l)) return 'odonto';
   if (/derma|pele|citol|otite|raspad/.test(l)) return 'derma';
+  if (/neuro|convuls|epilep|paralisia|ataxia|disc|hérnia/.test(l)) return 'neuro';
+  if (/nutri|dieta|obesidade|emagr|rer|der|aliment/.test(l)) return 'nutri';
   if (/orto|claudic|fisiot/.test(l)) return 'orto';
   if (/anest|sedac|pré.?op|pre.?op/.test(l)) return 'anest';
   return 'geral';

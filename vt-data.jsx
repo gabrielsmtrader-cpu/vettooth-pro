@@ -128,6 +128,12 @@ window.VtData = (function () {
       { id: 'consulta-derma',      label: 'Consulta – Dermatológica',           dur: 50,  price: 'R$ 220,00',    model: 'derma'  },
       { id: 'citologia-raspad',    label: 'Citologia / Raspado Cutâneo',        dur: 30,  price: 'R$ 150,00',    model: 'derma'  },
       { id: 'trat-otite',          label: 'Tratamento de Otite',                dur: 30,  price: 'R$ 140,00',    model: 'derma'  },
+      /* ── Neurologia ───────────────────────────────────── */
+      { id: 'consulta-neuro',      label: 'Consulta – Neurologia',              dur: 60,  price: 'R$ 280,00',    model: 'neuro'  },
+      { id: 'neuro-retorno',       label: 'Retorno Neurológico',                dur: 30,  price: 'R$ 0,00',      model: 'neuro'  },
+      /* ── Nutrição ──────────────────────────────────────── */
+      { id: 'consulta-nutri',      label: 'Consulta – Nutrição',                dur: 50,  price: 'R$ 220,00',    model: 'nutri'  },
+      { id: 'nutri-retorno',       label: 'Retorno Nutricional',                dur: 30,  price: 'R$ 0,00',      model: 'nutri'  },
       /* ── Ortopédica ────────────────────────────────────── */
       { id: 'consulta-orto',       label: 'Consulta – Ortopédica',              dur: 50,  price: 'R$ 220,00',    model: 'orto'   },
       { id: 'fisiote',             label: 'Fisioterapia / Reabilitação',        dur: 60,  price: 'R$ 180,00',    model: 'orto'   },

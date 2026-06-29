@@ -44,57 +44,100 @@ function PrRoteiro({ at, patch }) {
 }
 
 /* ---------- Consulta ---------- */
+const CONSULT_COLORS = { geral: '#14a8a0', odonto: '#2563eb', derma: '#d97706', neuro: '#7c3aed', nutri: '#16a34a', orto: '#dc2626', anest: '#0f172a' };
 function PrConsulta({ at, patch, go, integrated }) {
   const useModel = (m) => {
-    patch({ type: m.label === 'Retorno' ? 'Retorno' : 'Consulta', motivo: at.motivo || m.label, consultModel: m.id });
-    window.vtToast(`Modelo "${m.label}" aplicado.`, 'ok');
+    patch({ type: m.label, motivo: at.motivo || m.label, consultModel: m.id });
+    window.vtToast(`Especialidade "${m.label}" selecionada.`, 'ok');
   };
   const PR_VETS = window.vtVets();
   const selVet = PR_VETS.find((v) => at.vet.includes(v.name)) || PR_VETS[0];
+  const models = window.PR.consultModels;
+  const activeId = at.consultModel || 'geral';
+  const activeModel = models.find((m) => m.id === activeId) || models[0];
+  const activeColor = CONSULT_COLORS[activeId] || 'var(--teal)';
+
   return (
-    <div>
-      <div className="pr-sec-head"><div><h2 className="pr-h">Consulta</h2><p className="pr-h-sub">Dados gerais do atendimento e modelos pré-cadastrados</p></div></div>
+    <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start', borderRadius: 14, overflow: 'hidden', border: '1px solid var(--line)', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
 
-      <div className="pr-block">
-        <p className="pr-block-title"><VtIcon name="grid" size={15} /> Iniciar a partir de um modelo</p>
-        <div className="pr-models">
-          {window.PR.consultModels.map((m) => (
-            <button key={m.id} className="pr-model" onClick={() => useModel(m)} style={at.consultModel === m.id ? { borderColor: 'var(--teal)', background: 'var(--teal-t)' } : null}>
-              <span className="pr-model-ic"><VtIcon name={m.icon} size={18} /></span>
-              <span><b>{m.label}</b><i>{m.desc}</i></span>
-            </button>
-          ))}
+      {/* ── Sidebar de especialidades ── */}
+      <div style={{ width: 185, flexShrink: 0, background: 'var(--navy)', display: 'flex', flexDirection: 'column', minHeight: 440 }}>
+        <div style={{ padding: '18px 16px 14px' }}>
+          <p style={{ margin: 0, color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase' }}>VetFicha</p>
+          <p style={{ margin: '2px 0 0', color: '#fff', fontSize: 13, fontWeight: 700 }}>Prontuário Clínico</p>
+        </div>
+        <div style={{ padding: '4px 8px 8px', borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: 4 }}>
+          <p style={{ margin: '10px 8px 6px', color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>Especialidades</p>
+          {models.map((m) => {
+            const isActive = activeId === m.id;
+            const mc = CONSULT_COLORS[m.id] || '#14a8a0';
+            return (
+              <button key={m.id} onClick={() => useModel(m)} style={{
+                display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '9px 10px',
+                borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'left', marginBottom: 2,
+                background: isActive ? `${mc}22` : 'transparent',
+                color: isActive ? '#fff' : 'rgba(255,255,255,0.55)',
+                fontWeight: isActive ? 700 : 500, fontSize: 13, transition: 'all 0.15s',
+                borderLeft: isActive ? `3px solid ${mc}` : '3px solid transparent',
+              }}>
+                <VtIcon name={m.icon} size={15} />
+                {m.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="vt-card vt-sec pr-block">
-        <p className="pr-block-title">Dados da consulta</p>
-        <div className="pr-fieldrow c3">
-          <label className="pr-field"><span>Data</span><VtField value={at.date} onChange={(v) => patch({ date: v })} mask="date" /></label>
-          <label className="pr-field"><span>Hora</span><input value={at.time} onChange={(e) => patch({ time: e.target.value })} placeholder="00:00" /></label>
-          <label className="pr-field"><span>Veterinário responsável</span>
-            <select value={selVet ? selVet.name : ''} onChange={(e) => { const v = PR_VETS.find((x) => x.name === e.target.value); patch({ vet: 'M.V. ' + e.target.value, vetColor: v ? v.color : at.vetColor }); }}>
-              {PR_VETS.map((v) => <option key={v.id}>{v.name}</option>)}
-            </select>
-          </label>
-        </div>
-        <div className="pr-fieldrow c2">
-          <label className="pr-field"><span>Local do atendimento</span>
-            <select value={at.local} onChange={(e) => patch({ local: e.target.value })}>
-              {PR_LOCAIS.map((l) => <option key={l}>{l}</option>)}
-            </select>
-          </label>
-          <label className="pr-field"><span>Motivo da consulta</span><input value={at.motivo} onChange={(e) => patch({ motivo: e.target.value })} placeholder="Ex.: Avaliação odontológica de rotina" /></label>
-        </div>
-        <label className="pr-field"><span>Queixa principal</span><textarea value={at.queixa} onChange={(e) => patch({ queixa: e.target.value })} placeholder="Relato do tutor sobre o motivo do atendimento..." /></label>
-      </div>
+      {/* ── Conteúdo principal ── */}
+      <div style={{ flex: 1, minWidth: 0, background: 'var(--card)' }}>
 
-      {!integrated && (
-        <div className="vt-card vt-sec" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <p className="vt-ai-note" style={{ flex: 1 }}><VtIcon name="spark" size={15} /> Preencha a <b>anamnese</b> e o <b>exame físico</b> nas próximas abas. Os campos têm autosave.</p>
-          <button className="vt-btn-primary" onClick={() => go('anamnese')}>Ir para anamnese <VtIcon name="chevron" size={15} /></button>
+        {/* Header especialidade ativa */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px 24px 16px', borderBottom: '1px solid var(--line)' }}>
+          <span style={{ width: 42, height: 42, borderRadius: 10, background: `${activeColor}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <VtIcon name={activeModel.icon} size={20} style={{ color: activeColor }} />
+          </span>
+          <div style={{ flex: 1 }}>
+            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>{activeModel.label}</h2>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>{activeModel.desc}</p>
+          </div>
+          <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>
+            {at.date} · {at.time}
+          </span>
         </div>
-      )}
+
+        {/* Formulário */}
+        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="pr-fieldrow c3">
+            <label className="pr-field"><span>Data</span><VtField value={at.date} onChange={(v) => patch({ date: v })} mask="date" /></label>
+            <label className="pr-field"><span>Hora</span><input value={at.time} onChange={(e) => patch({ time: e.target.value })} placeholder="00:00" /></label>
+            <label className="pr-field"><span>Veterinário</span>
+              <select value={selVet ? selVet.name : ''} onChange={(e) => { const v = PR_VETS.find((x) => x.name === e.target.value); patch({ vet: 'M.V. ' + e.target.value, vetColor: v ? v.color : at.vetColor }); }}>
+                {PR_VETS.map((v) => <option key={v.id}>{v.name}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="pr-fieldrow c2">
+            <label className="pr-field"><span>Local</span>
+              <select value={at.local} onChange={(e) => patch({ local: e.target.value })}>
+                {PR_LOCAIS.map((l) => <option key={l}>{l}</option>)}
+              </select>
+            </label>
+            <label className="pr-field"><span>Motivo da consulta</span>
+              <input value={at.motivo} onChange={(e) => patch({ motivo: e.target.value })} placeholder="Ex.: Avaliação odontológica de rotina" />
+            </label>
+          </div>
+          <label className="pr-field"><span>Queixa principal</span>
+            <textarea value={at.queixa} onChange={(e) => patch({ queixa: e.target.value })} placeholder="Relato do tutor sobre o motivo do atendimento..." style={{ minHeight: 72, resize: 'vertical' }} />
+          </label>
+
+          {!integrated && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 16px', background: 'var(--teal-t)', borderRadius: 10, marginTop: 4 }}>
+              <p style={{ flex: 1, margin: 0, fontSize: 13, color: 'var(--teal)' }}><VtIcon name="spark" size={14} /> Preencha a <b>anamnese</b> e o <b>exame físico</b> nas próximas abas.</p>
+              <button className="vt-btn-primary" onClick={() => go('anamnese')}>Ir para anamnese <VtIcon name="chevron" size={14} /></button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
