@@ -272,7 +272,8 @@ function Dashboard({ setActive }) {
   // métricas do mês
   const mPrefix = today.slice(0, 7);
   const fatMes = (fin.tx || []).filter((t) => t.kind === 'receita' && (t.date || '').slice(0, 7) === mPrefix).reduce((s, t) => s + (Number(t.value) || 0), 0);
-  const procMes = ats.filter((a) => (a.date || a.dataISO || '').slice(0, 7) === mPrefix || ((a.procedimentos || []).length && (a.status === 'finalizado'))).length;
+  const brToYM = (br) => { const m = (br || '').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? `${m[3]}-${m[2]}` : (br || '').slice(0, 7); };
+  const procMes = ats.filter((a) => brToYM(a.date || a.dataISO || '') === mPrefix && !vtIsCancel(a.status)).length;
   const ticketBase = (fin.tx || []).filter((t) => t.kind === 'receita');
   const ticket = ticketBase.length ? ticketBase.reduce((s, t) => s + (Number(t.value) || 0), 0) / ticketBase.length : 0;
   const comRetorno = patients.filter((p) => ats.filter((a) => a.patientId === p.id).length > 1).length;
