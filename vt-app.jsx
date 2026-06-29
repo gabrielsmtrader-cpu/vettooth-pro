@@ -277,8 +277,11 @@ function Dashboard({ setActive }) {
   const ticket = ticketBase.length ? ticketBase.reduce((s, t) => s + (Number(t.value) || 0), 0) / ticketBase.length : 0;
   const comRetorno = patients.filter((p) => ats.filter((a) => a.patientId === p.id).length > 1).length;
   const taxaRetorno = patients.length ? Math.round(comRetorno / patients.length * 100) : 0;
+  const weekStart = (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay()); return d.toISOString().slice(0, 10); })();
+  const weekEnd = (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay() + 7); return d.toISOString().slice(0, 10); })();
+  const aptsWeek = appts.filter((a) => (a.date || '') >= weekStart && (a.date || '') < weekEnd).length;
   const kpis = [
-    { icon: 'calendar', label: 'Agendamentos', value: String(appts.length), sub: 'esta semana', go: 'agenda' },
+    { icon: 'calendar', label: 'Agendamentos', value: String(aptsWeek), sub: `${appts.length} total · ${aptsWeek} esta semana`, go: 'agenda' },
     { icon: 'paw', label: 'Pacientes ativos', value: String(patients.filter((p) => p.status !== 'Óbito').length), sub: `${patients.length} no total`, go: 'pacientes' },
     { icon: 'stethoscope', label: 'Atendimentos', value: String(ats.length), sub: 'registrados', go: 'atendimentos' },
     { icon: 'dollar', label: 'Recebido hoje', value: money(recebHoje), sub: `${money(aReceber)} a receber`, go: 'financas' },
@@ -289,7 +292,7 @@ function Dashboard({ setActive }) {
   ];
   const proximos = appts.slice().sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.start || 0) - (b.start || 0)).filter((a) => (a.date || '') >= today).slice(0, 5);
   // atividade recente
-  const recent = ats.slice().sort((a, b) => (b.id || '').localeCompare(a.id || '')).slice(0, 6);
+  const recent = ats.slice().sort((a, b) => { const da = (b.date || '').split('/').reverse().join('-'); const db = (a.date || '').split('/').reverse().join('-'); return da.localeCompare(db) || (b.id || '').localeCompare(a.id || ''); }).slice(0, 6);
   const patName = (id) => (patients.find((p) => p.id === id) || {}).name || '';
   return (
     <div>
@@ -451,7 +454,7 @@ function App() {
       <div className="vt-main">
         <TopBar user={user} onLogout={logout} onAvatar={(a) => setUser((u) => ({ ...u, avatar: a }))} nav={navSearch} />
         <main className={`vt-content${flush ? ' flush' : ''}`}>
-          {active === 'dashboard' && <Dashboard setActive={setActive} user={user} />}
+          {active === 'dashboard' && <Dashboard key={'dash-'+dataVer} setActive={setActive} user={user} />}
           {active === 'pacientes' && <PacientesModule key={'pac-'+dataVer} openOdonto={openOdonto} goAgenda={() => setActive('agenda')} openAgendaNew={openAgendaNew} openAtendimento={openAtendimento} focusPatientId={focusPatient} clearFocus={() => setFocusPatient(null)} />}
           {active === 'clientes' && <ClientesModule key={'cli-'+dataVer} openPatient={openPatient} focusOwnerName={focusOwner} clearFocus={() => setFocusOwner(null)} />}
           {active === 'agenda' && <AgendaModule key={'ag-'+dataVer} focusNewPatient={focusAgenda} clearAgendaFocus={() => setFocusAgenda(null)} />}

@@ -628,7 +628,7 @@ function NewPatientForm({ onBack, onSave, initial }) {
     if (!f.owner || !f.owner.trim()) e2.owner = 'Informe o nome do tutor.';
     if (f.cpf && !window.validCPF(f.cpf)) e2.cpf = 'CPF inválido.';
     if (isHorse && (!f.propName || !f.propName.trim())) e2.propName = 'Informe a propriedade (equino).';
-    if (!f.origemLead) e2.origemLead = 'Selecione como nos conheceu.';
+    // origemLead is optional — marketing field should not block clinical workflow
     if (Object.keys(e2).length) {
       setErrs(e2);
       window.vtToast('Verifique os campos destacados.', 'err');
@@ -773,12 +773,11 @@ function NewPatientForm({ onBack, onSave, initial }) {
         <OwnerAutocomplete value={f.owner} onChange={s('owner')} onPick={pickOwner} owners={ownersList} error={errs.owner} />
         <div className="vt-form-row">
           <label className="vtf" style={{ width: '48%' }}>
-            <span className="vtf-label">Como nos conheceu?<i className="vtf-req">*</i></span>
-            <span className="vtf-inputwrap"><select className={`vtf-input${errs.origemLead ? ' invalid' : ''}`} value={f.origemLead || ''} onChange={(e) => s('origemLead')(e.target.value)}>
-              <option value="">Selecione…</option>
+            <span className="vtf-label">Como nos conheceu?</span>
+            <span className="vtf-inputwrap"><select className="vtf-input" value={f.origemLead || ''} onChange={(e) => s('origemLead')(e.target.value)}>
+              <option value="">Não informado</option>
               {['Instagram', 'Facebook', 'Google', 'Indicação de amigo', 'Indicação de veterinário', 'Passando na frente da clínica', 'Outros'].map((o) => <option key={o}>{o}</option>)}
             </select></span>
-            {errs.origemLead && <span className="vtf-err">{errs.origemLead}</span>}
           </label>
         </div>
         <div className="vt-form-row">
