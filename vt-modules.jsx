@@ -250,7 +250,7 @@ window.vtExamCfg = function () { const d = window.VtStore && window.VtStore.getD
 window.vtSaveExamCfg = function (l) { if (window.VtStore) window.VtStore.setData({ examCfg: l }); };
 window.vtSistemasCfg = function () { const d = window.VtStore && window.VtStore.getData(); return (d && d.sistemasCfg) || window.PR.systems; };
 window.vtSaveSistemasCfg = function (l) { if (window.VtStore) window.VtStore.setData({ sistemasCfg: l }); };
-window.vtDiagCfg = function () { const d = window.VtStore && window.VtStore.getData(); return (d && d.diagCfg) || window.PR_DIAG_DEFAULT; };
+window.vtDiagCfg = function () { const d = window.VtStore && window.VtStore.getData(); const stored = d && d.diagCfg; if (!stored) return window.PR_DIAG_DEFAULT; const validKeys = window.PR_DIAG_DEFAULT.map((x) => x.k); const filtered = stored.filter((x) => validKeys.includes(x.k)); return filtered.length ? filtered : window.PR_DIAG_DEFAULT; };
 window.vtSaveDiagCfg = function (l) { if (window.VtStore) window.VtStore.setData({ diagCfg: l }); };
 /* veterinário logado no sistema */
 window.vtCurrentVet = function () {
