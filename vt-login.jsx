@@ -268,8 +268,8 @@ function AuthScreen({ onAuthed }) {
 
           {step === 1 && (
             <>
-              <AF label="Nome completo" value={f.name || ''} onChange={s('name')} placeholder="Dr(a). Gabriel Martinez" required />
-              <AF label="Nome da clínica" value={f.clinic || ''} onChange={s('clinic')} placeholder="Dentalis Vet" />
+              <AF label="Nome completo" value={f.name || ''} onChange={s('name')} placeholder="Dr(a). Nome Sobrenome" required />
+              <AF label="Nome da clínica" value={f.clinic || ''} onChange={s('clinic')} placeholder="Nome da sua clínica" />
               <AF label="Email profissional" type="email" value={f.email || ''} onChange={s('email')} placeholder="seu@email.com" required />
               <AF label="WhatsApp / Celular" type="tel" value={f.phone || ''} onChange={s('phone')} placeholder="(11) 99999-9999" />
 

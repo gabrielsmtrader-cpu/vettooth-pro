@@ -1221,10 +1221,12 @@ function AgendaEventModal({ ev, onClose, onSave, onDelete }) {
       <div className="fin-modal" style={{ width: 500, maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
         <h3>{exists ? 'Editar agendamento' : 'Novo agendamento'}</h3>
         <div className="vt-form-row">
-          <label className="vtf" style={{ width: '100%' }}><span className="vtf-label">Paciente</span><span className="vtf-inputwrap"><select className="vtf-input" value={f.patient} onChange={(e) => s('patient')(e.target.value)}>
-            <option value="">Selecione o paciente…</option>
-            {pacientes.map((p) => <option key={p.id} value={p.name}>{p.name} · {p.species} · {p.owner}</option>)}
-          </select></span></label>
+          <label className="vtf" style={{ width: '100%' }}><span className="vtf-label">Paciente</span><span className="vtf-inputwrap">
+            <input list="ag-pac-list" className="vtf-input" value={f.patient} onChange={(e) => s('patient')(e.target.value)} placeholder="Digite o nome do paciente ou responsável…" autoComplete="off" />
+            <datalist id="ag-pac-list">
+              {pacientes.map((p) => <option key={p.id} value={p.name}>{p.name} · {p.species} · {p.owner}</option>)}
+            </datalist>
+          </span></label>
         </div>
         <div className="vt-form-row">
           <label className="vtf" style={{ width: '48%' }}><span className="vtf-label">Tipo</span><span className="vtf-inputwrap"><select className="vtf-input" value={f.kind} onChange={(e) => setKind(e.target.value)}>{CT.map((t) => <option key={t.id}>{t.label}</option>)}</select></span></label>
