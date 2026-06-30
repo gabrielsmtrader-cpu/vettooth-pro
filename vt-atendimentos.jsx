@@ -412,15 +412,21 @@ function AtendimentosModule({ openPatient, openOdonto, focus, clearFocus }) {
       onAddWeight={(w) => addWeight(view.patient, w)} onSaveVaccines={(list) => saveVaccines(view.patient, list)}
       onFinalizar={(at, info) => {
         if (info) {
-          // vem do PrFinalizar — salva financeiro e fecha
+          // vem do PrFinalizar — salva financeiro (status pendente, sem forma/data ainda) e fecha
           commit(at);
           const money = (n) => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
           const d = (store && store.getData()) || {}; const fin = d.fin || { tx: [] };
           const today = new Date().toISOString().slice(0, 10);
-          const tx = { id: 'T' + Date.now().toString(36), kind: 'receita', desc: (at.type || 'Atendimento') + ' — ' + at.patientName, patient: at.patientName, cat: 'Procedimento', value: info.total, date: today, status: 'pendente', method: info.forma || null, paidAt: null };
+          const catMap = { 'Consulta': 'Consulta', 'Procedimento': 'Procedimento', 'Medicamento': 'Procedimento', 'Cirurgia': 'Cirurgia', 'Internação': 'Procedimento', 'Exame': 'Exame', 'Vacina aplicada': 'Procedimento' };
+          const newTx = (info.items || []).filter((it) => (Number(it.valor) || 0) > 0).map((it) => ({
+            id: 'T' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+            kind: 'receita', desc: (it.nome || it.tipo) + ' — ' + at.patientName, patient: at.patientName,
+            cat: catMap[it.tipo] || 'Procedimento', value: Number(it.valor) || 0, date: today,
+            status: 'pendente', method: null, paidAt: null, atId: at.id,
+          }));
           const nextAt = atend.map((x) => x.id === at.id ? { ...at } : x);
           setAtend(nextAt);
-          if (store) store.setData({ atendimentos: nextAt, fin: { ...fin, tx: [tx, ...(fin.tx || [])] } });
+          if (store) store.setData({ atendimentos: nextAt, fin: { ...fin, tx: [...newTx, ...(fin.tx || [])] } });
           // orçamento aprovado → salva em orçamentos também
           if (at.orcamento && at.orcamento.aprovado && (at.orcamento.items || []).length) {
             const orcTotal = at.orcamento.items.reduce((s, i) => s + (Number(i.valor) || 0) * (Number(i.qtd) || 1), 0);

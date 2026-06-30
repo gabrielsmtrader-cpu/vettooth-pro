@@ -372,8 +372,7 @@ function prChipStyle(on) {
 }
 
 /* ---------- Tela de Finalizar Atendimento ---------- */
-const FIN_FORMAS = ['Pix', 'Cartão de débito', 'Cartão de crédito', 'Dinheiro', 'Convênio', 'Boleto'];
-const FIN_TIPO_COLOR = { 'Consulta': '#2563eb', 'Procedimento': '#7c3aed', 'Medicamento': '#0891b2', 'Vacina': '#d97706', 'Cirurgia': '#dc2626', 'Internação': '#b45309', 'Exame': '#059669', 'Vacina aplicada': '#d97706' };
+const FIN_TIPO_COLOR ={ 'Consulta': '#2563eb', 'Procedimento': '#7c3aed', 'Medicamento': '#0891b2', 'Vacina': '#d97706', 'Cirurgia': '#dc2626', 'Internação': '#b45309', 'Exame': '#059669', 'Vacina aplicada': '#d97706' };
 
 function buildChargeItems(at, vaccines) {
   const items = [];
@@ -410,7 +409,6 @@ function buildChargeItems(at, vaccines) {
 function PrFinalizar({ at, patch, patient, vaccines, onFinalizar, onCommit }) {
   const money = window.PR.money;
   const [items, setItems] = pUse(() => buildChargeItems(at, vaccines));
-  const [forma, setForma] = pUse('Pix');
   const [obs, setObs] = pUse('');
   const [sent, setSent] = pUse(false);
 
@@ -428,8 +426,8 @@ function PrFinalizar({ at, patch, patient, vaccines, onFinalizar, onCommit }) {
 
   const confirmar = () => {
     if (total <= 0) { window.vtToast('Informe o valor de pelo menos um item antes de finalizar.', 'err'); return; }
-    const info = { items, total, custo, lucro, forma, obs, data: window.PR.todayBR() };
-    const finalAt = { ...at, status: 'finalizado', value: money(total), formaPagamento: forma, fechamento: info };
+    const info = { items, total, custo, lucro, obs, data: window.PR.todayBR() };
+    const finalAt = { ...at, status: 'finalizado', value: money(total), fechamento: info };
     onCommit(finalAt);
     if (onFinalizar) onFinalizar(finalAt, info);
     setSent(true);
@@ -440,7 +438,7 @@ function PrFinalizar({ at, patch, patient, vaccines, onFinalizar, onCommit }) {
       <div style={{ textAlign: 'center', padding: '60px 24px' }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
         <h2 style={{ color: 'var(--green)', marginBottom: 8 }}>Atendimento finalizado!</h2>
-        <p className="vt-muted">Cobrança de {money(total)} enviada para o setor financeiro.</p>
+        <p className="vt-muted">{money(total)} enviado para Finanças › A Receber. Selecione a forma de pagamento e a data por lá ao dar entrada.</p>
       </div>
     );
   }
@@ -497,17 +495,12 @@ function PrFinalizar({ at, patch, patient, vaccines, onFinalizar, onCommit }) {
           </div>
         </div>
         <div className="vt-card vt-sec">
-          <h3 className="vt-sec-title">Cobrança</h3>
-          <label className="pr-field" style={{ marginBottom: 12 }}>
-            <span>Forma de pagamento</span>
-            <select value={forma} onChange={(e) => setForma(e.target.value)}>
-              {FIN_FORMAS.map((f) => <option key={f}>{f}</option>)}
-            </select>
-          </label>
+          <h3 className="vt-sec-title">Observações</h3>
           <label className="pr-field">
             <span>Observações (opcional)</span>
-            <input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: 2× no cartão, desconto convenio…" />
+            <input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: desconto combinado, condição especial…" />
           </label>
+          <p className="vt-muted" style={{ fontSize: 12.5, marginTop: 10 }}>A forma de pagamento e a data do recebimento são definidas em <b>Finanças › A Receber</b> ao dar entrada.</p>
         </div>
       </div>
 
@@ -520,9 +513,9 @@ function PrFinalizar({ at, patch, patient, vaccines, onFinalizar, onCommit }) {
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         <button className="vt-btn-primary" style={{ background: 'var(--green)', fontSize: 15, padding: '10px 24px' }} onClick={confirmar}>
-          <VtIcon name="check" size={17} /> Confirmar e enviar para cobrança
+          <VtIcon name="check" size={17} /> Confirmar e enviar para Finanças
         </button>
-        <span className="vt-muted" style={{ fontSize: 13 }}>O atendimento será finalizado e o valor enviado ao setor financeiro.</span>
+        <span className="vt-muted" style={{ fontSize: 13 }}>O atendimento será finalizado e o valor enviado para Finanças › A Receber, pendente de pagamento.</span>
       </div>
     </div>
   );

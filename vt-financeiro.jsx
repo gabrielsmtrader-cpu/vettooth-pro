@@ -147,27 +147,31 @@ function CaixaTab({ fin, save }) {
 /* ---------------- A Receber ---------------- */
 function ReceberTab({ fin, save }) {
   const [modal, setModal] = vtUseState(null);
+  const [paidDate, setPaidDate] = vtUseState(finToday());
   const pend = fin.tx.filter((t) => t.kind === 'receita' && t.status === 'pendente');
   const total = pend.reduce((s, t) => s + t.value, 0);
+  const openModal = (t) => { setPaidDate(finToday()); setModal(t); };
   const darBaixa = (id, method) => {
     const tx = fin.tx.find((t) => t.id === id);
+    const dataPg = paidDate || finToday();
     const m = window.vtPayMethod(method);
     const feeN = m ? (parseFloat(String(m.fee).replace(',', '.')) || 0) : 0;
     const extra = [];
     if (tx && feeN > 0) {
       const taxa = +(tx.value * feeN / 100).toFixed(2);
-      extra.push({ id: finUID(), kind: 'custo', desc: `Taxa ${m.label} (${feeN}%) — ${tx.desc}`, cat: 'Taxas de cartão', value: taxa, date: finToday(), status: 'pago', method, paidAt: finToday() });
+      extra.push({ id: finUID(), kind: 'custo', desc: `Taxa ${m.label} (${feeN}%) — ${tx.desc}`, cat: 'Taxas de cartão', value: taxa, date: dataPg, status: 'pago', method, paidAt: dataPg });
     }
     (window.vtPayCfg().splits || []).forEach((sp) => {
       const pctN = parseFloat(String(sp.pct).replace(',', '.')) || 0;
       if (tx && pctN > 0) {
         const val = +(tx.value * pctN / 100).toFixed(2);
-        extra.push({ id: finUID(), kind: 'custo', desc: `Split ${sp.nome} (${pctN}%) — ${tx.desc}`, cat: 'Split terceirizados', value: val, date: finToday(), status: 'pago', method, paidAt: finToday() });
+        extra.push({ id: finUID(), kind: 'custo', desc: `Split ${sp.nome} (${pctN}%) — ${tx.desc}`, cat: 'Split terceirizados', value: val, date: dataPg, status: 'pago', method, paidAt: dataPg });
       }
     });
-    save({ ...fin, tx: [...extra, ...fin.tx.map((t) => t.id === id ? { ...t, status: 'pago', method, paidAt: finToday() } : t)] });
+    save({ ...fin, tx: [...extra, ...fin.tx.map((t) => t.id === id ? { ...t, status: 'pago', method, paidAt: dataPg } : t)] });
     setModal(null);
     if (extra.length) window.vtToast('Baixa registrada · taxas lançadas como custo.', 'ok');
+    else window.vtToast('Baixa registrada.', 'ok');
   };
   return (
     <div>
@@ -185,7 +189,7 @@ function ReceberTab({ fin, save }) {
               <span className="desc"><b>{t.desc}</b><i>{t.cat} · lançado {fmtBR(t.date)}</i></span>
               <span className="fin-tagm pend">Pendente</span>
               <span className="fin-amt down">{finBRL(t.value)}</span>
-              <button className="fin-baixa" onClick={() => setModal(t)}>Dar baixa</button>
+              <button className="fin-baixa" onClick={() => openModal(t)}>Dar baixa</button>
             </div>
           ))}
         </div>
@@ -194,7 +198,12 @@ function ReceberTab({ fin, save }) {
         <div className="fin-modal-bg" onClick={() => setModal(null)}>
           <div className="fin-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Dar baixa · {finBRL(modal.value)}</h3>
-            <p>{modal.desc} — escolha a forma de pagamento recebida:</p>
+            <p>{modal.desc}</p>
+            <label className="vtf" style={{ width: '100%', marginBottom: 14 }}>
+              <span className="vtf-label">Data do pagamento</span>
+              <span className="vtf-inputwrap"><input className="vtf-input" type="date" value={paidDate} onChange={(e) => setPaidDate(e.target.value)} /></span>
+            </label>
+            <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--muted)' }}>Escolha a forma de pagamento recebida:</p>
             <div className="fin-method-pick">
               {window.vtPayCfg().methods.map((m) => (
                 <button key={m.id} className="fin-method-opt" onClick={() => darBaixa(modal.id, m.id)}>
