@@ -1205,7 +1205,7 @@ function AgendaMonth({ cursor, onDay, openNew, openEv, onPickDay }) {
 function AgendaEventModal({ ev, onClose, onSave, onDelete }) {
   const D = window.VtData;
   const CT = window.vtConsults();
-  const pacientes = (() => { const d = window.VtStore && window.VtStore.getData(); return (d && d.patients) || D.patients; })();
+  const pacientes = (() => { const d = window.VtStore && window.VtStore.getData(); return (d && d.patients) || []; })();
   const parceiras = window.vtParceiras ? window.vtParceiras() : [];
   const TYPE_COLOR = { teal: '#14a8a0', navy: '#16395f', red: '#e0533c', amber: '#e2912a', green: '#1fa971', purple: '#8b5cf6' };
   const colorForType = (label) => { const i = CT.findIndex((t) => t.label === label); return ['teal', 'navy', 'amber', 'purple', 'red', 'green'][i % 6] || 'teal'; };
