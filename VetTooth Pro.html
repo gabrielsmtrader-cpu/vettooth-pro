@@ -1232,12 +1232,25 @@ select.vtf-input { appearance: none; cursor: pointer; }
 .pr-idchip { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--bg); border: 1px solid var(--line); padding: 3px 11px; border-radius: 999px; }
 
 /* ---- barra de 7 ações clínicas coloridas ---- */
-.pr-actionbar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin: 4px 0 14px; padding: 12px 30px 0; }
-.pr-abtn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 13px 6px; border-radius: 13px; border: 1px solid color-mix(in srgb, var(--ab) 26%, var(--line)); background: color-mix(in srgb, var(--ab) 7%, #fff); color: color-mix(in srgb, var(--ab) 78%, #1a2330); font-weight: 700; font-size: 12.5px; line-height: 1.15; text-align: center; transition: transform .12s, box-shadow .15s, background .15s; }
-.pr-abtn:hover { transform: translateY(-2px); background: color-mix(in srgb, var(--ab) 14%, #fff); box-shadow: 0 8px 18px -10px var(--ab); }
-.pr-abic { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; background: var(--ab); color: #fff; }
-.pr-abtn.active { background: color-mix(in srgb, var(--ab) 16%, #fff); border-color: var(--ab); box-shadow: inset 0 0 0 1px var(--ab); }
-@media (max-width: 920px) { .pr-actionbar { grid-template-columns: repeat(4, 1fr); } }
+/* ---- Barra de fluxo do atendimento (mini-cards coloridos) ---- */
+.pr-secnav { display: flex; gap: 4px; padding: 10px 30px 0; }
+.pr-secbtn { font-size: 12px; font-weight: 600; color: var(--muted); background: none; border: none; padding: 5px 11px; border-radius: 8px; cursor: pointer; transition: background .15s, color .15s; }
+.pr-secbtn:hover { background: var(--bg); color: var(--ink); }
+.pr-secbtn.on { background: var(--bg); color: var(--teal-d); font-weight: 700; }
+.pr-flowbar { display: flex; gap: 10px; overflow-x: auto; padding: 14px 30px 18px; scrollbar-width: none; }
+.pr-flowbar::-webkit-scrollbar { display: none; }
+.pr-fcard { position: relative; display: flex; flex-direction: column; align-items: center; gap: 9px; padding: 16px 14px 14px; min-width: 108px; border-radius: 16px; border: 1.5px solid color-mix(in srgb, var(--fc, #64748b) 20%, var(--line)); background: #fff; color: var(--ink); font-weight: 700; font-size: 11.5px; line-height: 1.25; text-align: center; transition: transform .12s, box-shadow .15s, border-color .15s, background .15s; white-space: nowrap; flex-shrink: 0; cursor: pointer; }
+.pr-fcard:hover { transform: translateY(-3px); box-shadow: 0 10px 24px -10px var(--fc, #999); border-color: var(--fc, #64748b); background: var(--fb, #f8fafc); }
+.pr-fcard.active { background: var(--fb, #f8fafc); border-color: var(--fc, #64748b); box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--fc, #64748b) 18%, transparent), 0 6px 16px -8px var(--fc, #999); }
+.pr-fcard-ic { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: var(--fb, #f1f5f9); color: var(--fc, #475569); transition: background .15s; }
+.pr-fcard:hover .pr-fcard-ic, .pr-fcard.active .pr-fcard-ic { background: color-mix(in srgb, var(--fc, #64748b) 16%, transparent); }
+.pr-fcard-lbl { font-size: 11px; font-weight: 700; color: var(--ink); max-width: 90px; white-space: normal; line-height: 1.3; }
+.pr-fcard-badge { position: absolute; top: 8px; right: 8px; background: var(--fc, #64748b); color: #fff; font-size: 10px; font-weight: 800; border-radius: 999px; padding: 2px 7px; line-height: 1; }
+.pr-fcard-ok { position: absolute; top: 8px; right: 8px; width: 10px; height: 10px; border-radius: 50%; background: var(--green); }
+.pr-fcard-final { --fc: #16a34a; --fb: #dcfce7; border-style: dashed; }
+.pr-fcard-final:hover { border-style: solid; }
+.pr-fcard-final.active { border-style: solid; }
+@media (max-width: 920px) { .pr-fcard { min-width: 88px; padding: 12px 10px; } .pr-fcard-ic { width: 40px; height: 40px; } }
 
 /* ---- painel lateral de ações rápidas (Visão Geral) ---- */
 .pr-quickpanel { display: flex; flex-direction: column; gap: 9px; }
@@ -1697,7 +1710,7 @@ select.vtf-input { appearance: none; cursor: pointer; }
 <script type="text/babel" src="vt-db.jsx"></script>
 <script type="text/babel" src="vt-auth.jsx"></script>
 <script type="text/babel" src="vt-login.jsx?v=3"></script>
-<script type="text/babel" src="vt-atendimentos.jsx"></script>
+<script type="text/babel" src="vt-atendimentos.jsx?v=2"></script>
 <script type="text/babel" src="vt-pacientes.jsx?v=4"></script>
 <script type="text/babel" src="vt-racas.jsx"></script>
 <script type="text/babel" src="vt-richtext.jsx"></script>
@@ -1711,7 +1724,7 @@ select.vtf-input { appearance: none; cursor: pointer; }
 <script type="text/babel" src="vt-ia.jsx?v=11"></script>
 <script type="text/babel" src="vt-scores.jsx"></script>
 <script type="text/babel" src="vt-ficha.jsx"></script>
-<script type="text/babel" src="vt-prontuario.jsx?v=6"></script>
+<script type="text/babel" src="vt-prontuario.jsx?v=7"></script>
 <script type="text/babel" src="vt-prontuario-exam.jsx?v=10"></script>
 <script type="text/babel" src="vt-prontuario-vacina.jsx"></script>
 <script type="text/babel" src="vt-prontuario-plan.jsx?v=2"></script>

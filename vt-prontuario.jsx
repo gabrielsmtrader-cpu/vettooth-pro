@@ -147,14 +147,17 @@ function prEnsure(at, patient) {
   });
 }
 
-/* ---------- Abas ---------- */
-/* As ações clínicas cobertas pela barra de 7 botões (PR_ACTIONBAR) foram removidas
-   desta régua para evitar duplicidade — seus painéis seguem acessíveis pelos botões coloridos. */
-const PR_TABS = [
-  ['resumo', 'Visão Geral'], ['consulta', 'Em Atendimento'], ['historico', 'Histórico'],
-  ['agendamento', 'Agendamento'], ['medicamentos', 'Medicamentos'],
-  ['internacoes', 'Internações'], ['anexos', 'Anexos'], ['vendas', 'Vendas'],
+/* ---------- Cards de fluxo do atendimento ---------- */
+const PR_FLOW_CARDS = [
+  { id: 'consulta',    label: 'Consulta',            icon: 'stethoscope', color: '#2563eb', bg: '#dbeafe' },
+  { id: 'proc-intra',  label: 'Procedimentos',        icon: 'syringe',     color: '#7c3aed', bg: '#ede9fe' },
+  { id: 'exames',      label: 'Pedido de Exames',     icon: 'chart',       color: '#059669', bg: '#d1fae5' },
+  { id: 'prescricao',  label: 'Receituários',         icon: 'receipt',     color: '#d97706', bg: '#fef3c7' },
+  { id: 'orcamento',   label: 'Orçamentos',           icon: 'dollar',      color: '#ea580c', bg: '#ffedd5' },
+  { id: 'cirurgias',   label: 'Cirurgias / Intern.',  icon: 'alert',       color: '#dc2626', bg: '#fee2e2' },
+  { id: 'atestados',   label: 'Termos e Docs',        icon: 'pen',         color: '#475569', bg: '#f1f5f9' },
 ];
+const PR_TABS = PR_FLOW_CARDS.map(([id]) => id); // compatibilidade legada
 
 /* ---------- Cabeçalho ---------- */
 function PrHeader({ at, patient, saving, onBack, onAction, go, tab }) {
@@ -227,16 +230,8 @@ function PrHeader({ at, patient, saving, onBack, onAction, go, tab }) {
   );
 }
 
-/* Barra de 7 ações clínicas — cada uma navega para a aba correspondente já existente */
-const PR_ACTIONBAR = [
-  ['prescricao', 'Prescrição', 'receipt', '#1e40af'],
-  ['exames', 'Exames', 'chart', '#10b981'],
-  ['vacina', 'Vacinas', 'syringe', '#7c3aed'],
-  ['orcamento', 'Procedimentos', 'box', '#f59e0b'],
-  ['cirurgias', 'Cirurgia', 'stethoscope', '#ef4444'],
-  ['retornos', 'Retorno', 'calendar', '#22c55e'],
-  ['atestados', 'Docs / Termos', 'pen', '#475569'],
-];
+/* legado — mantido apenas para referência interna, não renderizado */
+const PR_ACTIONBAR = [];
 
 /* ---------- Aba Resumo ---------- */
 function PrResumo({ at, patient, history, weights, go }) {
@@ -362,7 +357,7 @@ function prChipStyle(on) {
 }
 
 /* ---------- Shell do prontuário ---------- */
-function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit, onAddWeight, onSaveVaccines }) {
+function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit, onAddWeight, onSaveVaccines, onFinalizar }) {
   const [at, setAt] = pUse(() => prEnsure(atendimento, patient));
   const [tab, setTab] = pUse('resumo');
   const [pesoModal, setPesoModal] = pUse(false);
@@ -400,41 +395,50 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
     }
   };
 
-  // contadores p/ badges nas abas
+  // contadores p/ badges nos cards de fluxo
   const counts = {
-    exames: at.exames.length, prescricao: at.prescricoes.length,
-    proc: at.procedimentos.length, orcamento: at.orcamento.items.length, anexos: at.anexos.length,
+    consulta: 0,
+    'proc-intra': (at.medicamentos || []).length + (vaccines || []).length,
+    exames: at.exames.length,
+    prescricao: at.prescricoes.length,
+    orcamento: at.orcamento.items.length,
+    cirurgias: (at.cirurgias || []).length + (at.internacoes || []).length,
+    atestados: (at.documentos || []).length,
   };
   const doneTabs = {
-    anamnese: Object.values(at.anamnese).some(Boolean),
-    exame: Object.values(at.exame).some(Boolean) || at.exameObs,
-    sistemas: Object.values(at.sistemas).some((s) => s && s.s),
-    diag: at.diag.principal, consulta: at.motivo || at.queixa,
-    odonto: Object.values(at.odonto.flags).some(Boolean) || at.odonto.obs,
-    final: at.status === 'finalizado',
+    consulta: !!(at.motivo || at.queixa),
+    exame: Object.values(at.exame).some(Boolean) || !!at.exameObs,
+    diag: !!(at.diag && at.diag.principal),
   };
 
   return (
     <div className="pr">
       <div className="pr-top">
         <PrHeader at={at} patient={patient} saving={saving} onBack={onBack} onAction={action} go={go} tab={tab} />
-        <div className="pr-tabs">
-          {PR_TABS.map(([id, label]) => (
-            <button key={id} className={`pr-tab${tab === id ? ' active' : ''}`} onClick={() => go(id)}>
-              {label}
-              {counts[id] > 0 && <span className="pr-tab-badge">{counts[id]}</span>}
-              {!counts[id] && doneTabs[id] ? <span className="pr-dot-ok" /> : null}
-            </button>
-          ))}
+        {/* nav secundária: visão geral + histórico */}
+        <div className="pr-secnav">
+          <button className={`pr-secbtn${tab === 'resumo' ? ' on' : ''}`} onClick={() => go('resumo')}>Visão Geral</button>
+          <button className={`pr-secbtn${tab === 'historico' ? ' on' : ''}`} onClick={() => go('historico')}>Histórico clínico</button>
         </div>
-        {/* PACOTE — barra de 7 ações clínicas (única instância, logo abaixo das abas) */}
-        <div className="pr-actionbar">
-          {PR_ACTIONBAR.map(([tabId, label, icon, color]) => (
-            <button key={tabId} className={`pr-abtn${tab === tabId ? ' active' : ''}`} style={{ '--ab': color }} onClick={() => go(tabId)}>
-              <span className="pr-abic"><VtIcon name={icon} size={17} /></span>
-              <span>{label}</span>
-            </button>
-          ))}
+        {/* barra principal de fluxo do atendimento */}
+        <div className="pr-flowbar">
+          {PR_FLOW_CARDS.map(({ id, label, icon, color, bg }) => {
+            const cnt = counts[id] || 0;
+            const done = doneTabs[id];
+            return (
+              <button key={id} className={`pr-fcard${tab === id ? ' active' : ''}`}
+                style={{ '--fc': color, '--fb': bg }} onClick={() => go(id)}>
+                <span className="pr-fcard-ic"><VtIcon name={icon} size={20} /></span>
+                <span className="pr-fcard-lbl">{label}</span>
+                {cnt > 0 && <span className="pr-fcard-badge">{cnt}</span>}
+                {!cnt && done && <span className="pr-fcard-ok" />}
+              </button>
+            );
+          })}
+          <button className="pr-fcard pr-fcard-final" onClick={() => { onCommit(at); if (onFinalizar) onFinalizar(at); }}>
+            <span className="pr-fcard-ic"><VtIcon name="check" size={20} /></span>
+            <span className="pr-fcard-lbl">Finalizar Atendimento</span>
+          </button>
         </div>
       </div>
       <div className="pr-body" ref={tabRef}>
@@ -451,6 +455,12 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
               setDiag={group('diag')}
               patient={patient}
             />
+          </div>
+        )}
+        {tab === 'proc-intra' && (
+          <div>
+            <VacinaTab p={patient} vaccines={vaccines || []} onSave={onSaveVaccines} vet={at.vet} />
+            <PrMedicamentos at={at} patch={patch} />
           </div>
         )}
         {tab === 'vacina' && <VacinaTab p={patient} vaccines={vaccines || []} onSave={onSaveVaccines} vet={at.vet} />}

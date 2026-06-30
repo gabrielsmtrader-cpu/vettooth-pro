@@ -408,7 +408,9 @@ function AtendimentosModule({ openPatient, openOdonto, focus, clearFocus }) {
 
   if (view.mode === 'pront') {
     return <Prontuario patient={view.patient} atendimento={view.at} weights={weightsFor(view.patient.id)} vaccines={vaccinesFor(view.patient.id)}
-      onBack={() => setView({ mode: 'list' })} onCommit={commit} onAddWeight={(w) => addWeight(view.patient, w)} onSaveVaccines={(list) => saveVaccines(view.patient, list)} />;
+      onBack={() => setView({ mode: 'list' })} onCommit={commit}
+      onAddWeight={(w) => addWeight(view.patient, w)} onSaveVaccines={(list) => saveVaccines(view.patient, list)}
+      onFinalizar={(at) => { commit(at); setDarBaixa(at); }} />;
   }
 
   const types = ['Todos', ...window.vtConsults().map((t) => t.label)];
@@ -497,7 +499,9 @@ function AtendimentosModule({ openPatient, openOdonto, focus, clearFocus }) {
       const link = window.vtWaLink(info.whatsNum, lines.join('\n'));
       if (link) window.open(link, '_blank', 'noopener');
     }
-    setDarBaixa(null); setTab('realizados');
+    setDarBaixa(null);
+    setView({ mode: 'list' });
+    setTab('realizados');
     window.vtToast('Atendimento finalizado! Valor: ' + money(info.total) + ' enviado para Finanças.', 'ok');
   };
   // PACOTE A — confirmar agendamento (atualiza status no atendimento e/ou no agendaAppts → 'Confirmado')
