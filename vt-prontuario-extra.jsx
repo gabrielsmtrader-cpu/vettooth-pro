@@ -145,23 +145,51 @@ const MED_VIAS = ['VO', 'IM', 'IV', 'SC', 'Tópica', 'Oftálmica', 'Inalatória'
 function PrMedicamentos({ at, patch }) {
   const rows = at.medicamentos || [];
   const setRows = (r) => patch({ medicamentos: r });
-  const add = () => setRows([...rows, { id: 'MD' + Date.now().toString(36), nome: '', dose: '', via: 'VO', qtd: '', lote: '', hora: window.PR.nowHM() }]);
+  const [medSearch, setMedSearch] = xUse('');
+
+  const invItems = (() => { const d = window.VtStore && window.VtStore.getData(); return ((d && d.inventory) || []).filter((i) => i.categoria === 'Medicamento' || i.categoria === 'Vacina'); })();
+  const filteredMeds = invItems.filter((i) => !medSearch || i.name.toLowerCase().includes(medSearch.toLowerCase()));
+
+  const add = (fromInv) => {
+    const row = fromInv
+      ? { id: 'MD' + Date.now().toString(36), nome: fromInv.name, dose: '', via: 'VO', qtd: '1', lote: fromInv.lot || '', hora: window.PR.nowHM(), itemId: fromInv.id, unit: fromInv.unit }
+      : { id: 'MD' + Date.now().toString(36), nome: '', dose: '', via: 'VO', qtd: '', lote: '', hora: window.PR.nowHM() };
+    setRows([...rows, row]);
+    setMedSearch('');
+  };
   const upd = (id, k, v) => setRows(rows.map((r) => r.id === id ? { ...r, [k]: v } : r));
   const del = (id) => setRows(rows.filter((r) => r.id !== id));
+
+  const baixarEstoque = () => {
+    if (!rows.length) { window.vtToast('Nenhum medicamento para baixar.', 'err'); return; }
+    const vet = window.vtCurrentVet ? window.vtCurrentVet() : 'Equipe';
+    let baixados = 0;
+    rows.forEach((r) => {
+      if (!r.itemId) return;
+      const qty = Number(r.qtd) || 1;
+      if (window.vtBaixarInsumos) {
+        window.vtBaixarInsumos([{ itemId: r.itemId, itemName: r.nome, qty, unit: r.unit || 'un' }], 'Medicamento aplicado: ' + r.nome, vet);
+        baixados++;
+      }
+    });
+    if (baixados > 0) window.vtToast(`${baixados} medicamento(s) baixados do estoque.`, 'ok');
+    else window.vtToast('Medicamentos sem vínculo com estoque. Selecione do inventário para baixa automática.', 'warn');
+  };
+
   return (
     <div>
       <div className="pr-sec-head">
         <div><h2 className="pr-h">Medicamentos</h2><p className="pr-h-sub">Aplicação / dispensação no atendimento · consome estoque</p></div>
-        <button className="pr-qbtn primary" disabled={!rows.length} style={!rows.length ? { opacity: .5 } : null} onClick={() => window.vtToast('Estoque atualizado e lançado no atendimento.', 'ok')}><VtIcon name="plus" size={15} /> Baixar do estoque</button>
+        <button className="pr-qbtn primary" disabled={!rows.length} style={!rows.length ? { opacity: .5 } : null} onClick={baixarEstoque}><VtIcon name="box" size={15} /> Baixar do estoque</button>
       </div>
       <div className="vt-card vt-sec">
         {rows.length === 0 ? <p className="pr-empty">Nenhum medicamento aplicado/dispensado.</p> : (
           <table className="pr-dtable">
-            <thead><tr><th style={{ width: '26%' }}>Medicamento</th><th>Dose</th><th>Via</th><th style={{ width: 70 }}>Qtd</th><th>Lote</th><th style={{ width: 70 }}>Hora</th><th></th></tr></thead>
+            <thead><tr><th style={{ width: '24%' }}>Medicamento</th><th>Dose</th><th>Via</th><th style={{ width: 70 }}>Qtd</th><th>Lote</th><th style={{ width: 70 }}>Hora</th><th></th></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
-                  <td><input value={r.nome} onChange={(e) => upd(r.id, 'nome', e.target.value)} placeholder="Nome" /></td>
+                  <td><input value={r.nome} onChange={(e) => upd(r.id, 'nome', e.target.value)} placeholder="Nome" />{r.itemId && <span style={{ fontSize: 10.5, color: 'var(--teal)', display: 'block' }}>✓ vinculado ao estoque</span>}</td>
                   <td><input value={r.dose} onChange={(e) => upd(r.id, 'dose', e.target.value)} placeholder="mg/kg" /></td>
                   <td><select value={r.via} onChange={(e) => upd(r.id, 'via', e.target.value)}>{MED_VIAS.map((v) => <option key={v}>{v}</option>)}</select></td>
                   <td><input className="num" value={r.qtd} onChange={(e) => upd(r.id, 'qtd', e.target.value)} placeholder="1" /></td>
@@ -173,7 +201,14 @@ function PrMedicamentos({ at, patch }) {
             </tbody>
           </table>
         )}
-        <button className="pr-addrow" onClick={add}><VtIcon name="plus" size={14} /> Adicionar medicamento</button>
+        <div style={{ marginTop: 12, borderTop: rows.length ? '1px solid var(--border)' : 'none', paddingTop: rows.length ? 10 : 0, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button className="pr-addrow" onClick={() => add()}><VtIcon name="plus" size={14} /> Linha em branco</button>
+          <input value={medSearch} onChange={(e) => setMedSearch(e.target.value)} placeholder="Buscar medicamento do estoque…" style={{ flex: 1, minWidth: 200, padding: '5px 10px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13 }} />
+          {medSearch && filteredMeds.slice(0, 5).map((i) => (
+            <button key={i.id} className="pr-quickpick-btn" style={prChipStyle(false)} onClick={() => add(i)}>+ {i.name} ({i.qty} {i.unit})</button>
+          ))}
+          {medSearch && filteredMeds.length === 0 && <span className="vt-muted" style={{ fontSize: 12 }}>Nenhum medicamento/vacina no estoque.</span>}
+        </div>
       </div>
     </div>
   );

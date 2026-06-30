@@ -381,6 +381,22 @@ function PrProcedimentos({ at, patch }) {
   const del = (i) => setRows(rows.filter((_, j) => j !== i));
   const totalV = rows.reduce((s, r) => s + (Number(r.valor) || 0), 0);
   const totalC = rows.reduce((s, r) => s + (Number(r.custo) || 0), 0);
+  const [protoSearch, setProtoSearch] = lUse('');
+  const protocols = window.vtProcProtocols ? window.vtProcProtocols() : [];
+  const filteredProtos = protocols.filter((p) =>
+    !protoSearch || p.name.toLowerCase().includes(protoSearch.toLowerCase()) || (p.categoria || '').toLowerCase().includes(protoSearch.toLowerCase())
+  );
+
+  const applyProtocol = (p) => {
+    const vet = window.vtCurrentVet ? window.vtCurrentVet() : 'Equipe';
+    const { custo } = window.vtBaixarInsumos ? window.vtBaixarInsumos(p.insumos || [], 'Procedimento: ' + p.name, vet) : { custo: 0 };
+    const row = { nome: p.name, valor: Number(p.preco) || 0, custo: Math.round(custo), tempo: p.tempo || '', protocoloId: p.id };
+    setRows([...rows, row]);
+    if ((p.insumos || []).length) window.vtToast(`"${p.name}" aplicado — ${p.insumos.length} insumo(s) baixados do estoque.`, 'ok');
+    else window.vtToast(`"${p.name}" adicionado.`, 'ok');
+    setProtoSearch('');
+  };
+
   const toOrc = () => {
     const items = rows.map((r) => ({ tipo: 'Procedimento', nome: r.nome, qtd: 1, valor: Number(r.valor) || 0, custo: Number(r.custo) || 0 }));
     patch({ procedimentos: rows, orcamento: { ...at.orcamento, items: [...at.orcamento.items, ...items] } });
@@ -390,11 +406,12 @@ function PrProcedimentos({ at, patch }) {
     <div>
       <div className="pr-sec-head">
         <div><h2 className="pr-h">Procedimentos</h2><p className="pr-h-sub">Realizados no atendimento · consomem estoque e lançam no financeiro</p></div>
+        {rows.length > 0 && <button className="pr-qbtn" onClick={toOrc}><VtIcon name="dollar" size={14} /> Enviar ao orçamento</button>}
       </div>
       <div className="vt-card vt-sec">
-        {rows.length === 0 ? <p className="pr-empty">Nenhum procedimento registrado. Adicione do catálogo abaixo.</p> : (
+        {rows.length === 0 ? <p className="pr-empty">Nenhum procedimento registrado. Selecione do catálogo ou adicione linha em branco.</p> : (
           <table className="pr-dtable">
-            <thead><tr><th style={{ width: '40%' }}>Procedimento</th><th>Tempo médio</th><th className="num">Custo</th><th className="num">Valor</th><th className="num">Lucro</th><th></th></tr></thead>
+            <thead><tr><th style={{ width: '40%' }}>Procedimento</th><th>Tempo</th><th className="num">Custo</th><th className="num">Valor</th><th className="num">Lucro</th><th></th></tr></thead>
             <tbody>
               {rows.map((r, i) => (
                 <tr key={i}>
@@ -410,10 +427,31 @@ function PrProcedimentos({ at, patch }) {
             </tbody>
           </table>
         )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
-          <button className="pr-addrow" onClick={() => add()}><VtIcon name="plus" size={14} /> Linha em branco</button>
-          <span className="vt-muted" style={{ fontSize: 12.5 }}>Catálogo:</span>
-          {window.PR.procCatalog.map((m) => <button key={m.nome} className="pr-quickpick-btn" style={prChipStyle(false)} onClick={() => add({ ...m })}>+ {m.nome}</button>)}
+
+        <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>Catálogo de protocolos:</span>
+            <input value={protoSearch} onChange={(e) => setProtoSearch(e.target.value)} placeholder="Buscar protocolo…" style={{ flex: 1, minWidth: 180, padding: '5px 10px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13 }} />
+          </div>
+          {protocols.length === 0 ? (
+            <p className="vt-muted" style={{ fontSize: 12.5, margin: 0 }}>Nenhum protocolo cadastrado. Vá em <b>Configurações › Protocolos</b> para criar.</p>
+          ) : (
+            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+              {(protoSearch ? filteredProtos : protocols).slice(0, 12).map((p) => (
+                <button key={p.id} className="pr-quickpick-btn" style={prChipStyle(false)} onClick={() => applyProtocol(p)} title={p.insumos && p.insumos.length ? 'Insumos: ' + p.insumos.map((i) => i.itemName + ' ' + i.qty + i.unit).join(', ') : 'Sem insumos configurados'}>
+                  + {p.name}{p.insumos && p.insumos.length ? <span style={{ marginLeft: 4, opacity: .65, fontSize: 11 }}>({p.insumos.length} insumos)</span> : null}
+                </button>
+              ))}
+              {protoSearch && filteredProtos.length === 0 && <span className="vt-muted" style={{ fontSize: 12 }}>Nenhum protocolo encontrado.</span>}
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
+            <button className="pr-addrow" onClick={() => add()}><VtIcon name="plus" size={14} /> Linha em branco</button>
+            {window.PR.procCatalog && window.PR.procCatalog.length > 0 && <>
+              <span className="vt-muted" style={{ fontSize: 12 }}>Avulsos:</span>
+              {window.PR.procCatalog.map((m) => <button key={m.nome} className="pr-quickpick-btn" style={prChipStyle(false)} onClick={() => add({ ...m })}>+ {m.nome}</button>)}
+            </>}
+          </div>
         </div>
       </div>
     </div>

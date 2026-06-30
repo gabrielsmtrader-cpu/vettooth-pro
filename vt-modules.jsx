@@ -17,6 +17,57 @@ window.vtSaveConsults = function (list) {
   if (window.VtStore) window.VtStore.setData({ consultTypes: list });
 };
 
+/* ---- Catálogo de Protocolos / Procedimentos ----
+   Cada protocolo descreve o procedimento e lista os insumos necessários.
+   Schema: { id, name, categoria, preco, tempo, insumos: [{itemId,itemName,qty,unit}] } */
+window.vtProcProtocols = function () {
+  const d = window.VtStore && window.VtStore.getData();
+  return (d && d.procProtocols) || [];
+};
+window.vtSaveProcProtocol = function (p) {
+  const d = window.VtStore && window.VtStore.getData() || {};
+  const list = (d.procProtocols || []).slice();
+  const idx = list.findIndex((x) => x.id === p.id);
+  if (idx >= 0) list[idx] = p; else list.unshift({ ...p, id: 'PP' + Date.now().toString(36) });
+  window.VtStore.setData({ procProtocols: list });
+};
+window.vtDeleteProcProtocol = function (id) {
+  const d = window.VtStore && window.VtStore.getData() || {};
+  window.VtStore.setData({ procProtocols: (d.procProtocols || []).filter((x) => x.id !== id) });
+};
+
+/* vtBaixarInsumos: debita cada insumo do estoque e registra movimentação.
+   Retorna { custo } (custo total calculado pelos itens debitados). */
+window.vtBaixarInsumos = function (insumos, motivo, vet) {
+  if (!insumos || !insumos.length) return { custo: 0 };
+  const d = window.VtStore && window.VtStore.getData() || {};
+  let inventory = (d.inventory || []).slice();
+  const inventoryMoves = (d.inventoryMoves || []).slice();
+  let custo = 0;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  insumos.forEach((ins) => {
+    const idx = inventory.findIndex((x) => x.id === ins.itemId);
+    if (idx < 0) return;
+    const item = inventory[idx];
+    const amt = Number(ins.qty) || 0;
+    const newQty = Math.max(0, (Number(item.qty) || 0) - amt);
+    const costUnit = window.PR && window.PR.parseMoney ? window.PR.parseMoney(item.cost) || 0 : 0;
+    custo += costUnit * amt;
+    inventory[idx] = { ...item, qty: newQty };
+    inventoryMoves.unshift({
+      id: 'MV' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+      ts: now.getTime(), date: dateStr,
+      itemName: item.name, unit: item.unit,
+      tipo: 'Saída', qty: amt, delta: -amt,
+      responsavel: vet || (window.vtCurrentVet ? window.vtCurrentVet() : 'Equipe'),
+      obs: motivo || 'Procedimento'
+    });
+  });
+  window.VtStore.setData({ inventory, inventoryMoves });
+  return { custo };
+};
+
 /* ---- Roteiros de avaliação por modelo de consulta ----
    Cada tipo avalia coisas diferentes. Itens são marcados Normal/Alterado/N-A
    pelo veterinário na aba Consulta. Personalizáveis em Configurações. */
@@ -2100,9 +2151,127 @@ function LgpdTab() {
     </div>
   );
 }
+/* ====================== PROTOCOLOS TAB ====================== */
+const PROTO_CATS = ['Clínica Geral', 'Odontologia', 'Cirurgia', 'Vacina', 'Medicação', 'Exame', 'Outro'];
+function ProtocolosTab() {
+  const [protocols, setProtocols] = vtUseState(() => window.vtProcProtocols());
+  const [form, setForm] = vtUseState(null);
+  const [insumoSearch, setInsumoSearch] = vtUseState('');
+  const blank = { name: '', categoria: 'Clínica Geral', preco: '', tempo: '', descricao: '', insumos: [] };
+
+  const reload = () => setProtocols(window.vtProcProtocols());
+  const save = () => {
+    if (!form.name.trim()) { window.vtToast('Informe o nome do protocolo.', 'err'); return; }
+    window.vtSaveProcProtocol(form);
+    reload(); setForm(null);
+    window.vtToast('Protocolo salvo.', 'ok');
+  };
+  const del = (id) => {
+    window.vtDeleteProcProtocol(id);
+    reload(); window.vtToast('Protocolo removido.', 'ok');
+  };
+
+  const invItems = (() => { const d = window.VtStore && window.VtStore.getData(); return (d && d.inventory) || []; })();
+  const filteredInv = invItems.filter((i) =>
+    !insumoSearch || i.name.toLowerCase().includes(insumoSearch.toLowerCase())
+  );
+  const addInsumo = (item) => {
+    const already = (form.insumos || []).find((x) => x.itemId === item.id);
+    if (already) return;
+    setForm((p) => ({ ...p, insumos: [...(p.insumos || []), { itemId: item.id, itemName: item.name, qty: 1, unit: item.unit || 'un' }] }));
+    setInsumoSearch('');
+  };
+  const updInsumo = (itemId, k, v) => setForm((p) => ({ ...p, insumos: p.insumos.map((x) => x.itemId === itemId ? { ...x, [k]: v } : x) }));
+  const delInsumo = (itemId) => setForm((p) => ({ ...p, insumos: p.insumos.filter((x) => x.itemId !== itemId) }));
+
+  return (
+    <div>
+      <div className="vt-toolbar-row" style={{ justifyContent: 'space-between', marginBottom: 14 }}>
+        <p className="vt-muted" style={{ margin: 0, fontSize: 13 }}>Cadastre protocolos com os insumos necessários. Os materiais são debitados do estoque automaticamente ao aplicar.</p>
+        <button className="vt-btn-primary" onClick={() => setForm({ ...blank })}><VtIcon name="plus" size={15} /> Novo protocolo</button>
+      </div>
+
+      {form && (
+        <div className="vt-card vt-sec" style={{ marginBottom: 18 }}>
+          <h3 className="vt-sec-title">{form.id ? 'Editar protocolo' : 'Novo protocolo'}</h3>
+          <div className="pr-fieldrow c2">
+            <label className="pr-field"><span>Nome do protocolo *</span><input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} placeholder="Ex.: Exodontia simples" /></label>
+            <label className="pr-field"><span>Categoria</span>
+              <select value={form.categoria} onChange={(e) => setForm((p) => ({ ...p, categoria: e.target.value }))}>
+                {PROTO_CATS.map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="pr-fieldrow c2">
+            <label className="pr-field"><span>Preço de venda (R$)</span><input value={form.preco} onChange={(e) => setForm((p) => ({ ...p, preco: e.target.value.replace(/\D/g, '') }))} placeholder="0" /></label>
+            <label className="pr-field"><span>Tempo estimado</span><input value={form.tempo} onChange={(e) => setForm((p) => ({ ...p, tempo: e.target.value }))} placeholder="Ex.: 60 min" /></label>
+          </div>
+          <label className="pr-field" style={{ marginBottom: 14 }}><span>Descrição / observações</span><input value={form.descricao || ''} onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))} placeholder="Instruções, cuidados, observações…" /></label>
+
+          <h4 style={{ margin: '0 0 8px', fontSize: 13.5, fontWeight: 700 }}>Insumos / materiais utilizados</h4>
+          {(form.insumos || []).length > 0 && (
+            <table className="pr-dtable" style={{ marginBottom: 10 }}>
+              <thead><tr><th>Item (estoque)</th><th style={{ width: 90 }}>Qtd</th><th style={{ width: 70 }}>Unid.</th><th></th></tr></thead>
+              <tbody>
+                {form.insumos.map((ins) => (
+                  <tr key={ins.itemId}>
+                    <td><b>{ins.itemName}</b></td>
+                    <td><input className="num" value={ins.qty} onChange={(e) => updInsumo(ins.itemId, 'qty', e.target.value.replace(/[^\d.]/g, ''))} style={{ width: 80 }} /></td>
+                    <td><input value={ins.unit} onChange={(e) => updInsumo(ins.itemId, 'unit', e.target.value)} style={{ width: 60 }} /></td>
+                    <td><button className="pr-del-btn" onClick={() => delInsumo(ins.itemId)}>✕</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+            <input value={insumoSearch} onChange={(e) => setInsumoSearch(e.target.value)} placeholder="Buscar item do estoque…" style={{ flex: 1, minWidth: 200, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13 }} />
+            {insumoSearch && filteredInv.slice(0, 6).map((i) => (
+              <button key={i.id} className="pr-quickpick-btn" style={prChipStyle(false)} onClick={() => addInsumo(i)}>+ {i.name} ({i.qty} {i.unit})</button>
+            ))}
+            {insumoSearch && filteredInv.length === 0 && <span className="vt-muted" style={{ fontSize: 12 }}>Nenhum item no estoque. Cadastre em Estoque primeiro.</span>}
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="vt-btn-primary" onClick={save}>Salvar protocolo</button>
+            <button className="vt-btn-ghost" onClick={() => setForm(null)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {protocols.length === 0 && !form && (
+        <p className="pr-empty" style={{ textAlign: 'center', marginTop: 40 }}>Nenhum protocolo cadastrado. Clique em "Novo protocolo" para começar.</p>
+      )}
+      <div className="vt-stack">
+        {protocols.map((p) => (
+          <div key={p.id} className="vt-card vt-sec">
+            <div className="pr-sec-head" style={{ marginBottom: 6 }}>
+              <div>
+                <h3 className="vt-sec-title" style={{ margin: 0 }}>{p.name}</h3>
+                <p className="vt-muted" style={{ margin: '2px 0 0', fontSize: 12 }}>{p.categoria}{p.tempo ? ' · ' + p.tempo : ''}{p.preco ? ' · R$ ' + p.preco : ''}</p>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button className="vt-link" onClick={() => setForm({ ...p })}>Editar</button>
+                <button className="pr-del-btn" onClick={() => del(p.id)}>✕</button>
+              </div>
+            </div>
+            {p.descricao && <p style={{ margin: '0 0 6px', fontSize: 13, color: 'var(--muted)' }}>{p.descricao}</p>}
+            {p.insumos && p.insumos.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {p.insumos.map((ins) => (
+                  <span key={ins.itemId} style={{ background: 'var(--teal-t)', color: 'var(--teal-d)', borderRadius: 12, padding: '2px 9px', fontSize: 12 }}>{ins.itemName}: {ins.qty} {ins.unit}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ConfigModule() {
   const [tab, setTab] = vtUseState('clinica');
-  const tabs = [['clinica', 'Clínica'], ['equipe', 'Veterinários'], ['seguranca', 'Segurança'], ['notificacoes', 'Notificações'], ['sedacao', 'Sedação'], ['sistema', 'Sistema'], ['conta', 'Conta & backup'], ['parceiras', 'Clínicas parceiras'], ['consultas', 'Tipos de consulta'], ['especialidades', 'Especialidades'], ['roteiros', 'Modelos de consulta'], ['prescricoes', 'Prescrições'], ['exames', 'Exames'], ['modelos', 'Modelos & PDF'], ['integracoes', 'Integrações'], ['lgpd', 'Termos & LGPD']];
+  const tabs = [['clinica', 'Clínica'], ['equipe', 'Veterinários'], ['seguranca', 'Segurança'], ['notificacoes', 'Notificações'], ['sedacao', 'Sedação'], ['sistema', 'Sistema'], ['conta', 'Conta & backup'], ['parceiras', 'Clínicas parceiras'], ['consultas', 'Tipos de consulta'], ['especialidades', 'Especialidades'], ['roteiros', 'Modelos de consulta'], ['prescricoes', 'Prescrições'], ['exames', 'Exames'], ['modelos', 'Modelos & PDF'], ['integracoes', 'Integrações'], ['lgpd', 'Termos & LGPD'], ['protocolos', 'Protocolos']];
   return (
     <div>
       <div className="vt-page-head"><h1>Configurações</h1><p>Clínica, equipe, segurança, notificações, modelos, integrações e LGPD</p></div>
@@ -2125,6 +2294,7 @@ function ConfigModule() {
       {tab === 'modelos' && <ModelosTab />}
       {tab === 'integracoes' && <IntegracoesTab />}
       {tab === 'lgpd' && <LgpdTab />}
+      {tab === 'protocolos' && <ProtocolosTab />}
     </div>
   );
 }
