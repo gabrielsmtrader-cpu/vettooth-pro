@@ -166,6 +166,12 @@ const PR_PROC_SUBS = [
   { id: 'medicamentos', label: 'Medicar',            icon: 'box',         color: '#0891b2', bg: '#e0f2fe', desc: 'Aplicação de medicamentos' },
   { id: 'proc-outros',  label: 'Curativo / Outros',  icon: 'receipt',     color: '#6366f1', bg: '#eef2ff', desc: 'Curativos e outros procedimentos' },
 ];
+
+/* Sub-cards da tela de Cirurgias e Internações */
+const PR_CIR_SUBS = [
+  { id: 'cirurgia',   label: 'Cirurgia',    icon: 'stethoscope', color: '#dc2626', bg: '#fee2e2', desc: 'Registro de procedimentos cirúrgicos' },
+  { id: 'internacao', label: 'Internação',  icon: 'calendar',    color: '#b45309', bg: '#fef3c7', desc: 'Internações e hospitalização' },
+];
 const PR_TABS = [];
 
 /* ---------- Cabeçalho ---------- */
@@ -370,6 +376,7 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
   const [at, setAt] = pUse(() => prEnsure(atendimento, patient));
   const [tab, setTab] = pUse('resumo');
   const [procSub, setProcSub] = pUse(null); // sub-seleção dentro de Procedimentos
+  const [cirSub, setCirSub] = pUse(null);   // sub-seleção dentro de Cirurgias/Internações
   const [pesoModal, setPesoModal] = pUse(false);
   const [odontoModal, setOdontoModal] = pUse(false);
   const [saving, setSaving] = pUse(false);
@@ -386,7 +393,7 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
 
   const patch = (obj) => setAt((p) => ({ ...p, ...obj }));
   const group = (g) => (k, v) => setAt((p) => ({ ...p, [g]: { ...p[g], [k]: v } }));
-  const go = (t) => { setTab(t); setProcSub(null); if (tabRef.current) tabRef.current.scrollTop = 0; };
+  const go = (t) => { setTab(t); setProcSub(null); setCirSub(null); if (tabRef.current) tabRef.current.scrollTop = 0; };
 
   // histórico do paciente (eventos derivados)
   const history = pMemo(() => buildHistory(patient, weights), [patient.id, weights, at.id]);
@@ -503,7 +510,31 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
         {tab === 'agendamento' && <PrAgendamento at={at} patch={patch} />}
         {tab === 'retornos' && <PrRetornos at={at} patch={patch} />}
         {tab === 'atestados' && <PrAtestados at={at} patch={patch} patient={patient} />}
-        {tab === 'cirurgias' && <div><PrCirurgias at={at} patch={patch} /><PrInternacoes at={at} patch={patch} /></div>}
+        {tab === 'cirurgias' && !cirSub && (
+          <div>
+            <div className="pr-sec-head"><div><h2 className="pr-h">Cirurgias e Internações</h2><p className="pr-h-sub">Selecione o tipo de registro</p></div></div>
+            <div className="pr-proc-subcards">
+              {PR_CIR_SUBS.map(({ id, label, icon, color, bg, desc }) => {
+                const cnt = id === 'cirurgia' ? (at.cirurgias || []).length : (at.internacoes || []).length;
+                return (
+                  <button key={id} className="pr-proc-subcard" style={{ '--fc': color, '--fb': bg }} onClick={() => setCirSub(id)}>
+                    <span className="pr-proc-subcard-ic"><VtIcon name={icon} size={28} /></span>
+                    <span className="pr-proc-subcard-label">{label}</span>
+                    <span className="pr-proc-subcard-desc">{desc}</span>
+                    {cnt > 0 && <span className="pr-fcard-badge">{cnt}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {tab === 'cirurgias' && cirSub && (
+          <div>
+            <button className="pr-proc-back" onClick={() => setCirSub(null)}>← Voltar para Cirurgias e Internações</button>
+            {cirSub === 'cirurgia'   && <PrCirurgias at={at} patch={patch} />}
+            {cirSub === 'internacao' && <PrInternacoes at={at} patch={patch} />}
+          </div>
+        )}
         {tab === 'internacoes' && <PrInternacoes at={at} patch={patch} />}
         {tab === 'anexos' && <PrAnexos at={at} patch={patch} />}
         {tab === 'orcamento' && <PrOrcamento at={at} patch={patch} patient={patient} />}
