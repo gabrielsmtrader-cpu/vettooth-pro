@@ -179,6 +179,211 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
     );
   }
 
+  /* ── ODONTOLOGIA ── formulário clínico completo ── */
+  if (activeId === 'odonto') {
+    const odC = '#2563eb';
+    const CHECKLIST_TRIAGEM = ['Acesso à rua', 'Contato com outros animais', 'Mudança recente de dieta', 'Viagens recentes', 'Episódios anteriores', 'Contactantes doentes'];
+    const EXAMES_COMP       = ['Hemograma', 'Bioquímico', 'Urinálise', 'US abdominal', 'Radiografia', 'ECG', 'PIF/sorologia'];
+    const ck  = at.checklistTriagem || [];
+    const exC = at.examesComp || [];
+    const toggleCk = (item) => patch({ checklistTriagem: ck.includes(item) ? ck.filter((x) => x !== item) : [...ck, item] });
+    const toggleEx = (item) => patch({ examesComp: exC.includes(item) ? exC.filter((x) => x !== item) : [...exC, item] });
+
+    return (
+      <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid var(--line)', boxShadow: '0 2px 14px rgba(0,0,0,0.07)', background: 'var(--card)' }}>
+        {/* ══ CABEÇALHO ══ */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '17px 24px 15px', borderBottom: '1px solid var(--line)', background: `${odC}08` }}>
+          <span style={{ width: 44, height: 44, borderRadius: 11, background: `${odC}1a`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <VtIcon name="tooth" size={21} style={{ color: odC }} />
+          </span>
+          <div style={{ flex: 1 }}>
+            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Odontologia</h2>
+            <p style={{ margin: '1px 0 0', fontSize: 12, color: 'var(--muted)' }}>Avaliação periodontal, odontograma e protocolo dental</p>
+          </div>
+          <button onClick={() => setView('pick')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: `1.5px solid ${odC}40`, background: `${odC}10`, color: odC, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}>
+            <VtIcon name="chevron" size={12} style={{ transform: 'rotate(180deg)' }} /> Trocar especialidade
+          </button>
+          <span style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>{at.date} · {at.time}</span>
+        </div>
+
+        {/* ══ FORMULÁRIO ══ */}
+        <div style={{ padding: '4px 24px 48px' }}>
+
+          {/* ─── 1. QUEIXA PRINCIPAL & HISTÓRICO ─── */}
+          <SLabel color={odC} first>Queixa principal &amp; histórico</SLabel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <label className="pr-field"><span>Queixa principal</span>
+              <textarea value={at.queixa || ''} onChange={(e) => patch({ queixa: e.target.value })} placeholder="Motivo da consulta relatado pelo tutor…" style={{ ...taStyle, minHeight: 72 }} />
+            </label>
+            <label className="pr-field"><span>Duração / evolução</span>
+              <input value={at.duracao || ''} onChange={(e) => patch({ duracao: e.target.value })} placeholder="Ex.: há 5 dias, progressivo" style={{ fontFamily: 'inherit', fontSize: 13.5, border: '1px solid var(--line)', borderRadius: 9, padding: '9px 12px', width: '100%', boxSizing: 'border-box' }} />
+            </label>
+            <div>
+              <p style={{ margin: '0 0 9px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Comorbidades existentes</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {COMORBIDADES.map((c) => {
+                  const sel = (at.comorbidades || []).includes(c);
+                  return (
+                    <button key={c} onClick={() => { const cur = at.comorbidades || []; patch({ comorbidades: sel ? cur.filter((x) => x !== c) : [...cur, c] }); }}
+                      style={{ padding: '5px 14px', borderRadius: 20, border: `1.5px solid ${sel ? odC : 'var(--line)'}`, background: sel ? `${odC}18` : 'var(--bg)', color: sel ? odC : 'var(--ink)', fontWeight: sel ? 700 : 400, fontSize: 12.5, cursor: 'pointer', transition: 'all 0.15s' }}>{c}</button>
+                  );
+                })}
+              </div>
+            </div>
+            <label className="pr-field"><span>Medicações em uso</span>
+              <textarea value={at.medicacoesUso || ''} onChange={(e) => patch({ medicacoesUso: e.target.value })} placeholder="Fármaco, dose e frequência…" style={{ ...taStyle, minHeight: 52 }} />
+            </label>
+            <label className="pr-field"><span>Vacinação / vermifugação</span>
+              <input value={at.vacinaStatus || ''} onChange={(e) => patch({ vacinaStatus: e.target.value })} placeholder="Status e datas" style={{ fontFamily: 'inherit', fontSize: 13.5, border: '1px solid var(--line)', borderRadius: 9, padding: '9px 12px', width: '100%', boxSizing: 'border-box' }} />
+            </label>
+          </div>
+
+          {/* ─── 2. ANAMNESE GERAL ─── */}
+          <SLabel color={odC}>Anamnese geral</SLabel>
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 12, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <label className="pr-field"><span>Anamnese</span>
+              <textarea value={at.anamneseGeral || ''} onChange={(e) => patch({ anamneseGeral: e.target.value })} placeholder="Histórico, ambiente, alimentação, evolução…" style={{ ...taStyle, minHeight: 72, background: '#fff' }} />
+            </label>
+            <div>
+              <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Apetite</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {['Normal', 'Aumentado', 'Diminuído', 'Anorexia'].map((o) => (
+                  <QBtn key={o} active={at.apetite === o} color={odC} onClick={() => patch({ apetite: at.apetite === o ? '' : o })}>{o}</QBtn>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Ingestão hídrica</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {['Normal', 'Polidipsia', 'Oligodipsia'].map((o) => (
+                  <QBtn key={o} active={at.hidrica === o} color={odC} onClick={() => patch({ hidrica: at.hidrica === o ? '' : o })}>{o}</QBtn>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+              <label className="pr-field"><span>Micção</span>
+                <input value={at.miccao || ''} onChange={(e) => patch({ miccao: e.target.value })} placeholder="—" style={{ fontFamily: 'inherit', fontSize: 13.5, border: '1px solid var(--line)', borderRadius: 9, padding: '9px 12px', background: '#fff', width: '100%', boxSizing: 'border-box' }} />
+              </label>
+              <label className="pr-field"><span>Evacuação</span>
+                <input value={at.evacuacao || ''} onChange={(e) => patch({ evacuacao: e.target.value })} placeholder="—" style={{ fontFamily: 'inherit', fontSize: 13.5, border: '1px solid var(--line)', borderRadius: 9, padding: '9px 12px', background: '#fff', width: '100%', boxSizing: 'border-box' }} />
+              </label>
+              <label className="pr-field"><span>Êmese / regurgitação</span>
+                <input value={at.emese || ''} onChange={(e) => patch({ emese: e.target.value })} placeholder="Frequência e aspecto" style={{ fontFamily: 'inherit', fontSize: 13.5, border: '1px solid var(--line)', borderRadius: 9, padding: '9px 12px', background: '#fff', width: '100%', boxSizing: 'border-box' }} />
+              </label>
+            </div>
+            <div>
+              <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Perguntas dirigidas — Checklist de triagem</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {CHECKLIST_TRIAGEM.map((item) => {
+                  const sel = ck.includes(item);
+                  return (
+                    <button key={item} onClick={() => toggleCk(item)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 14px', borderRadius: 8, border: `1.5px solid ${sel ? odC : 'var(--line)'}`, background: sel ? `${odC}12` : 'var(--bg)', color: sel ? odC : 'var(--ink)', fontWeight: sel ? 700 : 400, fontSize: 13, cursor: 'pointer', transition: 'all 0.15s' }}>
+                      <span style={{ width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${sel ? odC : 'var(--muted)'}`, background: sel ? odC : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#fff', flexShrink: 0 }}>{sel ? '✓' : ''}</span>
+                      {item}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* ─── 3. EXAME FÍSICO GERAL ─── */}
+          <SLabel color={odC}>Exame físico geral</SLabel>
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 12, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+              {[['Temperatura', 'tempC', '°C', '38,5'], ['Freq. cardíaca', 'fc', 'bpm', '120'], ['Freq. respiratória', 'fr', 'mpm', '24']].map(([label, key, unit, ph]) => (
+                <div key={key}>
+                  <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{label} <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: 11 }}>{unit}</span></p>
+                  <input type="number" step={key === 'tempC' ? '0.1' : '1'} value={at[key] || ''} onChange={(e) => patch({ [key]: e.target.value })} placeholder={ph}
+                    style={{ width: '100%', fontFamily: 'inherit', fontSize: 14, border: '1px solid var(--line)', borderRadius: 8, padding: '9px 12px', background: '#fff', boxSizing: 'border-box' }} />
+                </div>
+              ))}
+            </div>
+            {[
+              { label: 'TPC',        key: 'tpc',        opts: ['< 2s', '2s', '> 2s'] },
+              { label: 'Mucosas',    key: 'mucosas',    opts: ['Normocoradas', 'Pálidas', 'Ictéricas', 'Cianóticas', 'Hiperêmicas'] },
+              { label: 'Hidratação', key: 'hidratacao', opts: ['Normal', '5–6%', '7–8%', '> 10%'] },
+            ].map(({ label, key, opts }) => (
+              <div key={key}>
+                <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{label}</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {opts.map((o) => <QBtn key={o} active={at[key] === o} color={odC} onClick={() => patch({ [key]: at[key] === o ? '' : o })}>{o}</QBtn>)}
+                </div>
+              </div>
+            ))}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {[['Linfonodos', 'linfonodos', 'Tamanho / consistência'], ['Auscultação cardiopulmonar', 'ausculta', 'Auscultação cardiopulmonar'], ['Palpação abdominal', 'palpacao', 'Palpação abdominal']].map(([label, key, ph]) => (
+                <label key={key} className="pr-field"><span>{label}</span>
+                  <input value={at[key] || ''} onChange={(e) => patch({ [key]: e.target.value })} placeholder={ph}
+                    style={{ fontFamily: 'inherit', fontSize: 13.5, border: '1px solid var(--line)', borderRadius: 9, padding: '9px 12px', background: '#fff', width: '100%', boxSizing: 'border-box' }} />
+                </label>
+              ))}
+            </div>
+            <div>
+              <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Escore de condição corporal (1–9)</p>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {[1,2,3,4,5,6,7,8,9].map((n) => {
+                  const sel = at.ecc === n;
+                  const c = n <= 3 ? '#f59e0b' : n <= 6 ? '#16a34a' : '#dc2626';
+                  return (
+                    <button key={n} onClick={() => patch({ ecc: sel ? null : n })}
+                      style={{ width: 40, height: 40, borderRadius: 8, border: `2px solid ${sel ? c : 'var(--line)'}`, background: sel ? c : 'var(--bg)', color: sel ? '#fff' : 'var(--ink)', fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all 0.12s' }}>{n}</button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* ─── 4. DIAGNÓSTICO & CONDUTA ─── */}
+          <SLabel color={odC}>Diagnóstico &amp; conduta</SLabel>
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 12, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <label className="pr-field"><span>Diagnósticos diferenciais</span>
+              <textarea value={at.diagDiferenciais || ''} onChange={(e) => patch({ diagDiferenciais: e.target.value })} placeholder="Diagnósticos diferenciais" style={{ ...taStyle, minHeight: 60, background: '#fff' }} />
+            </label>
+            <div>
+              <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Exames complementares</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {EXAMES_COMP.map((item) => {
+                  const sel = exC.includes(item);
+                  return (
+                    <button key={item} onClick={() => toggleEx(item)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 14px', borderRadius: 8, border: `1.5px solid ${sel ? odC : 'var(--line)'}`, background: sel ? `${odC}12` : 'var(--bg)', color: sel ? odC : 'var(--ink)', fontWeight: sel ? 700 : 400, fontSize: 13, cursor: 'pointer', transition: 'all 0.15s' }}>
+                      <span style={{ width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${sel ? odC : 'var(--muted)'}`, background: sel ? odC : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#fff', flexShrink: 0 }}>{sel ? '✓' : ''}</span>
+                      {item}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <label className="pr-field"><span>Diagnóstico presuntivo</span>
+              <textarea value={at.diagPresuntivo || ''} onChange={(e) => patch({ diagPresuntivo: e.target.value })} placeholder="Diagnóstico presuntivo" style={{ ...taStyle, minHeight: 60, background: '#fff' }} />
+            </label>
+            <label className="pr-field"><span>Conduta / tratamento</span>
+              <textarea value={at.conduta || ''} onChange={(e) => patch({ conduta: e.target.value })} placeholder="Conduta / tratamento" style={{ ...taStyle, minHeight: 60, background: '#fff' }} />
+            </label>
+            <div>
+              <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Prognóstico</p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {PROGNOSTICO_OPTS.map(({ v, color }) => {
+                  const sel = at.prognostico === v;
+                  return (
+                    <button key={v} onClick={() => patch({ prognostico: sel ? '' : v })}
+                      style={{ padding: '8px 22px', borderRadius: 9, border: `2px solid ${color}`, background: sel ? color : '#fff', color: sel ? '#fff' : color, fontWeight: 700, fontSize: 13.5, cursor: 'pointer', transition: 'all 0.15s', boxShadow: sel ? `0 2px 8px ${color}44` : 'none' }}>{v}</button>
+                  );
+                })}
+              </div>
+            </div>
+            <label className="pr-field"><span>Retorno / reavaliação</span>
+              <input value={at.retorno || ''} onChange={(e) => patch({ retorno: e.target.value })} placeholder="Data ou prazo estimado" style={{ fontFamily: 'inherit', fontSize: 13.5, border: '1px solid var(--line)', borderRadius: 9, padding: '9px 12px', background: '#fff', width: '100%', boxSizing: 'border-box' }} />
+            </label>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
+
   /* helpers de dados */
   const aData = at.anamnese || {};
   const exData = at.exame   || {};
