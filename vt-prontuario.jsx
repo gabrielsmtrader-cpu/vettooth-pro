@@ -440,23 +440,18 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
         {tab === 'resumo' && <PrResumo at={at} patient={patient} history={history} weights={weights} go={go} />}
         {tab === 'historico' && <PrHistorico history={history} />}
         {tab === 'peso' && <PesoTab p={patient} weights={weights} onAdd={onAddWeight} onNew={() => setPesoModal(true)} />}
-        {tab === 'consulta' && (() => {
-          const inc = window.vtConsultInclude(at.consultModel || 'geral');
-          return (
-            <div className="pr-consulta-stack">
-              <PrConsulta at={at} patch={patch} go={go} integrated />
-              <div className="pr-divider" />
-              <PrAnamnese at={at} set={group('anamnese')} />
-              {inc.roteiro && <React.Fragment><div className="pr-divider" /><PrRoteiro at={at} patch={patch} /></React.Fragment>}
-              {inc.exame && <React.Fragment><div className="pr-divider" /><PrExame at={at} set={group('exame')} patch={patch} /></React.Fragment>}
-              {inc.sistemas && <React.Fragment><div className="pr-divider" /><PrSistemas at={at} set={group('sistemas')} /></React.Fragment>}
-              <div className="pr-divider" />
-              <AsaCard patient={patient} value={at.asaEval} onChange={(v) => patch({ asaEval: v })} />
-              <div className="pr-divider" />
-              <PrDiagnosticos at={at} set={group('diag')} />
-            </div>
-          );
-        })()}
+        {tab === 'consulta' && (
+          <div className="pr-consulta-stack">
+            <PrConsulta
+              at={at} patch={patch} go={go} integrated
+              setAnamnese={group('anamnese')}
+              setExame={group('exame')}
+              setSistemas={group('sistemas')}
+              setDiag={group('diag')}
+              patient={patient}
+            />
+          </div>
+        )}
         {tab === 'vacina' && <VacinaTab p={patient} vaccines={vaccines || []} onSave={onSaveVaccines} vet={at.vet} />}
         {tab === 'prescricao' && <PrPrescricoes at={at} patch={patch} patient={patient} />}
         {tab === 'exames' && <PrExames at={at} patch={patch} patient={patient} />}
