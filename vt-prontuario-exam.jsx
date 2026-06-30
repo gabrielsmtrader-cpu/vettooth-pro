@@ -39,7 +39,7 @@ function QBtn({ active, color, onClick, children }) {
 }
 
 /* ── Tela de seleção de especialidade em cards ── */
-function SpecialtyPicker({ models, onSelect }) {
+function SpecialtyPicker({ models, current, onSelect }) {
   const [hover, setHover] = eUse(null);
   return (
     <div style={{ padding: '32px 28px 40px', background: 'var(--card)', borderRadius: 14, border: '1px solid var(--line)', boxShadow: '0 2px 14px rgba(0,0,0,0.07)' }}>
@@ -51,26 +51,32 @@ function SpecialtyPicker({ models, onSelect }) {
         {models.map((m) => {
           const c = CONSULT_COLORS[m.id] || '#14a8a0';
           const isHover = hover === m.id;
+          const isActive = current === m.id;
+          const highlight = isHover || isActive;
           return (
             <button key={m.id} onClick={() => onSelect(m)}
               onMouseEnter={() => setHover(m.id)} onMouseLeave={() => setHover(null)}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12,
-                padding: '22px 20px', borderRadius: 14, border: `2px solid ${isHover ? c : 'var(--line)'}`,
-                background: isHover ? `${c}0c` : 'var(--bg)', cursor: 'pointer', textAlign: 'left',
-                transition: 'all 0.18s', boxShadow: isHover ? `0 4px 20px ${c}22` : '0 1px 4px rgba(0,0,0,0.04)',
-                transform: isHover ? 'translateY(-2px)' : 'none',
+                padding: '22px 20px', borderRadius: 14,
+                border: `2px solid ${highlight ? c : 'var(--line)'}`,
+                background: highlight ? `${c}0c` : 'var(--bg)', cursor: 'pointer', textAlign: 'left',
+                transition: 'all 0.18s', boxShadow: highlight ? `0 4px 20px ${c}22` : '0 1px 4px rgba(0,0,0,0.04)',
+                transform: isHover ? 'translateY(-2px)' : 'none', position: 'relative',
               }}>
-              <span style={{ width: 48, height: 48, borderRadius: 12, background: isHover ? `${c}22` : `${c}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.18s' }}>
+              {isActive && (
+                <span style={{ position: 'absolute', top: 12, right: 12, background: c, color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, letterSpacing: 0.5 }}>ATUAL</span>
+              )}
+              <span style={{ width: 48, height: 48, borderRadius: 12, background: highlight ? `${c}22` : `${c}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.18s' }}>
                 <VtIcon name={m.icon} size={22} style={{ color: c }} />
               </span>
               <div>
-                <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 800, color: isHover ? c : 'var(--ink)', transition: 'color 0.15s' }}>{m.label}</p>
+                <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 800, color: highlight ? c : 'var(--ink)', transition: 'color 0.15s' }}>{m.label}</p>
                 <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>{m.desc}</p>
               </div>
               <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: c }} />
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: c, letterSpacing: 0.3 }}>Abrir formulário</span>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: c, letterSpacing: 0.3 }}>{isActive ? 'Continuar consulta' : 'Abrir formulário'}</span>
               </div>
             </button>
           );
@@ -87,7 +93,7 @@ function SpecialtyPicker({ models, onSelect }) {
    ============================================================ */
 function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSistemas, setDiag, patient }) {
   const models  = window.PR.consultModels;
-  const [view, setView] = eUse(at.consultModel ? 'form' : 'pick');
+  const [view, setView] = eUse('pick');
   const activeId = at.consultModel || 'geral';
   const activeM  = models.find((m) => m.id === activeId) || models[0];
   const activeC  = CONSULT_COLORS[activeId] || 'var(--teal)';
@@ -101,7 +107,7 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
   };
 
   /* tela de seleção */
-  if (view === 'pick') return <SpecialtyPicker models={models} onSelect={useModel} />;
+  if (view === 'pick') return <SpecialtyPicker models={models} current={at.consultModel} onSelect={useModel} />;
 
   /* helpers de dados */
   const aData = at.anamnese || {};
