@@ -19,6 +19,7 @@ window.PR = (function () {
     { id: 'neuro',  label: 'Neurologia',     icon: 'spark',       desc: 'Exame neurológico, neurolocalização e diagnóstico' },
     { id: 'nutri',  label: 'Nutrição',       icon: 'chart',       desc: 'Avaliação nutricional, ECC, RER/DER e plano alimentar' },
     { id: 'orto',   label: 'Ortopedia',      icon: 'chart',       desc: 'Aparelho locomotor, testes ortopédicos e neurológicos' },
+    { id: 'livre',  label: 'Modelo Livre',   icon: 'pen',         desc: 'Consulta personalizada sem estrutura pré-definida', color: '#64748b' },
   ];
 
   const anamnese = [

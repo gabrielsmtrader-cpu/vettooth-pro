@@ -87,7 +87,7 @@ function SpecialtyPicker({ models, onSelect }) {
    Tela 2: formulário completo da especialidade selecionada
    ============================================================ */
 function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSistemas, setDiag, patient }) {
-  const models  = window.PR.consultModels;
+  const models  = (window.vtConsultModels ? window.vtConsultModels() : window.PR.consultModels);
   const [view, setView] = eUse('pick');
   const activeId = at.consultModel || 'geral';
   const activeM  = models.find((m) => m.id === activeId) || models[0];
@@ -103,6 +103,81 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
 
   /* tela de seleção */
   if (view === 'pick') return <SpecialtyPicker models={models} onSelect={useModel} />;
+
+  /* ── MODELO LIVRE ── */
+  if (activeId === 'livre') {
+    const dData = at.diag || {};
+    const setD = (k, v) => setDiag && setDiag(k, v);
+    const livreC = '#64748b';
+    return (
+      <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid var(--line)', boxShadow: '0 2px 14px rgba(0,0,0,0.07)', background: 'var(--card)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '17px 24px 15px', borderBottom: '1px solid var(--line)', background: `${livreC}08` }}>
+          <span style={{ width: 44, height: 44, borderRadius: 11, background: `${livreC}1a`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <VtIcon name="pen" size={21} style={{ color: livreC }} />
+          </span>
+          <div style={{ flex: 1 }}>
+            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>Modelo Livre</h2>
+            <p style={{ margin: '1px 0 0', fontSize: 12, color: 'var(--muted)' }}>Consulta personalizada sem estrutura pré-definida</p>
+          </div>
+          <button onClick={() => setView('pick')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: `1.5px solid ${livreC}40`, background: `${livreC}10`, color: livreC, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}>
+            <VtIcon name="chevron" size={12} style={{ transform: 'rotate(180deg)' }} /> Trocar especialidade
+          </button>
+          <span style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>{at.date} · {at.time}</span>
+        </div>
+        <div style={{ padding: '4px 24px 40px' }}>
+          <SLabel color={livreC} first>Dados da Consulta</SLabel>
+          <div className="pr-fieldrow c3" style={{ marginBottom: 12 }}>
+            <label className="pr-field"><span>Data</span>
+              <VtField value={at.date} onChange={(v) => patch({ date: v })} mask="date" />
+            </label>
+            <label className="pr-field"><span>Hora</span>
+              <input value={at.time} onChange={(e) => patch({ time: e.target.value })} placeholder="00:00" />
+            </label>
+            <label className="pr-field"><span>Veterinário responsável</span>
+              <select value={(PR_VETS.find((v) => at.vet.includes(v.name)) || PR_VETS[0] || {}).name || ''} onChange={(e) => { const v = PR_VETS.find((x) => x.name === e.target.value); patch({ vet: 'M.V. ' + e.target.value, vetColor: v ? v.color : at.vetColor }); }}>
+                {PR_VETS.map((v) => <option key={v.id}>{v.name}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="pr-fieldrow c2">
+            <label className="pr-field"><span>Local do atendimento</span>
+              <select value={at.local} onChange={(e) => patch({ local: e.target.value })}>
+                {PR_LOCAIS.map((l) => <option key={l}>{l}</option>)}
+              </select>
+            </label>
+            <label className="pr-field"><span>Motivo da consulta</span>
+              <input value={at.motivo} onChange={(e) => patch({ motivo: e.target.value })} placeholder="Ex.: Avaliação de rotina" />
+            </label>
+          </div>
+          <SLabel color={livreC}>Queixa Principal</SLabel>
+          <label className="pr-field"><span>Queixa principal (relato do tutor)</span>
+            <textarea value={at.queixa || ''} onChange={(e) => patch({ queixa: e.target.value })} placeholder="Relato livre do tutor ou observações do atendimento..." style={{ ...taStyle, minHeight: 90 }} />
+          </label>
+          <SLabel color={livreC}>Evolução &amp; Observações</SLabel>
+          <VtRichText value={at.exameObs || ''} onChange={(html) => patch({ exameObs: html })} placeholder="Evolução do quadro, achados clínicos relevantes, observações gerais..." minHeight={120} />
+          <SLabel color={livreC}>Diagnóstico</SLabel>
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 12, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div>
+              <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Diagnóstico<i style={{ color: 'var(--red)' }}> *</i></p>
+              <VtRichText value={dData.principal || ''} onChange={(html) => setD('principal', html)} placeholder="Diagnóstico definitivo ou mais provável" minHeight={70} />
+            </div>
+            <div>
+              <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Prognóstico</p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {PROGNOSTICO_OPTS.map(({ v, color }) => {
+                  const sel = dData.prognostico === v;
+                  return (
+                    <button key={v} onClick={() => setD('prognostico', sel ? '' : v)}
+                      style={{ padding: '8px 22px', borderRadius: 9, border: `2px solid ${color}`, background: sel ? color : '#fff', color: sel ? '#fff' : color, fontWeight: 700, fontSize: 13.5, cursor: 'pointer', transition: 'all 0.15s', boxShadow: sel ? `0 2px 8px ${color}44` : 'none' }}>{v}</button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   /* helpers de dados */
   const aData = at.anamnese || {};

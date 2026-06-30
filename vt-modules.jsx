@@ -312,6 +312,41 @@ window.vtSistemasCfg = function () { const d = window.VtStore && window.VtStore.
 window.vtSaveSistemasCfg = function (l) { if (window.VtStore) window.VtStore.setData({ sistemasCfg: l }); };
 window.vtDiagCfg = function () { const d = window.VtStore && window.VtStore.getData(); const stored = d && d.diagCfg; if (!stored) return window.PR_DIAG_DEFAULT; const validKeys = window.PR_DIAG_DEFAULT.map((x) => x.k); const filtered = stored.filter((x) => validKeys.includes(x.k)); return filtered.length ? filtered : window.PR_DIAG_DEFAULT; };
 window.vtSaveDiagCfg = function (l) { if (window.VtStore) window.VtStore.setData({ diagCfg: l }); };
+/* ---- Sistema dinâmico de modelos de consulta ---- */
+window.vtConsultModels = function () {
+  const d = window.VtStore && window.VtStore.getData();
+  const custom = d && d.customConsultModels;
+  if (!custom) return window.PR.consultModels;
+  const base = window.PR.consultModels.map((m) => {
+    const ov = custom.overrides && custom.overrides[m.id];
+    return ov ? { ...m, ...ov } : m;
+  });
+  const extra = (custom.extra || []);
+  return [...base, ...extra];
+};
+window.vtSaveConsultModel = function (id, fields) {
+  const d = window.VtStore && window.VtStore.getData();
+  const custom = Object.assign({}, (d && d.customConsultModels) || {});
+  const isBase = window.PR.consultModels.some((m) => m.id === id);
+  if (isBase) {
+    custom.overrides = Object.assign({}, custom.overrides || {}, { [id]: fields });
+  } else {
+    custom.extra = [...(custom.extra || []).filter((m) => m.id !== id), { ...fields, id }];
+  }
+  if (window.VtStore) window.VtStore.setData({ customConsultModels: custom });
+};
+window.vtDeleteConsultModel = function (id) {
+  const d = window.VtStore && window.VtStore.getData();
+  const custom = Object.assign({}, (d && d.customConsultModels) || {});
+  custom.extra = (custom.extra || []).filter((m) => m.id !== id);
+  if (window.VtStore) window.VtStore.setData({ customConsultModels: custom });
+};
+window.vtResetConsultModel = function (id) {
+  const d = window.VtStore && window.VtStore.getData();
+  const custom = Object.assign({}, (d && d.customConsultModels) || {});
+  if (custom.overrides) { delete custom.overrides[id]; }
+  if (window.VtStore) window.VtStore.setData({ customConsultModels: custom });
+};
 /* veterinário logado no sistema */
 window.vtCurrentVet = function () {
   try { const u = window.VtStore && window.VtStore.currentUser && window.VtStore.currentUser(); if (u && (u.name || u.nome)) return (u.name || u.nome).replace(/^M\.?V\.?\s*/i, ''); } catch (e) {}
@@ -2288,7 +2323,7 @@ function LgpdTab() {
 }
 function ConfigModule() {
   const [tab, setTab] = vtUseState('clinica');
-  const tabs = [['clinica', 'Clínica'], ['equipe', 'Veterinários'], ['seguranca', 'Segurança'], ['notificacoes', 'Notificações'], ['sedacao', 'Sedação'], ['sistema', 'Sistema'], ['conta', 'Conta & backup'], ['parceiras', 'Clínicas parceiras'], ['consultas', 'Tipos de consulta'], ['roteiros', 'Modelos de consulta'], ['prescricoes', 'Prescrições'], ['exames', 'Exames'], ['modelos', 'Modelos & PDF'], ['integracoes', 'Integrações'], ['lgpd', 'Termos & LGPD']];
+  const tabs = [['clinica', 'Clínica'], ['equipe', 'Veterinários'], ['seguranca', 'Segurança'], ['notificacoes', 'Notificações'], ['sedacao', 'Sedação'], ['sistema', 'Sistema'], ['conta', 'Conta & backup'], ['parceiras', 'Clínicas parceiras'], ['consultas', 'Tipos de consulta'], ['especialidades', 'Especialidades'], ['roteiros', 'Modelos de consulta'], ['prescricoes', 'Prescrições'], ['exames', 'Exames'], ['modelos', 'Modelos & PDF'], ['integracoes', 'Integrações'], ['lgpd', 'Termos & LGPD']];
   return (
     <div>
       <div className="vt-page-head"><h1>Configurações</h1><p>Clínica, equipe, segurança, notificações, modelos, integrações e LGPD</p></div>
@@ -2304,6 +2339,7 @@ function ConfigModule() {
       {tab === 'conta' && <ContaTab />}
       {tab === 'parceiras' && <ParceirasTab />}
       {tab === 'consultas' && <ConsultasTab />}
+      {tab === 'especialidades' && <EspecialidadesTab />}
       {tab === 'roteiros' && <RoteirosTab />}
       {tab === 'prescricoes' && <RxPresetsTab />}
       {tab === 'exames' && <ExamPresetsTab />}
@@ -2839,7 +2875,7 @@ function ConsultasTab() {
 }
 
 function RoteirosTab() {
-  const models = window.PR.consultModels;
+  const models = (window.vtConsultModels ? window.vtConsultModels() : window.PR.consultModels).filter((m) => m.id !== 'livre');
   const [data, setData] = vtUseState(() => {
     const cur = window.vtConsultRoteiros();
     const out = {};
@@ -3155,6 +3191,134 @@ function IntegracoesTab() {
               <button className="vt-btn-ghost" onClick={() => setIcalModal(false)}>Cancelar</button>
               <button className="vt-btn-primary" onClick={() => { setCfgK('googleCalendarUrl', icalDraft.trim()); setIcalModal(false); window.vtToast(icalDraft.trim() ? 'Google Agenda conectado!' : 'Conexão limpa.', 'ok'); }}>Salvar conexão</button>
             </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---- Editor de Especialidades ---- */
+const ESPECIALIDADES_ICONS = ['grid','paw','users','calendar','tooth','pen','box','dollar','chart','gear','spark','bell','search','syringe','alert','receipt','stethoscope','pin','phone','mail','user','check'];
+const ESPECIALIDADES_COLORS = ['#14a8a0','#2563eb','#d97706','#7c3aed','#16a34a','#dc2626','#0891b2','#64748b'];
+
+function EspecialidadesTab() {
+  const baseIds = window.PR.consultModels.map((m) => m.id);
+  const getModels = () => (window.vtConsultModels ? window.vtConsultModels() : window.PR.consultModels);
+  const [models, setModels] = vtUseState(getModels);
+  const [sel, setSel] = vtUseState(null); // id do modelo em edição
+  const [form, setForm] = vtUseState(null); // campos do form
+  const [newMode, setNewMode] = vtUseState(false);
+
+  const refresh = () => setModels(getModels());
+
+  const openEdit = (m) => {
+    setSel(m.id);
+    setForm({ label: m.label, desc: m.desc || '', icon: m.icon || 'stethoscope', color: m.color || '#14a8a0' });
+    setNewMode(false);
+  };
+
+  const openNew = () => {
+    setSel('__new__');
+    setForm({ label: '', desc: '', icon: 'stethoscope', color: '#14a8a0' });
+    setNewMode(true);
+  };
+
+  const cancel = () => { setSel(null); setForm(null); setNewMode(false); };
+
+  const save = () => {
+    if (!form.label || !form.label.trim()) { window.vtToast('Informe o nome da especialidade.', 'err'); return; }
+    const id = newMode ? form.label.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') + '_' + Date.now().toString(36).slice(-4) : sel;
+    window.vtSaveConsultModel(id, { label: form.label.trim(), desc: form.desc.trim(), icon: form.icon, color: form.color });
+    window.vtToast('Especialidade salva.', 'ok');
+    refresh(); cancel();
+  };
+
+  const doReset = (id) => {
+    if (!window.confirm('Restaurar os valores padrão desta especialidade?')) return;
+    window.vtResetConsultModel(id);
+    window.vtToast('Especialidade restaurada.', 'ok');
+    refresh(); cancel();
+  };
+
+  const doDelete = (id) => {
+    if (!window.confirm('Excluir esta especialidade personalizada?')) return;
+    window.vtDeleteConsultModel(id);
+    window.vtToast('Especialidade excluída.', 'ok');
+    refresh(); cancel();
+  };
+
+  const sf = (k) => (v) => setForm((p) => ({ ...p, [k]: v }));
+
+  return (
+    <div>
+      <div className="vt-head-row" style={{ marginBottom: 16 }}>
+        <div><h3 className="vt-sec-title" style={{ margin: 0 }}>Especialidades de consulta</h3><p className="vt-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>Personalize nome, ícone e cor de cada especialidade. Crie novas especialidades para o picker de consulta.</p></div>
+        <button className="vt-btn-primary" onClick={openNew}><VtIcon name="plus" size={15} /> Nova especialidade</button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, marginBottom: 20 }}>
+        {models.map((m) => {
+          const c = m.color || '#14a8a0';
+          const isExtra = !baseIds.includes(m.id);
+          return (
+            <button key={m.id} onClick={() => openEdit(m)} style={{ textAlign: 'left', padding: '16px 18px', borderRadius: 13, border: `2px solid ${sel === m.id ? c : 'var(--line)'}`, background: sel === m.id ? `${c}0c` : 'var(--card)', cursor: 'pointer', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 38, height: 38, borderRadius: 10, background: `${c}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <VtIcon name={m.icon} size={20} style={{ color: c }} />
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <b style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)', display: 'block' }}>{m.label}</b>
+                  {isExtra && <span style={{ fontSize: 10.5, fontWeight: 700, color: c, background: `${c}18`, padding: '1px 7px', borderRadius: 999 }}>Personalizada</span>}
+                </div>
+              </div>
+              {m.desc && <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>{m.desc}</p>}
+            </button>
+          );
+        })}
+      </div>
+
+      {sel && form && (
+        <div className="vt-card vt-sec" style={{ marginTop: 4 }}>
+          <h3 className="vt-sec-title" style={{ marginTop: 0 }}>{newMode ? 'Nova especialidade' : `Editar — ${models.find((m) => m.id === sel) ? models.find((m) => m.id === sel).label : ''}`}</h3>
+          <div className="vt-form-row">
+            <label className="vtf" style={{ flex: 2 }}><span className="vtf-label">Nome</span><span className="vtf-inputwrap"><input className="vtf-input" value={form.label} onChange={(e) => sf('label')(e.target.value)} placeholder="Ex.: Cardiologia" /></span></label>
+            <label className="vtf" style={{ flex: 3 }}><span className="vtf-label">Descrição</span><span className="vtf-inputwrap"><input className="vtf-input" value={form.desc} onChange={(e) => sf('desc')(e.target.value)} placeholder="Breve descrição da especialidade" /></span></label>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <span className="vtf-label" style={{ display: 'block', marginBottom: 8 }}>Ícone</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              {ESPECIALIDADES_ICONS.map((ic) => (
+                <button key={ic} onClick={() => sf('icon')(ic)} title={ic} style={{ width: 38, height: 38, borderRadius: 9, border: `2px solid ${form.icon === ic ? (form.color || '#14a8a0') : 'var(--line)'}`, background: form.icon === ic ? `${form.color || '#14a8a0'}18` : 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.12s' }}>
+                  <VtIcon name={ic} size={18} style={{ color: form.icon === ic ? (form.color || '#14a8a0') : 'var(--muted)' }} />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 18 }}>
+            <span className="vtf-label" style={{ display: 'block', marginBottom: 8 }}>Cor</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              {ESPECIALIDADES_COLORS.map((c) => (
+                <button key={c} onClick={() => sf('color')(c)} style={{ width: 30, height: 30, borderRadius: '50%', background: c, border: `3px solid ${form.color === c ? 'var(--ink)' : '#fff'}`, boxShadow: `0 0 0 1px ${form.color === c ? c : 'var(--line)'}`, cursor: 'pointer', transition: 'all 0.12s' }} title={c} />
+              ))}
+              <label title="Cor personalizada" style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
+                <input type="color" value={form.color} onChange={(e) => sf('color')(e.target.value)} style={{ width: 30, height: 30, padding: 1, border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer' }} />
+                <span className="vtf-label" style={{ fontSize: 11.5 }}>Custom</span>
+              </label>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button className="vt-btn-primary" onClick={save}><VtIcon name="check" size={15} /> Salvar</button>
+            <button className="vt-btn-ghost" onClick={cancel}>Cancelar</button>
+            {!newMode && baseIds.includes(sel) && (
+              <button className="vt-btn-ghost" onClick={() => doReset(sel)} style={{ color: 'var(--amber)', borderColor: 'var(--amber)' }}>Restaurar padrão</button>
+            )}
+            {!newMode && !baseIds.includes(sel) && (
+              <button className="vt-btn-ghost" onClick={() => doDelete(sel)} style={{ color: 'var(--red)', borderColor: 'var(--red)', marginLeft: 'auto' }}>Excluir</button>
+            )}
           </div>
         </div>
       )}
