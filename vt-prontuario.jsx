@@ -149,15 +149,19 @@ function prEnsure(at, patient) {
 
 /* ---------- Cards de fluxo do atendimento ---------- */
 const PR_FLOW_CARDS = [
-  { id: 'consulta',    label: 'Consulta',            icon: 'stethoscope', color: '#2563eb', bg: '#dbeafe' },
-  { id: 'proc-intra',  label: 'Procedimentos',        icon: 'syringe',     color: '#7c3aed', bg: '#ede9fe' },
-  { id: 'exames',      label: 'Pedido de Exames',     icon: 'chart',       color: '#059669', bg: '#d1fae5' },
-  { id: 'prescricao',  label: 'Receituários',         icon: 'receipt',     color: '#d97706', bg: '#fef3c7' },
-  { id: 'orcamento',   label: 'Orçamentos',           icon: 'dollar',      color: '#ea580c', bg: '#ffedd5' },
-  { id: 'cirurgias',   label: 'Cirurgias / Intern.',  icon: 'alert',       color: '#dc2626', bg: '#fee2e2' },
-  { id: 'atestados',   label: 'Termos e Docs',        icon: 'pen',         color: '#475569', bg: '#f1f5f9' },
+  { id: 'consulta',     label: 'Consulta',            icon: 'stethoscope', color: '#2563eb', bg: '#dbeafe' },
+  { id: 'odonto-flow',  label: 'Odontograma',         icon: 'tooth',       color: '#14a8a0', bg: '#e2f4f3', external: true },
+  { id: 'vacina',       label: 'Vacinação',            icon: 'syringe',     color: '#7c3aed', bg: '#ede9fe' },
+  { id: 'medicamentos', label: 'Medicações',           icon: 'box',         color: '#0891b2', bg: '#e0f2fe' },
+  { id: 'proc-outros',  label: 'Outros Proced.',       icon: 'receipt',     color: '#6366f1', bg: '#eef2ff' },
+  { id: 'exames',       label: 'Pedido de Exames',     icon: 'chart',       color: '#059669', bg: '#d1fae5' },
+  { id: 'prescricao',   label: 'Receituários',         icon: 'receipt',     color: '#d97706', bg: '#fef3c7' },
+  { id: 'orcamento',    label: 'Orçamentos',           icon: 'dollar',      color: '#ea580c', bg: '#ffedd5' },
+  { id: 'cirurgias',    label: 'Cirurgias / Intern.',  icon: 'alert',       color: '#dc2626', bg: '#fee2e2' },
+  { id: 'atestados',    label: 'Termos e Docs',        icon: 'pen',         color: '#475569', bg: '#f1f5f9' },
+  { id: 'anexos',       label: 'Anexos',               icon: 'box',         color: '#64748b', bg: '#f8fafc' },
 ];
-const PR_TABS = PR_FLOW_CARDS.map(([id]) => id); // compatibilidade legada
+const PR_TABS = [];
 
 /* ---------- Cabeçalho ---------- */
 function PrHeader({ at, patient, saving, onBack, onAction, go, tab }) {
@@ -357,7 +361,7 @@ function prChipStyle(on) {
 }
 
 /* ---------- Shell do prontuário ---------- */
-function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit, onAddWeight, onSaveVaccines, onFinalizar }) {
+function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit, onAddWeight, onSaveVaccines, onFinalizar, onOpenOdonto }) {
   const [at, setAt] = pUse(() => prEnsure(atendimento, patient));
   const [tab, setTab] = pUse('resumo');
   const [pesoModal, setPesoModal] = pUse(false);
@@ -398,16 +402,20 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
   // contadores p/ badges nos cards de fluxo
   const counts = {
     consulta: 0,
-    'proc-intra': (at.medicamentos || []).length + (vaccines || []).length,
-    exames: at.exames.length,
-    prescricao: at.prescricoes.length,
-    orcamento: at.orcamento.items.length,
+    'odonto-flow': 0,
+    vacina: (vaccines || []).length,
+    medicamentos: (at.medicamentos || []).length,
+    'proc-outros': (at.procedimentos || []).length,
+    exames: (at.exames || []).length,
+    prescricao: (at.prescricoes || []).length,
+    orcamento: (at.orcamento && at.orcamento.items ? at.orcamento.items.length : 0),
     cirurgias: (at.cirurgias || []).length + (at.internacoes || []).length,
     atestados: (at.documentos || []).length,
+    anexos: (at.anexos || []).length,
   };
   const doneTabs = {
     consulta: !!(at.motivo || at.queixa),
-    exame: Object.values(at.exame).some(Boolean) || !!at.exameObs,
+    exame: Object.values(at.exame || {}).some(Boolean) || !!at.exameObs,
     diag: !!(at.diag && at.diag.principal),
   };
 
@@ -422,16 +430,20 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
         </div>
         {/* barra principal de fluxo do atendimento */}
         <div className="pr-flowbar">
-          {PR_FLOW_CARDS.map(({ id, label, icon, color, bg }) => {
+          {PR_FLOW_CARDS.map(({ id, label, icon, color, bg, external }) => {
             const cnt = counts[id] || 0;
             const done = doneTabs[id];
+            const handleClick = external
+              ? () => { onCommit(at); if (onOpenOdonto) onOpenOdonto(); else window.vtToast('Odontograma disponível no menu lateral.', 'ok'); }
+              : () => go(id);
             return (
-              <button key={id} className={`pr-fcard${tab === id ? ' active' : ''}`}
-                style={{ '--fc': color, '--fb': bg }} onClick={() => go(id)}>
+              <button key={id} className={`pr-fcard${tab === id ? ' active' : ''}${external ? ' pr-fcard-ext' : ''}`}
+                style={{ '--fc': color, '--fb': bg }} onClick={handleClick}>
                 <span className="pr-fcard-ic"><VtIcon name={icon} size={20} /></span>
                 <span className="pr-fcard-lbl">{label}</span>
                 {cnt > 0 && <span className="pr-fcard-badge">{cnt}</span>}
                 {!cnt && done && <span className="pr-fcard-ok" />}
+                {external && <span className="pr-fcard-ext-badge">↗</span>}
               </button>
             );
           })}
@@ -457,20 +469,15 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
             />
           </div>
         )}
-        {tab === 'proc-intra' && (
-          <div>
-            <VacinaTab p={patient} vaccines={vaccines || []} onSave={onSaveVaccines} vet={at.vet} />
-            <PrMedicamentos at={at} patch={patch} />
-          </div>
-        )}
         {tab === 'vacina' && <VacinaTab p={patient} vaccines={vaccines || []} onSave={onSaveVaccines} vet={at.vet} />}
+        {tab === 'medicamentos' && <PrMedicamentos at={at} patch={patch} />}
+        {tab === 'proc-outros' && <PrProcedimentos at={at} patch={patch} />}
         {tab === 'prescricao' && <PrPrescricoes at={at} patch={patch} patient={patient} />}
         {tab === 'exames' && <PrExames at={at} patch={patch} patient={patient} />}
         {tab === 'agendamento' && <PrAgendamento at={at} patch={patch} />}
         {tab === 'retornos' && <PrRetornos at={at} patch={patch} />}
         {tab === 'atestados' && <PrAtestados at={at} patch={patch} patient={patient} />}
-        {tab === 'medicamentos' && <PrMedicamentos at={at} patch={patch} />}
-        {tab === 'cirurgias' && <PrCirurgias at={at} patch={patch} />}
+        {tab === 'cirurgias' && <div><PrCirurgias at={at} patch={patch} /><PrInternacoes at={at} patch={patch} /></div>}
         {tab === 'internacoes' && <PrInternacoes at={at} patch={patch} />}
         {tab === 'anexos' && <PrAnexos at={at} patch={patch} />}
         {tab === 'orcamento' && <PrOrcamento at={at} patch={patch} patient={patient} />}

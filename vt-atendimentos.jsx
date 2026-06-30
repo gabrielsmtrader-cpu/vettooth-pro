@@ -410,7 +410,8 @@ function AtendimentosModule({ openPatient, openOdonto, focus, clearFocus }) {
     return <Prontuario patient={view.patient} atendimento={view.at} weights={weightsFor(view.patient.id)} vaccines={vaccinesFor(view.patient.id)}
       onBack={() => setView({ mode: 'list' })} onCommit={commit}
       onAddWeight={(w) => addWeight(view.patient, w)} onSaveVaccines={(list) => saveVaccines(view.patient, list)}
-      onFinalizar={(at) => { commit(at); setDarBaixa(at); }} />;
+      onFinalizar={(at) => { commit(at); setDarBaixa(at); }}
+      onOpenOdonto={() => { if (openOdonto) openOdonto(view.patient.id); }} />;
   }
 
   const types = ['Todos', ...window.vtConsults().map((t) => t.label)];
