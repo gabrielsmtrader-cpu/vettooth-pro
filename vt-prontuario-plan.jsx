@@ -84,6 +84,12 @@ function PrOdonto({ at, patch, patient, chartOpen, setChartOpen }) {
 }
 
 /* ---------- Diagnósticos ---------- */
+const PROGNOSTICO_OPTS = [
+  { v: 'Bom', color: '#16a34a' },
+  { v: 'Favorável', color: '#0891b2' },
+  { v: 'Reservado', color: '#d97706' },
+  { v: 'Desfavorável', color: '#dc2626' },
+];
 function PrDiagnosticos({ at, set }) {
   const d = at.diag;
   const F = window.vtDiagCfg().map((x) => [x.k, x.label, x.ph]);
@@ -97,6 +103,20 @@ function PrDiagnosticos({ at, set }) {
             <VtRichText value={d[k] || ''} onChange={(html) => set(k, html)} placeholder={ph} minHeight={k === 'principal' ? 70 : 52} />
           </div>
         ))}
+        <div>
+          <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Prognóstico</p>
+          <div className="pr-quickpick">
+            {PROGNOSTICO_OPTS.map(({ v, color }) => {
+              const sel = d.prognostico === v;
+              return (
+                <button key={v} className={sel ? 'on' : ''} onClick={() => set('prognostico', sel ? '' : v)}
+                  style={sel ? { background: color, borderColor: color, color: '#fff' } : { borderColor: color, color: color }}>
+                  {v}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );

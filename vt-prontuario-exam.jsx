@@ -130,6 +130,47 @@ function PrConsulta({ at, patch, go, integrated }) {
             <textarea value={at.queixa} onChange={(e) => patch({ queixa: e.target.value })} placeholder="Relato do tutor sobre o motivo do atendimento..." style={{ minHeight: 72, resize: 'vertical' }} />
           </label>
 
+          {/* ── Comorbidades ── */}
+          <div>
+            <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Comorbidades existentes</p>
+            <div className="pr-quickpick" style={{ flexWrap: 'wrap', gap: 6 }}>
+              {['Cardiopatia', 'DRC', 'Diabetes', 'Obesidade', 'Hepatopatia', 'Hipotireoidismo', 'Hipertireoidismo', 'Alergia', 'FeLV/FIV', 'Epilepsia', 'Neoplasia'].map((c) => {
+                const sel = (at.comorbidades || []).includes(c);
+                return (
+                  <button key={c} className={sel ? 'on' : ''} onClick={() => {
+                    const cur = at.comorbidades || [];
+                    patch({ comorbidades: sel ? cur.filter((x) => x !== c) : [...cur, c] });
+                  }} style={{ borderRadius: 20, padding: '5px 14px', fontSize: 12.5 }}>{c}</button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── Medicações em uso ── */}
+          <label className="pr-field"><span>Medicações em uso</span>
+            <textarea value={at.medicacoesUso || ''} onChange={(e) => patch({ medicacoesUso: e.target.value })} placeholder="Fármaco, dose e frequência..." style={{ minHeight: 52, resize: 'vertical' }} />
+          </label>
+
+          {/* ── Vacinação & Vermifugação ── */}
+          <div className="pr-fieldrow c2" style={{ gap: 16 }}>
+            <div>
+              <p style={{ margin: '0 0 7px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Vacinação / Reforços</p>
+              <div className="pr-quickpick">
+                {['Em dia', 'Atrasada', 'Nunca vacinado', 'Não sabe'].map((o) => (
+                  <button key={o} className={at.vacinacao === o ? 'on' : ''} onClick={() => patch({ vacinacao: at.vacinacao === o ? '' : o })}>{o}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p style={{ margin: '0 0 7px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Vermifugação</p>
+              <div className="pr-quickpick">
+                {['Em dia (< 3 meses)', 'Atrasada', 'Nunca'].map((o) => (
+                  <button key={o} className={at.vermifugacao === o ? 'on' : ''} onClick={() => patch({ vermifugacao: at.vermifugacao === o ? '' : o })}>{o}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {!integrated && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 16px', background: 'var(--teal-t)', borderRadius: 10, marginTop: 4 }}>
               <p style={{ flex: 1, margin: 0, fontSize: 13, color: 'var(--teal)' }}><VtIcon name="spark" size={14} /> Preencha a <b>anamnese</b> e o <b>exame físico</b> nas próximas abas.</p>

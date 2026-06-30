@@ -13,13 +13,12 @@ window.PR = (function () {
   const nowHM = () => new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
   const consultModels = [
-    { id: 'geral',  label: 'Clínica Geral',         icon: 'stethoscope', desc: 'Anamnese + exame físico completo + diagnóstico' },
-    { id: 'odonto', label: 'Odontologia',            icon: 'tooth',       desc: 'Avaliação periodontal, odontograma e protocolo dental' },
-    { id: 'derma',  label: 'Dermatologia',           icon: 'receipt',     desc: 'Pele, pelos, anexos e protocolo de alergias' },
-    { id: 'neuro',  label: 'Neurologia',             icon: 'spark',       desc: 'Exame neurológico, neurolocalização e diagnóstico' },
-    { id: 'nutri',  label: 'Nutrição',               icon: 'chart',       desc: 'Avaliação nutricional, ECC, RER/DER e plano alimentar' },
-    { id: 'orto',   label: 'Ortopedia',              icon: 'chart',       desc: 'Aparelho locomotor, testes ortopédicos e neurológicos' },
-    { id: 'anest',  label: 'Avaliação Anestésica',   icon: 'spark',       desc: 'Pré-operatório, risco ASA e protocolo anestésico' },
+    { id: 'geral',  label: 'Clínica Geral',  icon: 'stethoscope', desc: 'Avaliação clínica integral e triagem do paciente' },
+    { id: 'odonto', label: 'Odontologia',    icon: 'tooth',       desc: 'Avaliação periodontal, odontograma e protocolo dental' },
+    { id: 'derma',  label: 'Dermatologia',   icon: 'receipt',     desc: 'Pele, pelos, anexos e protocolo de alergias' },
+    { id: 'neuro',  label: 'Neurologia',     icon: 'spark',       desc: 'Exame neurológico, neurolocalização e diagnóstico' },
+    { id: 'nutri',  label: 'Nutrição',       icon: 'chart',       desc: 'Avaliação nutricional, ECC, RER/DER e plano alimentar' },
+    { id: 'orto',   label: 'Ortopedia',      icon: 'chart',       desc: 'Aparelho locomotor, testes ortopédicos e neurológicos' },
   ];
 
   const anamnese = [
@@ -112,6 +111,7 @@ function prBlank(patient, base) {
     vetColor: (window.vtVets ? (window.vtVets()[0] || {}).color : null) || '#14a8a0',
     local: 'Clínica própria',
     motivo: '', queixa: '',
+    comorbidades: [], medicacoesUso: '', vacinacao: '', vermifugacao: '',
     consultModel: (base && base.type && window.vtModelForType) ? window.vtModelForType(base && base.type) : 'geral',
     weight: patient.weight || '',
     anamnese: {}, exame: {}, exameObs: '', roteiro: {},
