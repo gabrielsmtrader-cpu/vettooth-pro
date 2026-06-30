@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    VetTooth Pro — Prontuário · Em Atendimento
    Formulário VetFicha completo por especialidade — visual VetTooth
    ============================================================ */
@@ -282,25 +282,7 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
               <textarea value={at.medicacoesUso || ''} onChange={(e) => patch({ medicacoesUso: e.target.value })} placeholder="Fármaco, dose e frequência..." style={{ ...taStyle, minHeight: 52 }} />
             </label>
 
-            {/* Vacinação & Vermifugação */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-              <div>
-                <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Vacinação / Reforços</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {['Em dia', 'Atrasada', 'Nunca vacinado', 'Não sabe'].map((o) => (
-                    <QBtn key={o} active={at.vacinacao === o} color={activeC} onClick={() => patch({ vacinacao: at.vacinacao === o ? '' : o })}>{o}</QBtn>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Vermifugação</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {['Em dia (< 3 meses)', 'Atrasada', 'Nunca'].map((o) => (
-                    <QBtn key={o} active={at.vermifugacao === o} color={activeC} onClick={() => patch({ vermifugacao: at.vermifugacao === o ? '' : o })}>{o}</QBtn>
-                  ))}
-                </div>
-              </div>
-            </div>
+
           </div>
 
           {/* ─── 3. ANAMNESE POR ESPECIALIDADE ─── */}
