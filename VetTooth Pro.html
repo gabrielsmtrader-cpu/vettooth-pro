@@ -1252,6 +1252,16 @@ select.vtf-input { appearance: none; cursor: pointer; }
 .pr-fcard-final.active { border-style: solid; }
 .pr-fcard-ext-badge { position: absolute; top: 7px; left: 8px; font-size: 11px; color: var(--fc); font-weight: 800; line-height: 1; }
 .pr-fcard-ext { border-style: dashed; }
+/* ---- Sub-cards de Procedimentos e Medicações ---- */
+.pr-proc-subcards { display: flex; gap: 20px; padding: 12px 0 24px; flex-wrap: wrap; }
+.pr-proc-subcard { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 32px 28px 26px; min-width: 180px; flex: 1; border-radius: 20px; border: 2px solid color-mix(in srgb, var(--fc) 20%, var(--line)); background: #fff; cursor: pointer; transition: transform .12s, box-shadow .18s, border-color .15s, background .15s; }
+.pr-proc-subcard:hover { transform: translateY(-4px); box-shadow: 0 14px 32px -12px var(--fc); border-color: var(--fc); background: var(--fb); }
+.pr-proc-subcard-ic { width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center; background: var(--fb); color: var(--fc); transition: background .15s; }
+.pr-proc-subcard:hover .pr-proc-subcard-ic { background: color-mix(in srgb, var(--fc) 18%, transparent); }
+.pr-proc-subcard-label { font-size: 16px; font-weight: 800; color: var(--ink); }
+.pr-proc-subcard-desc { font-size: 12.5px; color: var(--muted); text-align: center; line-height: 1.4; }
+.pr-proc-back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 20px; font-size: 13px; font-weight: 700; color: var(--teal-d); background: none; border: none; cursor: pointer; padding: 6px 0; }
+.pr-proc-back:hover { color: var(--teal); }
 @media (max-width: 920px) { .pr-fcard { min-width: 88px; padding: 12px 10px; } .pr-fcard-ic { width: 40px; height: 40px; } }
 
 /* ---- painel lateral de ações rápidas (Visão Geral) ---- */
@@ -1726,7 +1736,7 @@ select.vtf-input { appearance: none; cursor: pointer; }
 <script type="text/babel" src="vt-ia.jsx?v=11"></script>
 <script type="text/babel" src="vt-scores.jsx"></script>
 <script type="text/babel" src="vt-ficha.jsx"></script>
-<script type="text/babel" src="vt-prontuario.jsx?v=8"></script>
+<script type="text/babel" src="vt-prontuario.jsx?v=9"></script>
 <script type="text/babel" src="vt-prontuario-exam.jsx?v=10"></script>
 <script type="text/babel" src="vt-prontuario-vacina.jsx"></script>
 <script type="text/babel" src="vt-prontuario-plan.jsx?v=2"></script>

@@ -149,17 +149,22 @@ function prEnsure(at, patient) {
 
 /* ---------- Cards de fluxo do atendimento ---------- */
 const PR_FLOW_CARDS = [
-  { id: 'consulta',     label: 'Consulta',            icon: 'stethoscope', color: '#2563eb', bg: '#dbeafe' },
-  { id: 'odonto-flow',  label: 'Odontograma',         icon: 'tooth',       color: '#14a8a0', bg: '#e2f4f3', external: true },
-  { id: 'vacina',       label: 'Vacinação',            icon: 'syringe',     color: '#7c3aed', bg: '#ede9fe' },
-  { id: 'medicamentos', label: 'Medicações',           icon: 'box',         color: '#0891b2', bg: '#e0f2fe' },
-  { id: 'proc-outros',  label: 'Outros Proced.',       icon: 'receipt',     color: '#6366f1', bg: '#eef2ff' },
-  { id: 'exames',       label: 'Pedido de Exames',     icon: 'chart',       color: '#059669', bg: '#d1fae5' },
-  { id: 'prescricao',   label: 'Receituários',         icon: 'receipt',     color: '#d97706', bg: '#fef3c7' },
-  { id: 'orcamento',    label: 'Orçamentos',           icon: 'dollar',      color: '#ea580c', bg: '#ffedd5' },
-  { id: 'cirurgias',    label: 'Cirurgias / Intern.',  icon: 'alert',       color: '#dc2626', bg: '#fee2e2' },
-  { id: 'atestados',    label: 'Termos e Docs',        icon: 'pen',         color: '#475569', bg: '#f1f5f9' },
-  { id: 'anexos',       label: 'Anexos',               icon: 'box',         color: '#64748b', bg: '#f8fafc' },
+  { id: 'consulta',       label: 'Consulta',               icon: 'stethoscope', color: '#2563eb', bg: '#dbeafe' },
+  { id: 'odonto-flow',    label: 'Odontograma',            icon: 'tooth',       color: '#14a8a0', bg: '#e2f4f3', external: true },
+  { id: 'procedimentos',  label: 'Procedimentos e Medic.', icon: 'syringe',     color: '#7c3aed', bg: '#ede9fe' },
+  { id: 'exames',         label: 'Pedido de Exames',       icon: 'chart',       color: '#059669', bg: '#d1fae5' },
+  { id: 'prescricao',     label: 'Receituários',           icon: 'receipt',     color: '#d97706', bg: '#fef3c7' },
+  { id: 'orcamento',      label: 'Orçamentos',             icon: 'dollar',      color: '#ea580c', bg: '#ffedd5' },
+  { id: 'cirurgias',      label: 'Cirurgias / Intern.',    icon: 'alert',       color: '#dc2626', bg: '#fee2e2' },
+  { id: 'atestados',      label: 'Termos e Docs',          icon: 'pen',         color: '#475569', bg: '#f1f5f9' },
+  { id: 'anexos',         label: 'Anexos',                 icon: 'box',         color: '#64748b', bg: '#f8fafc' },
+];
+
+/* Sub-cards da tela de Procedimentos e Medicações */
+const PR_PROC_SUBS = [
+  { id: 'vacina',       label: 'Vacinar',           icon: 'syringe',     color: '#7c3aed', bg: '#ede9fe', desc: 'Registro e aplicação de vacinas' },
+  { id: 'medicamentos', label: 'Medicar',            icon: 'box',         color: '#0891b2', bg: '#e0f2fe', desc: 'Aplicação de medicamentos' },
+  { id: 'proc-outros',  label: 'Curativo / Outros',  icon: 'receipt',     color: '#6366f1', bg: '#eef2ff', desc: 'Curativos e outros procedimentos' },
 ];
 const PR_TABS = [];
 
@@ -364,6 +369,7 @@ function prChipStyle(on) {
 function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit, onAddWeight, onSaveVaccines, onFinalizar, onOpenOdonto }) {
   const [at, setAt] = pUse(() => prEnsure(atendimento, patient));
   const [tab, setTab] = pUse('resumo');
+  const [procSub, setProcSub] = pUse(null); // sub-seleção dentro de Procedimentos
   const [pesoModal, setPesoModal] = pUse(false);
   const [odontoModal, setOdontoModal] = pUse(false);
   const [saving, setSaving] = pUse(false);
@@ -380,7 +386,7 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
 
   const patch = (obj) => setAt((p) => ({ ...p, ...obj }));
   const group = (g) => (k, v) => setAt((p) => ({ ...p, [g]: { ...p[g], [k]: v } }));
-  const go = (t) => { setTab(t); if (tabRef.current) tabRef.current.scrollTop = 0; };
+  const go = (t) => { setTab(t); setProcSub(null); if (tabRef.current) tabRef.current.scrollTop = 0; };
 
   // histórico do paciente (eventos derivados)
   const history = pMemo(() => buildHistory(patient, weights), [patient.id, weights, at.id]);
@@ -403,9 +409,7 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
   const counts = {
     consulta: 0,
     'odonto-flow': 0,
-    vacina: (vaccines || []).length,
-    medicamentos: (at.medicamentos || []).length,
-    'proc-outros': (at.procedimentos || []).length,
+    procedimentos: (vaccines || []).length + (at.medicamentos || []).length + (at.procedimentos || []).length,
     exames: (at.exames || []).length,
     prescricao: (at.prescricoes || []).length,
     orcamento: (at.orcamento && at.orcamento.items ? at.orcamento.items.length : 0),
@@ -469,9 +473,31 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
             />
           </div>
         )}
-        {tab === 'vacina' && <VacinaTab p={patient} vaccines={vaccines || []} onSave={onSaveVaccines} vet={at.vet} />}
-        {tab === 'medicamentos' && <PrMedicamentos at={at} patch={patch} />}
-        {tab === 'proc-outros' && <PrProcedimentos at={at} patch={patch} />}
+        {tab === 'procedimentos' && !procSub && (
+          <div>
+            <div className="pr-sec-head"><div><h2 className="pr-h">Procedimentos e Medicações</h2><p className="pr-h-sub">Selecione o tipo de procedimento realizado durante a consulta</p></div></div>
+            <div className="pr-proc-subcards">
+              {PR_PROC_SUBS.map(({ id, label, icon, color, bg, desc }) => (
+                <button key={id} className="pr-proc-subcard" style={{ '--fc': color, '--fb': bg }} onClick={() => setProcSub(id)}>
+                  <span className="pr-proc-subcard-ic"><VtIcon name={icon} size={28} /></span>
+                  <span className="pr-proc-subcard-label">{label}</span>
+                  <span className="pr-proc-subcard-desc">{desc}</span>
+                  {id === 'vacina' && (vaccines || []).length > 0 && <span className="pr-fcard-badge">{(vaccines || []).length}</span>}
+                  {id === 'medicamentos' && (at.medicamentos || []).length > 0 && <span className="pr-fcard-badge">{(at.medicamentos || []).length}</span>}
+                  {id === 'proc-outros' && (at.procedimentos || []).length > 0 && <span className="pr-fcard-badge">{(at.procedimentos || []).length}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {tab === 'procedimentos' && procSub && (
+          <div>
+            <button className="pr-proc-back" onClick={() => setProcSub(null)}>← Voltar para Procedimentos</button>
+            {procSub === 'vacina'       && <VacinaTab p={patient} vaccines={vaccines || []} onSave={onSaveVaccines} vet={at.vet} />}
+            {procSub === 'medicamentos' && <PrMedicamentos at={at} patch={patch} />}
+            {procSub === 'proc-outros'  && <PrProcedimentos at={at} patch={patch} />}
+          </div>
+        )}
         {tab === 'prescricao' && <PrPrescricoes at={at} patch={patch} patient={patient} />}
         {tab === 'exames' && <PrExames at={at} patch={patch} patient={patient} />}
         {tab === 'agendamento' && <PrAgendamento at={at} patch={patch} />}
