@@ -38,13 +38,56 @@ function QBtn({ active, color, onClick, children }) {
   );
 }
 
+/* ── Tela de seleção de especialidade em cards ── */
+function SpecialtyPicker({ models, onSelect }) {
+  const [hover, setHover] = eUse(null);
+  return (
+    <div style={{ padding: '32px 28px 40px', background: 'var(--card)', borderRadius: 14, border: '1px solid var(--line)', boxShadow: '0 2px 14px rgba(0,0,0,0.07)' }}>
+      <div style={{ marginBottom: 28 }}>
+        <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 800, color: 'var(--ink)' }}>Selecione a especialidade</h2>
+        <p style={{ margin: 0, fontSize: 13.5, color: 'var(--muted)' }}>Escolha o tipo de consulta para abrir o formulário completo</p>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        {models.map((m) => {
+          const c = CONSULT_COLORS[m.id] || '#14a8a0';
+          const isHover = hover === m.id;
+          return (
+            <button key={m.id} onClick={() => onSelect(m)}
+              onMouseEnter={() => setHover(m.id)} onMouseLeave={() => setHover(null)}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12,
+                padding: '22px 20px', borderRadius: 14, border: `2px solid ${isHover ? c : 'var(--line)'}`,
+                background: isHover ? `${c}0c` : 'var(--bg)', cursor: 'pointer', textAlign: 'left',
+                transition: 'all 0.18s', boxShadow: isHover ? `0 4px 20px ${c}22` : '0 1px 4px rgba(0,0,0,0.04)',
+                transform: isHover ? 'translateY(-2px)' : 'none',
+              }}>
+              <span style={{ width: 48, height: 48, borderRadius: 12, background: isHover ? `${c}22` : `${c}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.18s' }}>
+                <VtIcon name={m.icon} size={22} style={{ color: c }} />
+              </span>
+              <div>
+                <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 800, color: isHover ? c : 'var(--ink)', transition: 'color 0.15s' }}>{m.label}</p>
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>{m.desc}</p>
+              </div>
+              <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: c }} />
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: c, letterSpacing: 0.3 }}>Abrir formulário</span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ============================================================
    COMPONENTE PRINCIPAL — PrConsulta
-   Renderiza TODAS as seções numa única página dentro do layout
-   com sidebar de especialidades (estilo VetFicha + visual VetTooth)
+   Tela 1: seleção de especialidade em cards
+   Tela 2: formulário completo da especialidade selecionada
    ============================================================ */
 function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSistemas, setDiag, patient }) {
   const models  = window.PR.consultModels;
+  const [view, setView] = eUse(at.consultModel ? 'form' : 'pick');
   const activeId = at.consultModel || 'geral';
   const activeM  = models.find((m) => m.id === activeId) || models[0];
   const activeC  = CONSULT_COLORS[activeId] || 'var(--teal)';
@@ -53,8 +96,12 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
 
   const useModel = (m) => {
     patch({ type: m.label, motivo: at.motivo || m.label, consultModel: m.id });
+    setView('form');
     window.vtToast(`Especialidade "${m.label}" selecionada.`, 'ok');
   };
+
+  /* tela de seleção */
+  if (view === 'pick') return <SpecialtyPicker models={models} onSelect={useModel} />;
 
   /* helpers de dados */
   const aData = at.anamnese || {};
@@ -89,9 +136,12 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
 
       {/* ══ SIDEBAR ══ */}
       <div style={{ width: 190, flexShrink: 0, background: 'var(--navy)', display: 'flex', flexDirection: 'column', alignSelf: 'stretch' }}>
-        <div style={{ padding: '18px 16px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ padding: '16px 16px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <p style={{ margin: 0, color: 'rgba(255,255,255,0.42)', fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase' }}>VetFicha</p>
-          <p style={{ margin: '3px 0 0', color: '#fff', fontSize: 13.5, fontWeight: 700 }}>Prontuário Clínico</p>
+          <p style={{ margin: '3px 0 10px', color: '#fff', fontSize: 13.5, fontWeight: 700 }}>Prontuário Clínico</p>
+          <button onClick={() => setView('pick')} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.75)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}>
+            <VtIcon name="chevron" size={13} style={{ transform: 'rotate(180deg)' }} /> Trocar especialidade
+          </button>
         </div>
         <div style={{ padding: '10px 8px 12px' }}>
           <p style={{ margin: '6px 8px 8px', color: 'rgba(255,255,255,0.38)', fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>Especialidades</p>
