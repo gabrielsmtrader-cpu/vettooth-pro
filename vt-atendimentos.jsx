@@ -410,7 +410,31 @@ function AtendimentosModule({ openPatient, openOdonto, focus, clearFocus }) {
     return <Prontuario patient={view.patient} atendimento={view.at} weights={weightsFor(view.patient.id)} vaccines={vaccinesFor(view.patient.id)}
       onBack={() => setView({ mode: 'list' })} onCommit={commit}
       onAddWeight={(w) => addWeight(view.patient, w)} onSaveVaccines={(list) => saveVaccines(view.patient, list)}
-      onFinalizar={(at) => { commit(at); setDarBaixa(at); }}
+      onFinalizar={(at, info) => {
+        if (info) {
+          // vem do PrFinalizar — salva financeiro e fecha
+          commit(at);
+          const money = (n) => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const d = (store && store.getData()) || {}; const fin = d.fin || { tx: [] };
+          const today = new Date().toISOString().slice(0, 10);
+          const tx = { id: 'T' + Date.now().toString(36), kind: 'receita', desc: (at.type || 'Atendimento') + ' — ' + at.patientName, patient: at.patientName, cat: 'Procedimento', value: info.total, date: today, status: 'pendente', method: info.forma || null, paidAt: null };
+          const nextAt = atend.map((x) => x.id === at.id ? { ...at } : x);
+          setAtend(nextAt);
+          if (store) store.setData({ atendimentos: nextAt, fin: { ...fin, tx: [tx, ...(fin.tx || [])] } });
+          // orçamento aprovado → salva em orçamentos também
+          if (at.orcamento && at.orcamento.aprovado && (at.orcamento.items || []).length) {
+            const orcTotal = at.orcamento.items.reduce((s, i) => s + (Number(i.valor) || 0) * (Number(i.qtd) || 1), 0);
+            const orcList = (d.orcamentos || []).slice();
+            orcList.unshift({ id: 'OR' + Date.now().toString(36), atId: at.id, patientId: at.patientId, patientName: at.patientName, vet: at.vet, date: window.PR ? window.PR.todayBR() : today, items: at.orcamento.items, total: orcTotal, status: 'aprovado' });
+            if (store) store.setData({ orcamentos: orcList });
+          }
+          setView({ mode: 'list' });
+          setTab('realizados');
+          window.vtToast('Atendimento finalizado! ' + money(info.total) + ' enviado para Finanças.', 'ok');
+        } else {
+          commit(at); setDarBaixa(at);
+        }
+      }}
       onOpenOdonto={() => { if (openOdonto) openOdonto(view.patient.id); }} />;
   }
 

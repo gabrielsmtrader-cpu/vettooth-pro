@@ -199,7 +199,7 @@ function PrHeader({ at, patient, saving, onBack, onAction, go, tab }) {
   const statusLbl = at.status === 'finalizado' ? 'Finalizado' : at.status === 'arquivado' ? 'Arquivado' : 'Em andamento';
 
   const QUICK = [
-    ['salvar', 'Salvar', 'plus', 'primary'], ['finalizar', 'Finalizar atendimento', 'dollar', 'primary'],
+    ['salvar', 'Salvar', 'plus', 'primary'],
     ['imprimir', 'Imprimir', 'print', ''],
     ['pdf', 'Gerar PDF', 'receipt', ''], ['whats', 'WhatsApp', '', 'wa'],
   ];
@@ -371,6 +371,163 @@ function prChipStyle(on) {
     color: on ? '#fff' : 'var(--muted)' };
 }
 
+/* ---------- Tela de Finalizar Atendimento ---------- */
+const FIN_FORMAS = ['Pix', 'Cartão de débito', 'Cartão de crédito', 'Dinheiro', 'Convênio', 'Boleto'];
+const FIN_TIPO_COLOR = { 'Consulta': '#2563eb', 'Procedimento': '#7c3aed', 'Medicamento': '#0891b2', 'Vacina': '#d97706', 'Cirurgia': '#dc2626', 'Internação': '#b45309', 'Exame': '#059669', 'Vacina aplicada': '#d97706' };
+
+function buildChargeItems(at, vaccines) {
+  const items = [];
+  const consultVal = window.PR.parseMoney(at.value) || 0;
+  items.push({ id: 'c0', tipo: 'Consulta', nome: at.type || 'Consulta', valor: consultVal, custo: 0 });
+  (at.procedimentos || []).forEach((p, i) => {
+    if (!p.nome) return;
+    items.push({ id: 'p' + i, tipo: 'Procedimento', nome: p.nome, valor: Number(p.valor) || 0, custo: Number(p.custo) || 0 });
+  });
+  (at.medicamentos || []).forEach((m, i) => {
+    if (!m.nome) return;
+    const label = m.nome + (m.dose ? ' · ' + m.dose : '') + (m.via ? ' (' + m.via + ')' : '') + (m.qtd ? ' ×' + m.qtd : '');
+    items.push({ id: 'm' + i, tipo: 'Medicamento', nome: label, valor: 0, custo: 0 });
+  });
+  (at.cirurgias || []).forEach((c, i) => {
+    if (!c.procedimento) return;
+    items.push({ id: 'cr' + i, tipo: 'Cirurgia', nome: c.procedimento, valor: 0, custo: 0 });
+  });
+  (at.internacoes || []).forEach((n, i) => {
+    const nome = n.descricao || n.motivo || 'Internação';
+    items.push({ id: 'in' + i, tipo: 'Internação', nome, valor: 0, custo: 0 });
+  });
+  (at.exames || []).forEach((e, i) => {
+    if (!e.nome) return;
+    items.push({ id: 'ex' + i, tipo: 'Exame', nome: e.nome, valor: Number(e.valor) || 0, custo: 0 });
+  });
+  (vaccines || []).forEach((v, i) => {
+    if (!v.nome || v.status === 'aplicada') return;
+    items.push({ id: 'vx' + i, tipo: 'Vacina aplicada', nome: v.nome + (v.lote ? ' · lote ' + v.lote : ''), valor: 0, custo: 0 });
+  });
+  return items;
+}
+
+function PrFinalizar({ at, patch, patient, vaccines, onFinalizar, onCommit }) {
+  const money = window.PR.money;
+  const [items, setItems] = pUse(() => buildChargeItems(at, vaccines));
+  const [forma, setForma] = pUse('Pix');
+  const [obs, setObs] = pUse('');
+  const [sent, setSent] = pUse(false);
+
+  const updItem = (id, val) => setItems((prev) => prev.map((x) => x.id === id ? { ...x, valor: Number(String(val).replace(/\D/g, '')) || 0 } : x));
+  const delItem = (id) => setItems((prev) => prev.filter((x) => x.id !== id));
+  const addLine = () => setItems((prev) => [...prev, { id: 'ex' + Date.now(), tipo: 'Procedimento', nome: '', valor: 0, custo: 0 }]);
+  const updNome = (id, v) => setItems((prev) => prev.map((x) => x.id === id ? { ...x, nome: v } : x));
+
+  const total = items.reduce((s, i) => s + (Number(i.valor) || 0), 0);
+  const custo = items.reduce((s, i) => s + (Number(i.custo) || 0), 0);
+  const lucro = total - custo;
+
+  const orcAprovado = at.orcamento && at.orcamento.aprovado && (at.orcamento.items || []).length > 0;
+  const orcTotal = orcAprovado ? (at.orcamento.items || []).reduce((s, i) => s + (Number(i.valor) || 0) * (Number(i.qtd) || 1), 0) : 0;
+
+  const confirmar = () => {
+    if (total <= 0) { window.vtToast('Informe o valor de pelo menos um item antes de finalizar.', 'err'); return; }
+    const info = { items, total, custo, lucro, forma, obs, data: window.PR.todayBR() };
+    const finalAt = { ...at, status: 'finalizado', value: money(total), formaPagamento: forma, fechamento: info };
+    onCommit(finalAt);
+    if (onFinalizar) onFinalizar(finalAt, info);
+    setSent(true);
+  };
+
+  if (sent) {
+    return (
+      <div style={{ textAlign: 'center', padding: '60px 24px' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
+        <h2 style={{ color: 'var(--green)', marginBottom: 8 }}>Atendimento finalizado!</h2>
+        <p className="vt-muted">Cobrança de {money(total)} enviada para o setor financeiro.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="pr-sec-head" style={{ marginBottom: 20 }}>
+        <div>
+          <h2 className="pr-h">Finalizar Atendimento</h2>
+          <p className="pr-h-sub">{patient.name} · {at.type || 'Consulta'} · {at.date}</p>
+        </div>
+      </div>
+
+      {/* Itens do atendimento */}
+      <div className="vt-card vt-sec" style={{ marginBottom: 16 }}>
+        <h3 className="vt-sec-title" style={{ marginBottom: 12 }}>Serviços realizados</h3>
+        <table className="pr-dtable">
+          <thead>
+            <tr>
+              <th style={{ width: 110 }}>Tipo</th>
+              <th>Descrição</th>
+              <th className="num" style={{ width: 130 }}>Valor (R$)</th>
+              <th style={{ width: 36 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.id}>
+                <td>
+                  <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 11.5, fontWeight: 600, background: (FIN_TIPO_COLOR[item.tipo] || '#64748b') + '22', color: FIN_TIPO_COLOR[item.tipo] || '#64748b' }}>
+                    {item.tipo}
+                  </span>
+                </td>
+                <td><input value={item.nome} onChange={(e) => updNome(item.id, e.target.value)} placeholder="Descrição" style={{ width: '100%' }} /></td>
+                <td>
+                  <input className="num" value={item.valor || ''} onChange={(e) => updItem(item.id, e.target.value)} placeholder="0" style={{ fontWeight: 700 }} />
+                </td>
+                <td><button className="pr-del-btn" onClick={() => delItem(item.id)}>✕</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <button className="pr-addrow" style={{ marginTop: 10 }} onClick={addLine}><VtIcon name="plus" size={14} /> Adicionar item</button>
+      </div>
+
+      {/* Totais */}
+      <div className="pr-2col" style={{ gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+        <div className="vt-card vt-sec">
+          <h3 className="vt-sec-title">Resumo financeiro</h3>
+          <div className="pr-totals">
+            <div className="pr-total-row"><span>Total a cobrar</span><b style={{ fontSize: 20, color: 'var(--ink)' }}>{money(total)}</b></div>
+            {custo > 0 && <><div className="pr-total-row"><span>Custo de insumos</span><b style={{ color: 'var(--red)' }}>{money(custo)}</b></div>
+            <div className="pr-total-row profit"><span>Lucro estimado</span><b>{money(lucro)}</b></div></>}
+          </div>
+        </div>
+        <div className="vt-card vt-sec">
+          <h3 className="vt-sec-title">Cobrança</h3>
+          <label className="pr-field" style={{ marginBottom: 12 }}>
+            <span>Forma de pagamento</span>
+            <select value={forma} onChange={(e) => setForma(e.target.value)}>
+              {FIN_FORMAS.map((f) => <option key={f}>{f}</option>)}
+            </select>
+          </label>
+          <label className="pr-field">
+            <span>Observações (opcional)</span>
+            <input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: 2× no cartão, desconto convenio…" />
+          </label>
+        </div>
+      </div>
+
+      {/* Orçamento aprovado — aviso */}
+      {orcAprovado && (
+        <div className="vt-ai-note" style={{ marginBottom: 16, background: '#fef3c7', borderColor: '#fbbf24' }}>
+          <VtIcon name="dollar" size={15} /> Orçamento aprovado de {money(orcTotal)} será enviado automaticamente para <b>Finanças › Orçamentos</b> ao confirmar.
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <button className="vt-btn-primary" style={{ background: 'var(--green)', fontSize: 15, padding: '10px 24px' }} onClick={confirmar}>
+          <VtIcon name="check" size={17} /> Confirmar e enviar para cobrança
+        </button>
+        <span className="vt-muted" style={{ fontSize: 13 }}>O atendimento será finalizado e o valor enviado ao setor financeiro.</span>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Shell do prontuário ---------- */
 function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit, onAddWeight, onSaveVaccines, onFinalizar, onOpenOdonto }) {
   const [at, setAt] = pUse(() => prEnsure(atendimento, patient));
@@ -458,7 +615,7 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
               </button>
             );
           })}
-          <button className="pr-fcard pr-fcard-final" onClick={() => { onCommit(at); if (onFinalizar) onFinalizar(at); }}>
+          <button className={`pr-fcard pr-fcard-final${tab === 'final' ? ' active' : ''}`} onClick={() => go('final')}>
             <span className="pr-fcard-ic"><VtIcon name="check" size={20} /></span>
             <span className="pr-fcard-lbl">Finalizar Atendimento</span>
           </button>
@@ -539,6 +696,7 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
         {tab === 'anexos' && <PrAnexos at={at} patch={patch} />}
         {tab === 'orcamento' && <PrOrcamento at={at} patch={patch} patient={patient} />}
         {tab === 'vendas' && <PrVendas at={at} patch={patch} />}
+        {tab === 'final' && <PrFinalizar at={at} patch={patch} patient={patient} vaccines={vaccines} onFinalizar={onFinalizar} onCommit={onCommit} />}
       </div>
       {pesoModal && <PesoModal p={patient} scale={window.VtScores.scaleFor(patient.species)} onClose={() => setPesoModal(false)} onSave={(w) => { onAddWeight(w); setPesoModal(false); }} />}
     </div>
