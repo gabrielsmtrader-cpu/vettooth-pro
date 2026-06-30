@@ -184,7 +184,6 @@ window.PR_ANAMNESE_BY_MODEL = {
     { k: 'vacinacao',    q: 'Vacinação',                                 type: 'quick', opts: ['Em dia', 'Atrasada', 'Nunca vacinado', 'Não sabe informar'] },
     { k: 'vermifugacao', q: 'Vermifugação',                              type: 'quick', opts: ['Em dia (< 3 meses)', 'Atrasada', 'Nunca'] },
     { k: 'ectoparasita', q: 'Controle de pulgas/carrapatos',             type: 'quick', opts: ['Em dia', 'Atrasado', 'Não usa'] },
-    { k: 'medicacoes',   q: 'Medicações em uso',                         type: 'text' },
     { k: 'cirurgias',    q: 'Cirurgias / internações anteriores',        type: 'text' },
     { k: 'doencas',      q: 'Doenças crônicas conhecidas',               type: 'text' },
     { k: 'obsTutor',     q: 'Observações adicionais do tutor',           type: 'text' },
