@@ -39,7 +39,7 @@ function QBtn({ active, color, onClick, children }) {
 }
 
 /* ── Tela de seleção de especialidade em cards ── */
-function SpecialtyPicker({ models, current, onSelect }) {
+function SpecialtyPicker({ models, onSelect }) {
   const [hover, setHover] = eUse(null);
   return (
     <div style={{ padding: '32px 28px 40px', background: 'var(--card)', borderRadius: 14, border: '1px solid var(--line)', boxShadow: '0 2px 14px rgba(0,0,0,0.07)' }}>
@@ -51,32 +51,27 @@ function SpecialtyPicker({ models, current, onSelect }) {
         {models.map((m) => {
           const c = CONSULT_COLORS[m.id] || '#14a8a0';
           const isHover = hover === m.id;
-          const isActive = current === m.id;
-          const highlight = isHover || isActive;
           return (
             <button key={m.id} onClick={() => onSelect(m)}
               onMouseEnter={() => setHover(m.id)} onMouseLeave={() => setHover(null)}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12,
                 padding: '22px 20px', borderRadius: 14,
-                border: `2px solid ${highlight ? c : 'var(--line)'}`,
-                background: highlight ? `${c}0c` : 'var(--bg)', cursor: 'pointer', textAlign: 'left',
-                transition: 'all 0.18s', boxShadow: highlight ? `0 4px 20px ${c}22` : '0 1px 4px rgba(0,0,0,0.04)',
-                transform: isHover ? 'translateY(-2px)' : 'none', position: 'relative',
+                border: `2px solid ${isHover ? c : 'var(--line)'}`,
+                background: isHover ? `${c}0c` : 'var(--bg)', cursor: 'pointer', textAlign: 'left',
+                transition: 'all 0.18s', boxShadow: isHover ? `0 4px 20px ${c}22` : '0 1px 4px rgba(0,0,0,0.04)',
+                transform: isHover ? 'translateY(-2px)' : 'none',
               }}>
-              {isActive && (
-                <span style={{ position: 'absolute', top: 12, right: 12, background: c, color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, letterSpacing: 0.5 }}>ATUAL</span>
-              )}
-              <span style={{ width: 48, height: 48, borderRadius: 12, background: highlight ? `${c}22` : `${c}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.18s' }}>
+              <span style={{ width: 48, height: 48, borderRadius: 12, background: isHover ? `${c}22` : `${c}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.18s' }}>
                 <VtIcon name={m.icon} size={22} style={{ color: c }} />
               </span>
               <div>
-                <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 800, color: highlight ? c : 'var(--ink)', transition: 'color 0.15s' }}>{m.label}</p>
+                <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 800, color: isHover ? c : 'var(--ink)', transition: 'color 0.15s' }}>{m.label}</p>
                 <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>{m.desc}</p>
               </div>
               <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: c }} />
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: c, letterSpacing: 0.3 }}>{isActive ? 'Continuar consulta' : 'Abrir formulário'}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: c, letterSpacing: 0.3 }}>Abrir formulário</span>
               </div>
             </button>
           );
@@ -107,7 +102,7 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
   };
 
   /* tela de seleção */
-  if (view === 'pick') return <SpecialtyPicker models={models} current={at.consultModel} onSelect={useModel} />;
+  if (view === 'pick') return <SpecialtyPicker models={models} onSelect={useModel} />;
 
   /* helpers de dados */
   const aData = at.anamnese || {};
@@ -138,65 +133,25 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
   const diagFields = window.vtDiagCfg ? window.vtDiagCfg() : [];
 
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', borderRadius: 14, overflow: 'hidden', border: '1px solid var(--line)', boxShadow: '0 2px 14px rgba(0,0,0,0.07)' }}>
+    <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid var(--line)', boxShadow: '0 2px 14px rgba(0,0,0,0.07)', background: 'var(--card)' }}>
 
-      {/* ══ SIDEBAR ══ */}
-      <div style={{ width: 190, flexShrink: 0, background: 'var(--navy)', display: 'flex', flexDirection: 'column', alignSelf: 'stretch' }}>
-        <div style={{ padding: '16px 16px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-          <p style={{ margin: 0, color: 'rgba(255,255,255,0.42)', fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase' }}>VetFicha</p>
-          <p style={{ margin: '3px 0 10px', color: '#fff', fontSize: 13.5, fontWeight: 700 }}>Prontuário Clínico</p>
-          <button onClick={() => setView('pick')} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.75)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}>
-            <VtIcon name="chevron" size={13} style={{ transform: 'rotate(180deg)' }} /> Trocar especialidade
-          </button>
+      {/* ══ CABEÇALHO DA ESPECIALIDADE ══ */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '17px 24px 15px', borderBottom: '1px solid var(--line)', background: `${activeC}08` }}>
+        <span style={{ width: 44, height: 44, borderRadius: 11, background: `${activeC}1a`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <VtIcon name={activeM.icon} size={21} style={{ color: activeC }} />
+        </span>
+        <div style={{ flex: 1 }}>
+          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>{activeM.label}</h2>
+          <p style={{ margin: '1px 0 0', fontSize: 12, color: 'var(--muted)' }}>{activeM.desc}</p>
         </div>
-        <div style={{ padding: '10px 8px 12px' }}>
-          <p style={{ margin: '6px 8px 8px', color: 'rgba(255,255,255,0.38)', fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>Especialidades</p>
-          {models.map((m) => {
-            const active = activeId === m.id;
-            const mc = CONSULT_COLORS[m.id] || '#14a8a0';
-            return (
-              <button key={m.id} onClick={() => useModel(m)} style={{
-                display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '9px 10px',
-                borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'left', marginBottom: 2,
-                background: active ? `${mc}22` : 'transparent',
-                color: active ? '#fff' : 'rgba(255,255,255,0.52)',
-                fontWeight: active ? 700 : 500, fontSize: 13, transition: 'all 0.15s',
-                borderLeft: active ? `3px solid ${mc}` : '3px solid transparent',
-              }}>
-                <VtIcon name={m.icon} size={15} style={{ flexShrink: 0 }} />
-                {m.label}
-              </button>
-            );
-          })}
-        </div>
-        <div style={{ marginTop: 'auto', padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-          <p style={{ margin: '0 0 6px', color: 'rgba(255,255,255,0.32)', fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>Legenda</p>
-          {[['#16a34a', 'Normal'], ['#f59e0b', 'Alterado'], ['rgba(255,255,255,0.25)', 'N/A']].map(([c, l]) => (
-            <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: c, flexShrink: 0 }} />
-              <span style={{ color: 'rgba(255,255,255,0.42)', fontSize: 11 }}>{l}</span>
-            </div>
-          ))}
-        </div>
+        <button onClick={() => setView('pick')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: `1.5px solid ${activeC}40`, background: `${activeC}10`, color: activeC, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}>
+          <VtIcon name="chevron" size={12} style={{ transform: 'rotate(180deg)' }} /> Trocar especialidade
+        </button>
+        <span style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>{at.date} · {at.time}</span>
       </div>
 
-      {/* ══ ÁREA DE CONTEÚDO ══ */}
-      <div style={{ flex: 1, minWidth: 0, background: 'var(--card)' }}>
-
-        {/* Cabeçalho da especialidade ativa */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '17px 24px 15px', borderBottom: '1px solid var(--line)', background: `${activeC}08` }}>
-          <span style={{ width: 44, height: 44, borderRadius: 11, background: `${activeC}1a`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <VtIcon name={activeM.icon} size={21} style={{ color: activeC }} />
-          </span>
-          <div style={{ flex: 1 }}>
-            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>{activeM.label}</h2>
-            <p style={{ margin: '1px 0 0', fontSize: 12, color: 'var(--muted)' }}>{activeM.desc}</p>
-          </div>
-          <span style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>{at.date} · {at.time}</span>
-        </div>
-
-        {/* ══ FORMULÁRIO ══ */}
-        <div style={{ padding: '4px 24px 40px' }}>
+      {/* ══ FORMULÁRIO ══ */}
+      <div style={{ padding: '4px 24px 40px' }}>
 
           {/* ─── 1. DADOS DA CONSULTA ─── */}
           <SLabel color={activeC} first>Dados da Consulta</SLabel>
@@ -397,7 +352,6 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
           </div>
 
         </div>
-      </div>
     </div>
   );
 }
