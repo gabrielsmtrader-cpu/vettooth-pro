@@ -390,15 +390,16 @@ function buildChargeItems(at, vaccines) {
   });
   (at.cirurgias || []).forEach((c, i) => {
     if (!c.procedimento) return;
-    items.push({ id: 'cr' + i, tipo: 'Cirurgia', nome: c.procedimento, valor: 0, custo: 0 });
+    items.push({ id: 'cr' + i, tipo: 'Cirurgia', nome: c.procedimento + (c.anestesia ? ' · ' + c.anestesia : ''), valor: Number(c.valor) || 0, custo: Number(c.custo) || 0 });
   });
   (at.internacoes || []).forEach((n, i) => {
-    const nome = n.descricao || n.motivo || 'Internação';
-    items.push({ id: 'in' + i, tipo: 'Internação', nome, valor: 0, custo: 0 });
+    const nome = (n.motivo || 'Internação') + (n.totalDias ? ' · ' + n.totalDias + ' dia(s)' : '');
+    items.push({ id: 'in' + i, tipo: 'Internação', nome, valor: Number(n.valor) || 0, custo: Number(n.custo) || 0 });
   });
   (at.exames || []).forEach((e, i) => {
-    if (!e.nome) return;
-    items.push({ id: 'ex' + i, tipo: 'Exame', nome: e.nome, valor: Number(e.valor) || 0, custo: 0 });
+    const nome = typeof e === 'string' ? e : e.nome;
+    if (!nome) return;
+    items.push({ id: 'ex' + i, tipo: 'Exame', nome, valor: typeof e === 'object' ? (Number(e.valor) || 0) : 0, custo: 0 });
   });
   (vaccines || []).forEach((v, i) => {
     if (!v.tipo) return;
@@ -414,7 +415,7 @@ function PrFinalizar({ at, patch, patient, vaccines, onFinalizar, onCommit }) {
   const [obs, setObs] = pUse('');
   const [sent, setSent] = pUse(false);
 
-  const updItem = (id, val) => setItems((prev) => prev.map((x) => x.id === id ? { ...x, valor: Number(String(val).replace(/\D/g, '')) || 0 } : x));
+  const updItem = (id, val) => setItems((prev) => prev.map((x) => x.id === id ? { ...x, valor: parseFloat(String(val).replace(/[^\d,.]/, '').replace(',', '.')) || 0 } : x));
   const delItem = (id) => setItems((prev) => prev.filter((x) => x.id !== id));
   const addLine = () => setItems((prev) => [...prev, { id: 'ex' + Date.now(), tipo: 'Procedimento', nome: '', valor: 0, custo: 0 }]);
   const updNome = (id, v) => setItems((prev) => prev.map((x) => x.id === id ? { ...x, nome: v } : x));
@@ -691,7 +692,7 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
         {tab === 'anexos' && <PrAnexos at={at} patch={patch} />}
         {tab === 'orcamento' && <PrOrcamento at={at} patch={patch} patient={patient} />}
         {tab === 'vendas' && <PrVendas at={at} patch={patch} />}
-        {tab === 'final' && <PrFinalizar at={at} patch={patch} patient={patient} vaccines={vaccines} onFinalizar={onFinalizar} onCommit={onCommit} />}
+        {tab === 'final' && <PrFinalizar key={'fin-' + (at.procedimentos||[]).length + '-' + (at.medicamentos||[]).length + '-' + (vaccines||[]).length} at={at} patch={patch} patient={patient} vaccines={vaccines} onFinalizar={onFinalizar} onCommit={onCommit} />}
       </div>
       {pesoModal && <PesoModal p={patient} scale={window.VtScores.scaleFor(patient.species)} onClose={() => setPesoModal(false)} onSave={(w) => { onAddWeight(w); setPesoModal(false); }} />}
     </div>

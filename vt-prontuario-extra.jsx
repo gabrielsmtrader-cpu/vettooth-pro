@@ -100,7 +100,7 @@ const DOC_MODELS = [
 ];
 function PrAtestados({ at, patch, patient }) {
   const docs = at.documentos || [];
-  const [editor, setEditor] = lUse(null);
+  const [editor, setEditor] = xUse(null);
   const gerar = (tipo) => setEditor({ tipo, body: null, id: null });
   const openDoc = (d) => setEditor({ tipo: d.tipo, body: d.body, id: d.id });
   const saveDoc = (body) => {
@@ -243,7 +243,7 @@ function PrMedicamentos({ at, patch }) {
 function PrCirurgias({ at, patch }) {
   const rows = at.cirurgias || [];
   const [f, setF] = xUse(null);
-  const blank = { procedimento: '', data: window.PR.todayBR(), equipe: '', anestesia: '', duracao: '', descricao: '', posop: '' };
+  const blank = { procedimento: '', data: window.PR.todayBR(), equipe: '', anestesia: '', duracao: '', descricao: '', posop: '', valor: 0, custo: 0 };
   const s = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
   const save = () => {
     if (!f.procedimento) { window.vtToast('Informe o procedimento cirúrgico.', 'err'); return; }
@@ -268,7 +268,8 @@ function PrCirurgias({ at, patch }) {
             </div>
             {r.equipe && <p style={{ margin: '0 0 4px', fontSize: 13 }}><b>Equipe:</b> {r.equipe}</p>}
             {r.descricao && <p style={{ margin: '0 0 4px', fontSize: 13, color: 'var(--muted)' }}>{r.descricao}</p>}
-            {r.posop && <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}><b>Pós-op:</b> {r.posop}</p>}
+            {r.posop && <p style={{ margin: '0 0 4px', fontSize: 13, color: 'var(--muted)' }}><b>Pós-op:</b> {r.posop}</p>}
+            {(r.valor > 0 || r.custo > 0) && <p style={{ margin: 0, fontSize: 12.5 }}><span style={{ color: 'var(--green)', fontWeight: 700 }}>{window.PR.money(r.valor || 0)}</span>{r.custo > 0 && <span style={{ color: 'var(--muted)', marginLeft: 8 }}>custo: {window.PR.money(r.custo)}</span>}</p>}
           </div>
         ))}
       </div>
@@ -284,6 +285,10 @@ function PrCirurgias({ at, patch }) {
             <label className="pr-field"><span>Duração</span><input value={f.duracao} onChange={(e) => s('duracao')(e.target.value)} placeholder="90 min" /></label>
             <label className="pr-field"><span>Equipe</span><input value={f.equipe} onChange={(e) => s('equipe')(e.target.value)} placeholder="Cirurgião · anestesista" /></label>
           </div>
+          <div className="pr-fieldrow c2" style={{ marginBottom: 12 }}>
+            <label className="pr-field"><span>Valor cobrado (R$)</span><input className="num" value={f.valor || ''} onChange={(e) => s('valor')(Number(e.target.value.replace(/\D/g, '')) / 100 || 0)} placeholder="0,00" /></label>
+            <label className="pr-field"><span>Custo estimado (R$)</span><input className="num" value={f.custo || ''} onChange={(e) => s('custo')(Number(e.target.value.replace(/\D/g, '')) / 100 || 0)} placeholder="0,00" /></label>
+          </div>
           <label className="pr-field" style={{ marginBottom: 12 }}><span>Descrição do ato cirúrgico</span><textarea style={xTA} value={f.descricao} onChange={(e) => s('descricao')(e.target.value)} placeholder="Técnica, achados, intercorrências..." /></label>
           <label className="pr-field"><span>Pós-operatório</span><textarea style={xTA} value={f.posop} onChange={(e) => s('posop')(e.target.value)} placeholder="Recomendações, medicação, retorno..." /></label>
           <div className="fin-modal-actions" style={{ marginTop: 14 }}><button className="vt-btn-ghost" onClick={() => setF(null)}>Cancelar</button><button className="vt-btn-primary" onClick={save}>Salvar cirurgia</button></div>
@@ -297,7 +302,7 @@ function PrCirurgias({ at, patch }) {
 function PrInternacoes({ at, patch }) {
   const rows = at.internacoes || [];
   const [f, setF] = xUse(null);
-  const blank = { motivo: '', entrada: window.PR.todayBR(), box: '', alta: '', evolucao: '', status: 'internado' };
+  const blank = { motivo: '', entrada: window.PR.todayBR(), box: '', alta: '', evolucao: '', status: 'internado', diaria: 0, totalDias: 0, custo: 0 };
   const s = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
   const save = () => {
     if (!f.motivo) { window.vtToast('Informe o motivo da internação.', 'err'); return; }
@@ -326,7 +331,8 @@ function PrInternacoes({ at, patch }) {
                 <button className="pr-del-btn" onClick={() => del(r.id)}>✕</button>
               </div>
             </div>
-            {r.evolucao && <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', whiteSpace: 'pre-wrap' }}>{r.evolucao}</p>}
+            {r.evolucao && <p style={{ margin: '0 0 4px', fontSize: 13, color: 'var(--muted)', whiteSpace: 'pre-wrap' }}>{r.evolucao}</p>}
+            {(r.valor > 0 || r.diaria > 0) && <p style={{ margin: 0, fontSize: 12.5 }}>{r.diaria > 0 && <span style={{ color: 'var(--muted)' }}>Diária: {window.PR.money(r.diaria)} × {r.totalDias || 1} dia(s) = </span>}<span style={{ color: 'var(--green)', fontWeight: 700 }}>{window.PR.money(r.valor || 0)}</span></p>}
           </div>
         ))}
       </div>
@@ -337,6 +343,11 @@ function PrInternacoes({ at, patch }) {
             <label className="pr-field"><span>Motivo</span><input value={f.motivo} onChange={(e) => s('motivo')(e.target.value)} placeholder="Ex.: Pós-cirúrgico" /></label>
             <label className="pr-field"><span>Entrada</span><VtField value={f.entrada} onChange={s('entrada')} mask="date" /></label>
             <label className="pr-field"><span>Box / leito</span><input value={f.box} onChange={(e) => s('box')(e.target.value)} placeholder="Ex.: 03" /></label>
+          </div>
+          <div className="pr-fieldrow c3">
+            <label className="pr-field"><span>Diária (R$)</span><input className="num" value={f.diaria || ''} onChange={(e) => { const d = Number(e.target.value.replace(/\D/g, '')) / 100 || 0; const dias = Number(f.totalDias) || 1; setF((p) => ({ ...p, diaria: d, valor: d * dias })); }} placeholder="0,00" /></label>
+            <label className="pr-field"><span>Dias internado</span><input className="num" value={f.totalDias || ''} onChange={(e) => { const dias = Number(e.target.value.replace(/\D/g, '')) || 0; const d = Number(f.diaria) || 0; setF((p) => ({ ...p, totalDias: dias, valor: d * dias })); }} placeholder="1" /></label>
+            <label className="pr-field"><span>Total cobrado (R$)</span><input className="num" value={f.valor || ''} onChange={(e) => s('valor')(Number(e.target.value.replace(/\D/g, '')) / 100 || 0)} placeholder="0,00" style={{ fontWeight: 700 }} /></label>
           </div>
           <label className="pr-field"><span>Evolução / observações</span><textarea style={xTA} value={f.evolucao} onChange={(e) => s('evolucao')(e.target.value)} placeholder="Evolução diária, medicações, sinais vitais..." /></label>
           <div className="fin-modal-actions" style={{ marginTop: 14 }}><button className="vt-btn-ghost" onClick={() => setF(null)}>Cancelar</button><button className="vt-btn-primary" onClick={save}>Salvar internação</button></div>
@@ -358,7 +369,21 @@ function PrVendas({ at, patch }) {
     <div>
       <div className="pr-sec-head">
         <div><h2 className="pr-h">Vendas</h2><p className="pr-h-sub">Produtos e serviços · lança no financeiro</p></div>
-        <button className="pr-qbtn primary" disabled={!rows.length} style={!rows.length ? { opacity: .5 } : null} onClick={() => window.vtToast('Venda registrada no caixa.', 'ok')}><VtIcon name="dollar" size={15} /> Fechar venda</button>
+        <button className="pr-qbtn primary" disabled={!rows.length} style={!rows.length ? { opacity: .5 } : null} onClick={() => {
+          const totalVenda = rows.reduce((s, r) => s + (Number(r.valor) || 0) * (Number(r.qtd) || 1), 0);
+          if (totalVenda <= 0) { window.vtToast('Informe valores antes de fechar a venda.', 'err'); return; }
+          const d = window.VtStore && window.VtStore.getData() || {};
+          const fin = d.fin || { tx: [] };
+          const today = new Date().toISOString().slice(0, 10);
+          const newTxs = rows.filter((r) => r.item && (Number(r.valor) || 0) > 0).map((r) => ({
+            id: 'T' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+            kind: 'receita', desc: r.item + (at.patientName ? ' — ' + at.patientName : ''),
+            cat: 'Produtos', value: (Number(r.valor) || 0) * (Number(r.qtd) || 1),
+            date: today, status: 'pendente', method: null, paidAt: null,
+          }));
+          if (window.VtStore) window.VtStore.setData({ fin: { ...fin, tx: [...newTxs, ...(fin.tx || [])] } });
+          window.vtToast('Venda lançada em Finanças › A Receber. Total: ' + window.PR.money(totalVenda), 'ok');
+        }}><VtIcon name="dollar" size={15} /> Fechar venda</button>
       </div>
       <div className="vt-card vt-sec">
         {rows.length === 0 ? <p className="pr-empty">Nenhum item de venda.</p> : (

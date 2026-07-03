@@ -92,7 +92,7 @@ const PROGNOSTICO_OPTS = [
 ];
 function PrDiagnosticos({ at, set }) {
   const d = at.diag;
-  const F = window.vtDiagCfg().map((x) => [x.k, x.label, x.ph]);
+  const F = (window.vtDiagCfg ? window.vtDiagCfg() : (window.PR_DIAG_DEFAULT || [])).map((x) => [x.k, x.label, x.ph]);
   return (
     <div>
       <div className="pr-sec-head"><div><h2 className="pr-h">Diagnósticos</h2><p className="pr-h-sub">Conclusão clínica do atendimento</p></div></div>
@@ -161,7 +161,7 @@ function PrExames({ at, patch, patient }) {
               <span className="vt-muted" style={{ fontSize: 12, alignSelf: 'center' }}>· personalize em Configurações › Exames</span>
             </div>
           </div>
-          {window.PR_EXAM_CAT.map((g) => (
+          {(window.PR_EXAM_CAT || []).map((g) => (
             <div className="pr-block" key={g.grupo}>
               <p className="pr-block-title">{g.grupo}</p>
               <div className="pr-examgrid">

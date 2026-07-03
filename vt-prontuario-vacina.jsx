@@ -250,6 +250,11 @@ function VacinaModal({ p, vet, entry, onClose, onSave }) {
           </div>
         </label>
 
+        <div className="pr-fieldrow c2" style={{ marginBottom: 8 }}>
+          <label className="pr-field"><span>Valor cobrado (R$) <i style={{ color: 'var(--teal-d)', fontStyle: 'normal', fontSize: 11 }}>— preenche automaticamente pelo catálogo</i></span><input className="num" value={f.valor || ''} onChange={(e) => s('valor')(parseFloat(e.target.value.replace(',', '.')) || 0)} placeholder="0,00" /></label>
+          <label className="pr-field"><span>Custo (R$)</span><input className="num" value={f.custo || ''} onChange={(e) => s('custo')(parseFloat(e.target.value.replace(',', '.')) || 0)} placeholder="0,00" /></label>
+        </div>
+
         <label className="pr-field" style={{ marginBottom: 4 }}><span>Observações</span><textarea value={f.obs} onChange={(e) => s('obs')(e.target.value)} placeholder="Reações, local de aplicação, observações..." /></label>
 
         <div className="fin-modal-actions" style={{ marginTop: 14 }}>
