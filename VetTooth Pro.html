@@ -1553,11 +1553,13 @@ select.vtf-input { appearance: none; cursor: pointer; }
 .doc-modal { width: min(1080px, 96vw); height: 90vh; padding: 0; display: flex; flex-direction: column; }
 .doc-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--line); }
 .doc-split { flex: 1; display: grid; grid-template-columns: 360px 1fr; min-height: 0; }
+.doc-split.doc-split-full { grid-template-columns: 1fr; }
+.doc-preview-full { padding: 28px 48px !important; }
+.doc-page { background: #fff; max-width: 680px; margin: 0 auto; padding: 36px 44px; box-shadow: var(--shadow); border-radius: 6px; }
 .doc-edit { padding: 16px 18px; border-right: 1px solid var(--line); display: flex; flex-direction: column; }
 .doc-textarea { flex: 1; width: 100%; font-family: inherit; font-size: 13.5px; line-height: 1.6; border: 1px solid var(--line); border-radius: 10px; padding: 12px; resize: none; margin-top: 6px; }
 .doc-textarea:focus { outline: none; border-color: var(--teal); }
 .doc-preview-wrap { overflow-y: auto; background: var(--bg); padding: 24px; }
-.doc-page { background: #fff; max-width: 620px; margin: 0 auto; padding: 36px 40px; box-shadow: var(--shadow); border-radius: 4px; }
 .doc-head { display: flex; align-items: center; gap: 16px; border-bottom: 2px solid var(--teal); padding-bottom: 14px; }
 .doc-logo { width: 60px; height: 60px; border-radius: 10px; object-fit: contain; flex: none; }
 .doc-logo-ph { background: var(--teal-t); color: var(--teal-d); display: grid; place-items: center; font-size: 28px; font-weight: 800; }
@@ -1743,7 +1745,7 @@ select.vtf-input { appearance: none; cursor: pointer; }
 <script type="text/babel" src="vt-prontuario-extra.jsx?v=4"></script>
 <script type="text/babel" src="vt-rx.jsx"></script>
 <script type="text/babel" src="vt-asa.jsx"></script>
-<script type="text/babel" src="vt-docs.jsx?v=2"></script>
+<script type="text/babel" src="vt-docs.jsx?v=3"></script>
 <script type="text/babel" src="vt-integra.jsx"></script>
 <script type="text/babel" src="vt-app.jsx?v=8"></script>
 <style id="__om-edit-overrides"></style>
