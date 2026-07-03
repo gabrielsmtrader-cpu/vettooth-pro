@@ -1517,7 +1517,7 @@ select.vtf-input { appearance: none; cursor: pointer; }
 .rt-edit p { margin: 4px 0; }
 
 /* ===== Prescrição: builder + preview ===== */
-.rx-split { display: grid; grid-template-columns: 1fr 360px; gap: 16px; align-items: start; }
+.rx-split { display: grid; grid-template-columns: 1fr 420px; gap: 20px; align-items: start; }
 @media (max-width: 1100px) { .rx-split { grid-template-columns: 1fr; } }
 .rx-bul-list { display: flex; flex-direction: column; gap: 6px; }
 .rx-bul-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 13px; border: 1px solid var(--line); border-radius: 10px; background: #fff; text-align: left; }
@@ -1542,12 +1542,8 @@ select.vtf-input { appearance: none; cursor: pointer; }
 @media (max-width: 760px) { .rx-pos-grid { grid-template-columns: 1fr 1fr; } }
 .rx-pos-auto { margin: 10px 0 8px; font-size: 13px; font-weight: 600; color: var(--teal-d); background: var(--teal-t); border-radius: 8px; padding: 8px 11px; }
 .rx-pos-free { width: 100%; font-family: inherit; font-size: 13px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
-.rx-preview-col { position: sticky; top: 0; }
-.rx-preview-card { border: 1px solid var(--line); border-radius: 13px; background: #fff; padding: 16px; }
-.rx-preview-text { font-family: 'Courier New', monospace; font-size: 11.5px; line-height: 1.55; white-space: pre-wrap; color: var(--ink); margin: 0; max-height: 420px; overflow-y: auto; }
-.rx-preview-sign { text-align: center; margin-top: 22px; }
-.rx-preview-sign b { display: block; font-size: 12px; font-weight: 700; }
-.rx-preview-sign span { font-size: 11px; color: var(--muted); }
+.rx-preview-col { position: sticky; top: 16px; max-height: calc(100vh - 120px); overflow-y: auto; }
+.rx-preview-col .doc-page { box-shadow: 0 2px 20px rgba(0,0,0,.10); margin: 0; }
 
 /* editor de documentos */
 .doc-modal { width: min(1080px, 96vw); height: 90vh; padding: 0; display: flex; flex-direction: column; }
@@ -1741,7 +1737,7 @@ select.vtf-input { appearance: none; cursor: pointer; }
 <script type="text/babel" src="vt-prontuario.jsx?v=15"></script>
 <script type="text/babel" src="vt-prontuario-exam.jsx?v=11"></script>
 <script type="text/babel" src="vt-prontuario-vacina.jsx?v=3"></script>
-<script type="text/babel" src="vt-prontuario-plan.jsx?v=5"></script>
+<script type="text/babel" src="vt-prontuario-plan.jsx?v=6"></script>
 <script type="text/babel" src="vt-prontuario-extra.jsx?v=4"></script>
 <script type="text/babel" src="vt-rx.jsx"></script>
 <script type="text/babel" src="vt-asa.jsx"></script>

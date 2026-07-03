@@ -184,14 +184,11 @@ function PrExames({ at, patch, patient }) {
           </div>
         </div>
         <div className="rx-preview-col">
-          <div className="rx-preview-card">
-            <p className="pr-block-title" style={{ marginBottom: 8 }}>Pré-visualização</p>
-            <pre className="rx-preview-text">{examText()}</pre>
-            <div className="rx-preview-sign">
-              <div className="doc-sign-line" style={{ height: 30 }} />
-              <b>{at.vet}</b><span>{(window.vtVetSignature ? window.vtVetSignature(at.vet).crmv : '') || 'CRMV'}</span>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span className="pr-block-title" style={{ margin: 0 }}>Prévia com design</span>
+            <button className="vt-btn-primary" style={{ fontSize: 12, padding: '5px 14px' }} disabled={!sel.length} onClick={() => setEditor(true)}><VtIcon name="print" size={14} /> Emitir PDF</button>
           </div>
+          {(() => { const c = window.vtClinic ? window.vtClinic() : {}; const vet = window.vtVetSignature ? window.vtVetSignature(at.vet) : {}; return window.DocPage ? <window.DocPage tipo="Solicitação de exames" patient={patient} at={at} body="" accent={c.docColor||'#14a8a0'} layout={c.docLayout||'classico'} c={c} vet={vet} signed={false} onToggleSigned={null} /> : null; })()}
         </div>
       </div>
       {editor && <DocEditor tipo="Solicitação de exames" patient={patient} at={at} initialBody={examText()} onClose={() => setEditor(false)} onSave={() => setEditor(false)} />}
@@ -273,14 +270,11 @@ function PrPrescricoes({ at, patch, patient }) {
         </div>
 
         <div className="rx-preview-col">
-          <div className="rx-preview-card">
-            <p className="pr-block-title" style={{ marginBottom: 8 }}>Pré-visualização</p>
-            <pre className="rx-preview-text">{window.rxToText(at, patient)}</pre>
-            <div className="rx-preview-sign">
-              <div className="doc-sign-line" style={{ height: 30 }} />
-              <b>{at.vet}</b><span>{(window.vtVetSignature ? window.vtVetSignature(at.vet).crmv : '') || 'CRMV'}</span>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span className="pr-block-title" style={{ margin: 0 }}>Prévia com design</span>
+            <button className="vt-btn-primary" style={{ fontSize: 12, padding: '5px 14px' }} disabled={!rows.length} onClick={() => setEditor(true)}><VtIcon name="print" size={14} /> Emitir PDF</button>
           </div>
+          {(() => { const c = window.vtClinic ? window.vtClinic() : {}; const vet = window.vtVetSignature ? window.vtVetSignature(at.vet) : {}; return window.DocPage ? <window.DocPage tipo={`Receituário ${tipoInfo.label}`} patient={patient} at={at} body="" accent={c.docColor||'#14a8a0'} layout={c.docLayout||'classico'} c={c} vet={vet} signed={false} onToggleSigned={null} /> : null; })()}
         </div>
       </div>
 
