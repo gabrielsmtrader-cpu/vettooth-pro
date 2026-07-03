@@ -385,7 +385,8 @@ function buildChargeItems(at, vaccines) {
   (at.medicamentos || []).forEach((m, i) => {
     if (!m.nome) return;
     const label = m.nome + (m.dose ? ' · ' + m.dose : '') + (m.via ? ' (' + m.via + ')' : '') + (m.qtd ? ' ×' + m.qtd : '');
-    items.push({ id: 'm' + i, tipo: 'Medicamento', nome: label, valor: 0, custo: 0 });
+    const qty = Number(m.qtd) || 1;
+    items.push({ id: 'm' + i, tipo: 'Medicamento', nome: label, valor: (Number(m.valor) || 0) * qty, custo: (Number(m.custo) || 0) * qty });
   });
   (at.cirurgias || []).forEach((c, i) => {
     if (!c.procedimento) return;
@@ -400,8 +401,9 @@ function buildChargeItems(at, vaccines) {
     items.push({ id: 'ex' + i, tipo: 'Exame', nome: e.nome, valor: Number(e.valor) || 0, custo: 0 });
   });
   (vaccines || []).forEach((v, i) => {
-    if (!v.nome || v.status === 'aplicada') return;
-    items.push({ id: 'vx' + i, tipo: 'Vacina aplicada', nome: v.nome + (v.lote ? ' · lote ' + v.lote : ''), valor: 0, custo: 0 });
+    if (!v.tipo) return;
+    const nome = (v.tipoCustom || v.tipo) + (v.lote ? ' · lote ' + v.lote : '');
+    items.push({ id: 'vx' + i, tipo: 'Vacina aplicada', nome, valor: Number(v.valor) || 0, custo: Number(v.custo) || 0 });
   });
   return items;
 }

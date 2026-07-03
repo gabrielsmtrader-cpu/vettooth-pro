@@ -429,8 +429,31 @@ function PrProcedimentos({ at, patch }) {
         )}
 
         <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+          {/* ── Catálogo de Serviços (Procedimentos + Curativos) ── */}
+          {(() => {
+            const svcItems = window.vtServiceCatalog ? [...window.vtServiceCatalog('Procedimento'), ...window.vtServiceCatalog('Curativo')] : [];
+            if (svcItems.length > 0) return (
+              <div style={{ marginBottom: 12 }}>
+                <span style={{ fontWeight: 600, fontSize: 13, marginBottom: 6, display: 'block' }}>Catálogo de serviços:</span>
+                <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                  {svcItems.map((sv) => (
+                    <button key={sv.id} className="pr-quickpick-btn" style={{ ...prChipStyle(false), borderColor: sv.tipo === 'Curativo' ? '#d97706' : undefined }} onClick={() => {
+                      const vet = window.vtCurrentVet ? window.vtCurrentVet() : 'Equipe';
+                      const custoCalc = window.vtServiceCusto ? window.vtServiceCusto(sv) : (sv.custo || 0);
+                      if (sv.insumos && sv.insumos.length) window.vtBaixarInsumos && window.vtBaixarInsumos(sv.insumos.map((ins) => ({ itemId: ins.itemId, itemName: ins.nome, qty: ins.qty, unit: ins.unit })), sv.tipo + ': ' + sv.nome, vet);
+                      add({ nome: sv.nome, valor: sv.preco || 0, custo: Math.round(custoCalc), tempo: '' });
+                      window.vtToast(`"${sv.nome}" adicionado${sv.insumos && sv.insumos.length ? ' — estoque deduzido' : ''}.`, 'ok');
+                    }} title={`Preço: R$ ${(sv.preco||0).toFixed(2)} · Custo: R$ ${(sv.custo||0).toFixed(2)}${sv.tipo === 'Curativo' ? ' · Curativo' : ''}`}>
+                      + {sv.nome} <span style={{ opacity: .7, fontSize: 11 }}>({window.PR.money(sv.preco || 0)})</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+          {/* ── Protocolos complexos ── */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 600, fontSize: 13 }}>Catálogo de protocolos:</span>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>Protocolos:</span>
             <input value={protoSearch} onChange={(e) => setProtoSearch(e.target.value)} placeholder="Buscar protocolo…" style={{ flex: 1, minWidth: 180, padding: '5px 10px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13 }} />
           </div>
           {protocols.length === 0 ? (
@@ -447,10 +470,6 @@ function PrProcedimentos({ at, patch }) {
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
             <button className="pr-addrow" onClick={() => add()}><VtIcon name="plus" size={14} /> Linha em branco</button>
-            {window.PR.procCatalog && window.PR.procCatalog.length > 0 && <>
-              <span className="vt-muted" style={{ fontSize: 12 }}>Avulsos:</span>
-              {window.PR.procCatalog.map((m) => <button key={m.nome} className="pr-quickpick-btn" style={prChipStyle(false)} onClick={() => add({ ...m })}>+ {m.nome}</button>)}
-            </>}
           </div>
         </div>
       </div>

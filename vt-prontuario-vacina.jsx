@@ -202,7 +202,9 @@ function VacinaModal({ p, vet, entry, onClose, onSave }) {
   };
   const submit = () => {
     if (!f.tipo) { window.vtToast('Selecione o tipo de vacina.', 'err'); return; }
-    onSave(f);
+    const svcMatch = window.vtServiceCatalog ? window.vtServiceCatalog('Vacina').find((s) => s.nome.toLowerCase().includes(f.tipo.toLowerCase()) || f.tipo.toLowerCase().includes(s.nome.toLowerCase())) : null;
+    const toSave = { ...f, valor: f.valor !== undefined ? f.valor : (svcMatch ? (svcMatch.preco || 0) : 0), custo: f.custo !== undefined ? f.custo : (svcMatch ? (svcMatch.custo || 0) : 0), svcId: svcMatch ? svcMatch.id : undefined };
+    onSave(toSave);
   };
 
   return (

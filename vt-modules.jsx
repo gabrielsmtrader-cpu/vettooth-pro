@@ -68,6 +68,36 @@ window.vtBaixarInsumos = function (insumos, motivo, vet) {
   return { custo };
 };
 
+/* ---- Catálogo de Serviços (Procedimentos, Vacinas, Medicamentos, Curativos) ---- */
+window.vtServiceCatalog = function (tipo) {
+  const d = window.VtStore && window.VtStore.getData();
+  const all = (d && d.serviceCatalog) || [];
+  return tipo ? all.filter((x) => x.tipo === tipo) : all;
+};
+window.vtSaveServiceItem = function (item) {
+  const d = window.VtStore && window.VtStore.getData() || {};
+  const list = (d.serviceCatalog || []).slice();
+  if (!item.id) item = { ...item, id: 'SC' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4) };
+  const idx = list.findIndex((x) => x.id === item.id);
+  if (idx >= 0) list[idx] = item; else list.unshift(item);
+  window.VtStore.setData({ serviceCatalog: list });
+  return item;
+};
+window.vtDeleteServiceItem = function (id) {
+  const d = window.VtStore && window.VtStore.getData() || {};
+  window.VtStore.setData({ serviceCatalog: (d.serviceCatalog || []).filter((x) => x.id !== id) });
+};
+/* custo dos insumos de um serviço calculado ao vivo */
+window.vtServiceCusto = function (item) {
+  const d = window.VtStore && window.VtStore.getData() || {};
+  const inv = d.inventory || [];
+  return (item.insumos || []).reduce((s, ins) => {
+    const invItem = inv.find((x) => x.id === ins.itemId);
+    const cu = invItem && window.PR ? (window.PR.parseMoney(invItem.cost) || 0) : (Number(ins.custoUnit) || 0);
+    return s + cu * (Number(ins.qty) || 1);
+  }, 0);
+};
+
 /* ---- Roteiros de avaliação por modelo de consulta ----
    Cada tipo avalia coisas diferentes. Itens são marcados Normal/Alterado/N-A
    pelo veterinário na aba Consulta. Personalizáveis em Configurações. */
@@ -2269,9 +2299,163 @@ function ProtocolosTab() {
   );
 }
 
+/* ============================================================
+   ServiceCatalogTab — catálogo de serviços precificados
+   ============================================================ */
+const SVC_TIPOS = ['Procedimento', 'Vacina', 'Medicamento', 'Curativo'];
+const SVC_UNIDADES = ['un', 'dose', 'ml', 'comprimido', 'ampola', 'frasco', 'sessão', 'kg'];
+
+function InsumoRow({ ins, idx, inv, onUpd, onDel, onPick, money }) {
+  const [q, setQ] = vtUseState('');
+  const filtered = q ? inv.filter((x) => x.name.toLowerCase().includes(q.toLowerCase())).slice(0, 6) : [];
+  return (
+    <div style={{ display: 'flex', gap: 7, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', position: 'relative' }}>
+      <div style={{ flex: 2, minWidth: 190, position: 'relative' }}>
+        <input value={ins.nome || q} onChange={(e) => { setQ(e.target.value); onUpd(idx, 'nome', e.target.value); }} placeholder="Buscar insumo do estoque…" style={{ width: '100%', padding: '5px 9px', border: '1px solid var(--border)', borderRadius: 7, fontSize: 13 }} />
+        {filtered.length > 0 && (
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 9, zIndex: 20, boxShadow: '0 4px 16px rgba(0,0,0,.12)' }}>
+            {filtered.map((x) => <button key={x.id} onClick={() => { onPick(idx, x); setQ(''); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 13px', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', borderBottom: '1px solid var(--line)' }}>{x.name} ({x.qty} {x.unit})</button>)}
+          </div>
+        )}
+      </div>
+      <input className="num" value={ins.qty} onChange={(e) => onUpd(idx, 'qty', Number(e.target.value.replace(/\D/g, '')) || 1)} placeholder="Qtd" style={{ width: 58, padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 7, fontSize: 13 }} />
+      <span style={{ fontSize: 12, color: 'var(--muted)', minWidth: 28 }}>{ins.unit || 'un'}</span>
+      {ins.custoUnit > 0 && <span style={{ fontSize: 12, color: 'var(--muted)' }}>≈ {money((ins.custoUnit || 0) * (Number(ins.qty) || 1))}</span>}
+      <button className="pr-del-btn" onClick={() => onDel(idx)}>✕</button>
+    </div>
+  );
+}
+
+function ServiceCatalogTab() {
+  const money = window.PR ? window.PR.money : (n) => 'R$ ' + Number(n).toFixed(2);
+  const [tipo, setTipo] = vtUseState('Procedimento');
+  const [items, setItems] = vtUseState(() => window.vtServiceCatalog(tipo));
+  const [form, setForm] = vtUseState(null);
+  const inv = (() => { const d = window.VtStore && window.VtStore.getData(); return (d && d.inventory) || []; })();
+
+  const switchTipo = (t) => { setTipo(t); setItems(window.vtServiceCatalog(t)); setForm(null); };
+  const reload = () => setItems(window.vtServiceCatalog(tipo));
+
+  const blank = (t) => ({ nome: '', descricao: '', preco: '', custo: '', unidade: t === 'Medicamento' ? 'dose' : 'un', insumos: [], ativo: true, tipo: t || tipo });
+
+  const calcCusto = (insumos, inv2) => (insumos || []).reduce((s, ins) => {
+    const it = (inv2 || inv).find((x) => x.id === ins.itemId);
+    const cu = it && window.PR ? (window.PR.parseMoney(it.cost) || 0) : (Number(ins.custoUnit) || 0);
+    return s + cu * (Number(ins.qty) || 1);
+  }, 0);
+
+  const updF = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const addInsumo = () => setForm((p) => ({ ...p, insumos: [...(p.insumos || []), { itemId: '', nome: '', qty: 1, unit: 'un', custoUnit: 0 }] }));
+  const updInsumo = (i, k, v) => setForm((p) => { const ins = p.insumos.map((x, j) => j === i ? { ...x, [k]: v } : x); return { ...p, insumos: ins }; });
+  const delInsumo = (i) => setForm((p) => ({ ...p, insumos: p.insumos.filter((_, j) => j !== i) }));
+  const pickInsumo = (i, invItem) => {
+    const cu = window.PR ? (window.PR.parseMoney(invItem.cost) || 0) : 0;
+    setForm((p) => {
+      const ins = p.insumos.map((x, j) => j === i ? { ...x, itemId: invItem.id, nome: invItem.name, unit: invItem.unit, custoUnit: cu } : x);
+      const custo = calcCusto(ins, inv);
+      return { ...p, insumos: ins, custo: String(custo.toFixed(2)) };
+    });
+  };
+
+  const save = () => {
+    if (!form.nome.trim()) { window.vtToast('Informe o nome do serviço.', 'err'); return; }
+    const preco = parseFloat(String(form.preco).replace(',', '.')) || 0;
+    const custo = parseFloat(String(form.custo).replace(',', '.')) || calcCusto(form.insumos);
+    const toSave = { ...form, nome: form.nome.trim(), preco, custo };
+    delete toSave._new;
+    window.vtSaveServiceItem(toSave);
+    reload(); setForm(null);
+    window.vtToast('Serviço salvo.', 'ok');
+  };
+
+  const del = (id) => { if (!confirm('Excluir este serviço?')) return; window.vtDeleteServiceItem(id); reload(); };
+
+  const preco = form ? (parseFloat(String(form.preco).replace(',', '.')) || 0) : 0;
+  const custo = form ? (parseFloat(String(form.custo).replace(',', '.')) || calcCusto(form.insumos || [])) : 0;
+
+  return (
+    <div>
+      <div className="vt-head-row" style={{ marginBottom: 14 }}>
+        <div>
+          <h3 className="vt-sec-title" style={{ margin: 0 }}>Catálogo de Serviços</h3>
+          <p className="vt-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>Cadastre e precifique procedimentos, vacinas, medicamentos e curativos. Ao selecionar no atendimento, o preço entra automaticamente.</p>
+        </div>
+        {!form && <button className="vt-btn-primary" onClick={() => setForm({ ...blank(tipo), _new: true })}><VtIcon name="plus" size={15} /> Novo {tipo}</button>}
+      </div>
+      <div className="vt-chip-row" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {SVC_TIPOS.map((t) => <button key={t} onClick={() => switchTipo(t)} style={prChipStyle(tipo === t)}>{t}</button>)}
+      </div>
+
+      {!form && (
+        <div className="vt-card vt-sec">
+          {items.length === 0 ? <p className="pr-empty">Nenhum {tipo.toLowerCase()} cadastrado. Clique em "Novo {tipo}" para começar.</p> : (
+            <table className="pr-dtable">
+              <thead><tr><th>Nome</th><th>Unidade</th><th style={{ width: 130 }}>Preço</th><th style={{ width: 120 }}>Custo</th><th style={{ width: 110 }}>Lucro</th><th style={{ width: 100 }}></th></tr></thead>
+              <tbody>
+                {items.map((it) => {
+                  const lucro = (it.preco || 0) - (it.custo || 0);
+                  return (
+                    <tr key={it.id}>
+                      <td><b>{it.nome}</b>{it.descricao && <i style={{ display: 'block', fontSize: 11, color: 'var(--muted)' }}>{it.descricao}</i>}{it.insumos && it.insumos.length > 0 && <i style={{ display: 'block', fontSize: 11, color: 'var(--teal-d)' }}>{it.insumos.length} insumo(s) vinculado(s)</i>}</td>
+                      <td>{it.unidade}</td>
+                      <td style={{ color: 'var(--green)', fontWeight: 700 }}>{money(it.preco || 0)}</td>
+                      <td style={{ color: 'var(--red)' }}>{money(it.custo || 0)}</td>
+                      <td style={{ color: lucro >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>{money(lucro)}</td>
+                      <td><div style={{ display: 'flex', gap: 6 }}><button className="vt-link" onClick={() => setForm({ ...it })}>Editar</button><button className="pr-del-btn" onClick={() => del(it.id)}>✕</button></div></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {form && (
+        <div className="vt-card vt-sec">
+          <h3 className="vt-sec-title">{form._new ? 'Novo ' + tipo : 'Editar · ' + form.nome}</h3>
+          <div className="pr-fieldrow c2">
+            <label className="pr-field"><span>Nome *</span><input value={form.nome} onChange={(e) => updF('nome', e.target.value)} placeholder={tipo === 'Procedimento' ? 'Ex.: Limpeza dentária' : tipo === 'Vacina' ? 'Ex.: V10 Canina' : tipo === 'Medicamento' ? 'Ex.: Amoxicilina 50mg/ml' : 'Ex.: Curativo simples'} /></label>
+            <label className="pr-field"><span>Unidade de cobrança</span>
+              <select value={form.unidade} onChange={(e) => updF('unidade', e.target.value)}>
+                {SVC_UNIDADES.map((u) => <option key={u}>{u}</option>)}
+              </select>
+            </label>
+          </div>
+          <label className="pr-field" style={{ marginBottom: 14 }}><span>Descrição (opcional)</span><input value={form.descricao} onChange={(e) => updF('descricao', e.target.value)} placeholder="Breve descrição do serviço" /></label>
+          <div className="pr-fieldrow c2">
+            <label className="pr-field"><span>Preço cobrado (R$)</span><input className="num" value={form.preco} onChange={(e) => updF('preco', e.target.value)} placeholder="0,00" /></label>
+            <label className="pr-field">
+              <span>Custo estimado (R$) <i style={{ fontWeight: 400, fontSize: 11 }}>— calculado dos insumos abaixo</i></span>
+              <input className="num" value={form.custo} onChange={(e) => updF('custo', e.target.value)} placeholder={calcCusto(form.insumos || []).toFixed(2)} />
+            </label>
+          </div>
+          <div style={{ margin: '16px 0 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Insumos consumidos <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--muted)' }}>— serão deduzidos do estoque ao usar no atendimento</span></h4>
+            <button className="pr-addrow" onClick={addInsumo}><VtIcon name="plus" size={13} /> Adicionar insumo</button>
+          </div>
+          {(form.insumos || []).length === 0 && <p className="vt-muted" style={{ fontSize: 12.5, marginBottom: 8 }}>Nenhum insumo vinculado.</p>}
+          {(form.insumos || []).map((ins, i) => (
+            <InsumoRow key={i} ins={ins} idx={i} inv={inv} onUpd={updInsumo} onDel={delInsumo} onPick={pickInsumo} money={money} />
+          ))}
+          <div style={{ marginTop: 12, padding: '10px 16px', background: 'var(--bg)', borderRadius: 10, display: 'flex', gap: 28, flexWrap: 'wrap' }}>
+            <span>Preço: <b style={{ color: 'var(--green)' }}>{money(preco)}</b></span>
+            <span>Custo: <b style={{ color: 'var(--red)' }}>{money(custo)}</b></span>
+            <span>Lucro: <b style={{ color: preco - custo >= 0 ? 'var(--green)' : 'var(--red)' }}>{money(preco - custo)}</b></span>
+          </div>
+          <div className="fin-modal-actions" style={{ marginTop: 16 }}>
+            <button className="vt-btn-ghost" onClick={() => setForm(null)}>Cancelar</button>
+            <button className="vt-btn-primary" onClick={save}>Salvar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ConfigModule() {
   const [tab, setTab] = vtUseState('clinica');
-  const tabs = [['clinica', 'Clínica'], ['equipe', 'Veterinários'], ['seguranca', 'Segurança'], ['notificacoes', 'Notificações'], ['sedacao', 'Sedação'], ['sistema', 'Sistema'], ['conta', 'Conta & backup'], ['parceiras', 'Clínicas parceiras'], ['consultas', 'Tipos de consulta'], ['especialidades', 'Especialidades'], ['roteiros', 'Modelos de consulta'], ['prescricoes', 'Prescrições'], ['exames', 'Exames'], ['modelos', 'Modelos & PDF'], ['integracoes', 'Integrações'], ['lgpd', 'Termos & LGPD'], ['protocolos', 'Protocolos']];
+  const tabs = [['clinica', 'Clínica'], ['equipe', 'Veterinários'], ['seguranca', 'Segurança'], ['notificacoes', 'Notificações'], ['sedacao', 'Sedação'], ['sistema', 'Sistema'], ['conta', 'Conta & backup'], ['parceiras', 'Clínicas parceiras'], ['consultas', 'Tipos de consulta'], ['especialidades', 'Especialidades'], ['roteiros', 'Modelos de consulta'], ['prescricoes', 'Prescrições'], ['exames', 'Exames'], ['modelos', 'Modelos & PDF'], ['integracoes', 'Integrações'], ['lgpd', 'Termos & LGPD'], ['protocolos', 'Protocolos'], ['catalogo', 'Catálogo de Serviços']];
   return (
     <div>
       <div className="vt-page-head"><h1>Configurações</h1><p>Clínica, equipe, segurança, notificações, modelos, integrações e LGPD</p></div>
@@ -2295,6 +2479,7 @@ function ConfigModule() {
       {tab === 'integracoes' && <IntegracoesTab />}
       {tab === 'lgpd' && <LgpdTab />}
       {tab === 'protocolos' && <ProtocolosTab />}
+      {tab === 'catalogo' && <ServiceCatalogTab />}
     </div>
   );
 }

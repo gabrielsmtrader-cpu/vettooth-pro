@@ -96,9 +96,11 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
   const selVet   = PR_VETS.find((v) => at.vet.includes(v.name)) || PR_VETS[0];
 
   const useModel = (m) => {
-    patch({ type: m.label, motivo: at.motivo || m.label, consultModel: m.id });
+    const ct = window.vtConsults ? window.vtConsults().find((c) => c.label === m.label) : null;
+    const precoConsulta = ct && ct.price ? ct.price : null;
+    patch({ type: m.label, motivo: at.motivo || m.label, consultModel: m.id, ...(precoConsulta ? { value: precoConsulta } : {}) });
     setView('form');
-    window.vtToast(`Especialidade "${m.label}" selecionada.`, 'ok');
+    window.vtToast(`Especialidade "${m.label}" selecionada.${precoConsulta ? ' Valor: ' + precoConsulta : ''}`, 'ok');
   };
 
   /* tela de seleção */

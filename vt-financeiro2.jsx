@@ -404,20 +404,38 @@ function OrcamentoModal({ data, onClose, onSave, onConverter }) {
 
 /* ============ Precificação ============ */
 function PrecificacaoTab() {
-  const [cat, setCat] = vtUseState('procedimentos');
-  const [data, setData] = vtUseState(() => { const p = window.vtPrecos(); return { procedimentos: (p.procedimentos || []).map((x) => ({ ...x })), medicamentos: (p.medicamentos || []).map((x) => ({ ...x })), produtos: (p.produtos || []).map((x) => ({ ...x })) }; });
+  const [cat, setCat] = vtUseState('consultas');
   const [calc, setCalc] = vtUseState({ custo: '', markup: '' });
-  const rows = data[cat];
-  const upd = (i, k, v) => setData((p) => ({ ...p, [cat]: p[cat].map((r, j) => j === i ? { ...r, [k]: v } : r) }));
-  const addRow = () => setData((p) => ({ ...p, [cat]: [...p[cat], { id: 'px' + Date.now().toString(36), nome: '', custo: 0, markup: 100 }] }));
-  const delRow = (i) => setData((p) => ({ ...p, [cat]: p[cat].filter((_, j) => j !== i) }));
-  const preco = (r) => f2num(r.custo) * (1 + f2num(r.markup) / 100);
-  const margem = (r) => { const pr = preco(r); return pr > 0 ? ((pr - f2num(r.custo)) / pr) * 100 : 0; };
-  const salvar = () => { window.vtSavePrecos(data); window.vtToast('Preços salvos.', 'ok'); };
   const calcPreco = f2num(calc.custo) * (1 + f2num(calc.markup) / 100);
-  const TABS = [['procedimentos', 'Procedimentos'], ['medicamentos', 'Medicamentos'], ['produtos', 'Produtos']];
+
+  /* ── Consultas (editam vtConsults) ── */
+  const [consultas, setConsultas] = vtUseState(() => (window.vtConsults ? window.vtConsults() : []).map((c) => ({ ...c })));
+  const updC = (i, k, v) => setConsultas((p) => p.map((r, j) => j === i ? { ...r, [k]: v } : r));
+  const salvarConsultas = () => { if (window.vtSaveConsults) { window.vtSaveConsults(consultas); window.vtToast('Preços de consulta salvos.', 'ok'); } };
+
+  /* ── Catálogo de serviços (Procedimento / Vacina / Medicamento / Curativo) ── */
+  const [svcItems, setSvcItems] = vtUseState(() => window.vtServiceCatalog ? window.vtServiceCatalog() : []);
+  const reloadSvc = () => setSvcItems(window.vtServiceCatalog ? window.vtServiceCatalog() : []);
+  const svcTipoItems = svcItems.filter((s) => {
+    if (cat === 'procedimentos') return s.tipo === 'Procedimento';
+    if (cat === 'vacinas') return s.tipo === 'Vacina';
+    if (cat === 'medicamentos') return s.tipo === 'Medicamento';
+    if (cat === 'curativos') return s.tipo === 'Curativo';
+    return false;
+  });
+  const updSvc = (id, k, v) => {
+    const item = svcItems.find((s) => s.id === id);
+    if (!item) return;
+    const updated = { ...item, [k]: parseFloat(String(v).replace(',', '.')) || 0 };
+    window.vtSaveServiceItem && window.vtSaveServiceItem(updated);
+    reloadSvc();
+  };
+
+  const TABS = [['consultas', 'Consultas'], ['procedimentos', 'Procedimentos'], ['vacinas', 'Vacinas'], ['medicamentos', 'Medicamentos'], ['curativos', 'Curativos']];
+
   return (
     <div>
+      {/* Calculadora de markup */}
       <div className="fin-calc">
         <label className="vtf"><span className="vtf-label">Custo (R$)</span><span className="vtf-inputwrap"><input className="vtf-input" value={calc.custo} onChange={(e) => setCalc((c) => ({ ...c, custo: e.target.value }))} placeholder="0,00" /></span></label>
         <span className="fin-calc-eq">×</span>
@@ -426,29 +444,60 @@ function PrecificacaoTab() {
         <div className="fin-calc-res"><span>Preço sugerido</span><b>{finBRL(calcPreco)}</b></div>
         <div style={{ alignSelf: 'center', fontSize: 12.5, color: 'var(--muted)', maxWidth: 200 }}>Margem bruta: <b style={{ color: 'var(--teal-d)' }}>{calcPreco > 0 ? (((calcPreco - f2num(calc.custo)) / calcPreco) * 100).toFixed(1) : '0'}%</b></div>
       </div>
+
       <div className="fin-toolbar">
-        <div className="vt-segmented">{TABS.map(([id, l]) => <button key={id} className={cat === id ? 'active' : ''} onClick={() => setCat(id)}>{l}</button>)}</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="vt-btn-ghost" onClick={addRow}><VtIcon name="plus" size={15} /> Item</button>
-          <button className="vt-btn-primary" onClick={salvar}><VtIcon name="check" size={15} /> Salvar preços</button>
-        </div>
+        <div className="vt-segmented" style={{ flexWrap: 'wrap' }}>{TABS.map(([id, l]) => <button key={id} className={cat === id ? 'active' : ''} onClick={() => setCat(id)}>{l}</button>)}</div>
+        {cat === 'consultas' && <button className="vt-btn-primary" onClick={salvarConsultas}><VtIcon name="check" size={15} /> Salvar</button>}
+        {cat !== 'consultas' && <span style={{ fontSize: 12, color: 'var(--muted)', alignSelf: 'center' }}>Edite em <b>Configurações › Catálogo de Serviços</b> para cadastrar novos itens</span>}
       </div>
-      <div className="vt-card vt-table-card">
-        <div className="vt-table">
-          <div className="vt-tr vt-th" style={{ gridTemplateColumns: '2fr 1fr 0.9fr 1fr 1fr 0.5fr' }}><span>Nome</span><span>Custo</span><span>Markup %</span><span>Preço de venda</span><span>Margem bruta</span><span></span></div>
-          {rows.map((r, i) => (
-            <div key={r.id || i} className="vt-tr" style={{ gridTemplateColumns: '2fr 1fr 0.9fr 1fr 1fr 0.5fr', alignItems: 'center' }}>
-              <span><input className="vtf-input" style={{ padding: '7px 9px' }} value={r.nome} onChange={(e) => upd(i, 'nome', e.target.value)} placeholder="Nome" /></span>
-              <span><input className="vtf-input num" style={{ padding: '7px 9px', textAlign: 'right' }} value={r.custo} onChange={(e) => upd(i, 'custo', e.target.value)} /></span>
-              <span><input className="vtf-input num" style={{ padding: '7px 9px', textAlign: 'right' }} value={r.markup} onChange={(e) => upd(i, 'markup', e.target.value)} /></span>
-              <span style={{ fontWeight: 800, color: 'var(--teal-d)' }}>{finBRL(preco(r))}</span>
-              <span style={{ fontWeight: 700 }}>{margem(r).toFixed(1)}%</span>
-              <span><button className="pr-del-btn" onClick={() => delRow(i)}>✕</button></span>
-            </div>
-          ))}
-          {rows.length === 0 && <div className="vt-empty-row">Nenhum item nesta categoria.</div>}
+
+      {/* ── Consultas ── */}
+      {cat === 'consultas' && (
+        <div className="vt-card vt-sec">
+          <p className="vt-muted" style={{ fontSize: 13, marginBottom: 12 }}>O preço entra automaticamente ao selecionar o tipo de consulta no atendimento.</p>
+          <table className="pr-dtable">
+            <thead><tr><th>Tipo de consulta</th><th style={{ width: 130 }}>Duração (min)</th><th style={{ width: 160 }}>Preço (R$)</th></tr></thead>
+            <tbody>
+              {consultas.map((r, i) => (
+                <tr key={r.id || i}>
+                  <td><b>{r.label}</b></td>
+                  <td><input className="num" value={r.dur} onChange={(e) => updC(i, 'dur', e.target.value.replace(/\D/g, ''))} /></td>
+                  <td><input value={r.price} onChange={(e) => updC(i, 'price', window.maskMoney ? window.maskMoney(e.target.value) : e.target.value)} placeholder="R$ 0,00" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </div>
+      )}
+
+      {/* ── Catálogo de serviços ── */}
+      {cat !== 'consultas' && (
+        <div className="vt-card vt-sec">
+          {svcTipoItems.length === 0 ? (
+            <p className="pr-empty">Nenhum item cadastrado nesta categoria. Vá em <b>Configurações › Catálogo de Serviços</b> para cadastrar.</p>
+          ) : (
+            <table className="pr-dtable">
+              <thead><tr><th>Nome</th><th>Unidade</th><th style={{ width: 130 }}>Custo (R$)</th><th style={{ width: 160 }}>Preço (R$)</th><th style={{ width: 110 }}>Margem</th></tr></thead>
+              <tbody>
+                {svcTipoItems.map((it) => {
+                  const preco = it.preco || 0;
+                  const custo = it.custo || 0;
+                  const margem = preco > 0 ? ((preco - custo) / preco * 100).toFixed(1) : '—';
+                  return (
+                    <tr key={it.id}>
+                      <td><b>{it.nome}</b>{it.descricao && <i style={{ display: 'block', fontSize: 11, color: 'var(--muted)' }}>{it.descricao}</i>}</td>
+                      <td>{it.unidade}</td>
+                      <td><input className="num" value={custo || ''} onChange={(e) => updSvc(it.id, 'custo', e.target.value)} placeholder="0,00" /></td>
+                      <td><input className="num" value={preco || ''} onChange={(e) => updSvc(it.id, 'preco', e.target.value)} placeholder="0,00" style={{ fontWeight: 700 }} /></td>
+                      <td style={{ color: (preco - custo) >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>{margem}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
     </div>
   );
 }
