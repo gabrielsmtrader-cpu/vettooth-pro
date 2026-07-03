@@ -364,6 +364,20 @@ function AtendimentosModule({ openPatient, openOdonto, focus, clearFocus }) {
     if (focus.atendimentoId) {
       const at = atend.find((a) => a.id === focus.atendimentoId);
       if (at) openExisting(at);
+    } else if (focus.fromAgenda) {
+      const appt = focus.fromAgenda;
+      const allPats = ((window.VtStore.getData() || {}).patients) || [];
+      const p = allPats.find((pt) => pt.name === appt.patient) || (focus.patientId ? findPatient(focus.patientId) : null);
+      if (p) {
+        const base = {};
+        if (appt.kind) base.type = appt.kind;
+        if (appt.vet) base.vet = appt.vet;
+        if (appt.date) { const parts = appt.date.split('-'); base.date = parts[2] + '/' + parts[1] + '/' + parts[0]; }
+        const newAt = window.prBlank ? window.prBlank(p, base) : {};
+        setView({ mode: 'pront', patient: p, at: window.prEnsure ? window.prEnsure(newAt, p) : newAt });
+      } else {
+        window.vtToast('Paciente "' + (appt.patient || '') + '" não encontrado no cadastro.', 'err');
+      }
     } else if (focus.patientId) {
       const p = findPatient(focus.patientId);
       if (p) openNew(p);

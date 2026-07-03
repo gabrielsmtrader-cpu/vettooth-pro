@@ -300,6 +300,23 @@ function Dashboard({ setActive }) {
   const aptsHoje = appts.filter((a) => (a.date || '') === today).sort((a, b) => (a.time || a.start || '').localeCompare(b.time || b.start || ''));
   const proximos = appts.filter((a) => (a.date || '') > today).sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || '')).slice(0, 4);
 
+  // vacinas vencendo em 30 dias
+  const vacAlert = (() => {
+    const limit = new Date(); limit.setDate(limit.getDate() + 30);
+    const limitISO = limit.toISOString().slice(0, 10);
+    const res = [];
+    ats.forEach((a) => {
+      const p = patients.find((pt) => pt.id === a.patientId);
+      if (!p) return;
+      (a.vacinas || []).forEach((v) => {
+        if (v.proxima && v.proxima >= today && v.proxima <= limitISO) {
+          res.push({ patient: p.name, tipo: v.tipo || 'Vacina', proxima: v.proxima });
+        }
+      });
+    });
+    return res.sort((a, b) => a.proxima.localeCompare(b.proxima)).slice(0, 8);
+  })();
+
   // atendimentos
   const procMes = ats.filter((a) => brToYM(a.date || a.dataISO || '') === mPrefix && !vtIsCancel(a.status)).length;
   const comRetorno = patients.filter((p) => ats.filter((a) => a.patientId === p.id).length > 1).length;
@@ -364,6 +381,28 @@ function Dashboard({ setActive }) {
           </div>
         )}
       </div>
+
+      {vacAlert.length > 0 && (
+        <div className="vt-card vt-sec" style={{ marginBottom: 18, borderLeft: '3px solid #e09c3c' }}>
+          <h3 className="vt-sec-title" style={{ color: '#c97b10' }}>💉 Vacinas vencendo nos próximos 30 dias ({vacAlert.length})</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 8 }}>
+            {vacAlert.map((v, i) => {
+              const parts = v.proxima.split('-');
+              const dateStr = parts[2] + '/' + parts[1] + '/' + parts[0];
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg)', borderRadius: 8, padding: '7px 12px', border: '1px solid #fbbf2440' }}>
+                  <span style={{ fontSize: 20 }}>💉</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{v.patient}</div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)' }}>{v.tipo} · vence {dateStr}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <button className="vt-btn-ghost" style={{ marginTop: 10 }} onClick={() => setActive('atendimentos')}>Ver atendimentos</button>
+        </div>
+      )}
 
       <div className="vt-grid" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 18 }}>
         <div className="vt-card vt-sec">
@@ -506,6 +545,7 @@ function App() {
   const openAtendimento = (patientId, atendimentoId) => { setFocusAtend({ patientId, atendimentoId: atendimentoId || null }); setActive('atendimentos'); };
   const openOdonto = (pid) => { setOdontoPatient(pid || null); setActive('odontograma'); };
   const openAgendaNew = (patientName) => { setFocusAgenda(patientName || ''); setActive('agenda'); };
+  const iniciarAtendimentoFromAgenda = (appt) => { setFocusAtend({ fromAgenda: appt }); setActive('atendimentos'); };
   const navSearch = { patient: openPatient, owner: openOwner, atendimento: openAtendimento, setActive };
   // adicionar novo animal a partir da ficha do responsável/propriedade
   window.vtAddAnimalFor = (owner, propertyName) => { setFocusPatient({ newFor: { owner: owner || '', property: propertyName || '' } }); setActive('pacientes'); };
@@ -519,7 +559,7 @@ function App() {
           {active === 'dashboard' && <Dashboard key={'dash-'+dataVer} setActive={setActive} user={user} />}
           {active === 'pacientes' && <PacientesModule key={'pac-'+dataVer} openOdonto={openOdonto} goAgenda={() => setActive('agenda')} openAgendaNew={openAgendaNew} openAtendimento={openAtendimento} focusPatientId={focusPatient} clearFocus={() => setFocusPatient(null)} />}
           {active === 'clientes' && <ClientesModule key={'cli-'+dataVer} openPatient={openPatient} focusOwnerName={focusOwner} clearFocus={() => setFocusOwner(null)} />}
-          {active === 'agenda' && <AgendaModule key={'ag-'+dataVer} focusNewPatient={focusAgenda} clearAgendaFocus={() => setFocusAgenda(null)} />}
+          {active === 'agenda' && <AgendaModule key={'ag-'+dataVer} focusNewPatient={focusAgenda} clearAgendaFocus={() => setFocusAgenda(null)} onIniciarAtendimento={iniciarAtendimentoFromAgenda} />}
           {active === 'odontograma' && <Odontograma patientId={odontoPatient} />}
           {active === 'atendimentos' && <AtendimentosModule key={'at-'+dataVer} openPatient={openPatient} openOdonto={openOdonto} focus={focusAtend} clearFocus={() => setFocusAtend(null)} />}
           {active === 'insumos' && <EstoqueModule key={'est-'+dataVer} />}

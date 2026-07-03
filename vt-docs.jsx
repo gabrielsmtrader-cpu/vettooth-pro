@@ -54,7 +54,16 @@ function DocEditor({ tipo, patient, at, initialBody, onClose, onSave }) {
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>{tipo}</h3>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="vt-btn-ghost" onClick={() => window.vtToast('Documento enviado ao tutor para assinatura digital via WhatsApp.', 'ok')}>💬 Enviar p/ assinatura</button>
-            <button className="vt-btn-ghost" onClick={() => window.print()}><VtIcon name="print" size={15} /> PDF</button>
+            <button className="vt-btn-ghost" onClick={() => {
+              const docEl = document.querySelector('.doc-page');
+              if (!docEl) { window.print(); return; }
+              const w = window.open('', '_blank', 'width=820,height=1000');
+              const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"],style')).map((el) => el.outerHTML).join('\n');
+              w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Documento</title>' + styles + '<style>body{background:#f5f5f5;margin:0;padding:32px;} .doc-page{background:#fff;max-width:740px;margin:0 auto;padding:40px 48px 60px;box-shadow:0 2px 16px #0001;border-radius:8px;font-family:inherit;} @media print{body{padding:0;background:#fff;} .doc-page{box-shadow:none;border-radius:0;margin:0;padding:32px 40px 48px;}}</style></head><body>' + docEl.outerHTML + '</body></html>');
+              w.document.close();
+              w.focus();
+              setTimeout(() => { w.print(); }, 600);
+            }}><VtIcon name="print" size={15} /> Imprimir / PDF</button>
             <button className="vt-btn-primary" onClick={() => { onSave(body); window.vtToast('Documento salvo.', 'ok'); }}>Salvar</button>
           </div>
         </div>

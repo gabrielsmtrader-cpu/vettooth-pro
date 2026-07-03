@@ -466,16 +466,33 @@ function VisaoGeralTab({ fin, save }) {
   }
   const prodMax = Math.max(1, ...topProd.map((x) => x[1]));
 
+  // mês anterior (comparativo)
+  const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevM = prevDate.getMonth(); const prevY = prevDate.getFullYear();
+  const isPrevMonth = (s) => { const d = new Date((s) + 'T00:00:00'); return d.getMonth() === prevM && d.getFullYear() === prevY; };
+  const prevPaid = fin.tx.filter((t) => t.status === 'pago' && isPrevMonth(t.paidAt || t.date));
+  const receitaPrev = prevPaid.filter((t) => t.kind === 'receita').reduce((s, t) => s + t.value, 0);
+  const despesaPrev = prevPaid.filter((t) => t.kind === 'custo').reduce((s, t) => s + t.value, 0);
+  const lucroPrev = receitaPrev - despesaPrev;
+  const pctChange = (cur, prev) => prev === 0 ? null : Math.round(((cur - prev) / prev) * 100);
+
+  // receita por veterinário (mês atual)
+  const vetRevMap = {};
+  paidMonth.filter((t) => t.kind === 'receita').forEach((t) => { const k = t.vet || 'Sem veterinário'; vetRevMap[k] = (vetRevMap[k] || 0) + t.value; });
+  const vetRevList = Object.entries(vetRevMap).sort((a, b) => b[1] - a[1]);
+  const vetRevMax = Math.max(1, ...vetRevList.map((x) => x[1]));
+
   // meta do mês
   const meta = fin.metaMes || 20000;
   const metaPct = Math.min(100, meta ? (receitaMes / meta) * 100 : 0);
   const editMeta = () => { const v = prompt('Meta de receita do mês (R$):', String(meta)); if (v == null) return; const n = finParseMoney(v) || Number(String(v).replace(/[^\d]/g, '')) || 0; if (n > 0) { save({ ...fin, metaMes: n }); window.vtToast('Meta atualizada.', 'ok'); } };
 
   const toneIc = { up: ['var(--green-t)', 'var(--green)'], down: ['var(--red-t)', 'var(--red)'], neutral: ['var(--teal-t)', 'var(--teal-d)'] };
+  const fmtPct = (p) => p == null ? '' : (p >= 0 ? '▲ ' : '▼ ') + Math.abs(p) + '% vs mês ant.';
   const kpis = [
-    { l: 'Receita do mês', v: finBRL(receitaMes), ic: 'dollar', tone: 'up', sub: MES[now.getMonth()] + '/' + year },
-    { l: 'Despesas do mês', v: finBRL(despesaMes), ic: 'receipt', tone: 'down', sub: MES[now.getMonth()] + '/' + year },
-    { l: 'Lucro líquido', v: finBRL(lucro), ic: 'chart', tone: lucro >= 0 ? 'up' : 'down', sub: lucro >= 0 ? 'resultado positivo' : 'prejuízo' },
+    { l: 'Receita do mês', v: finBRL(receitaMes), ic: 'dollar', tone: 'up', sub: fmtPct(pctChange(receitaMes, receitaPrev)) || (MES[now.getMonth()] + '/' + year) },
+    { l: 'Despesas do mês', v: finBRL(despesaMes), ic: 'receipt', tone: 'down', sub: fmtPct(pctChange(despesaMes, despesaPrev)) || (MES[now.getMonth()] + '/' + year) },
+    { l: 'Lucro líquido', v: finBRL(lucro), ic: 'chart', tone: lucro >= 0 ? 'up' : 'down', sub: fmtPct(pctChange(lucro, lucroPrev)) || (lucro >= 0 ? 'resultado positivo' : 'prejuízo') },
     { l: 'Ticket médio', v: finBRL(ticket), ic: 'spark', tone: 'neutral', sub: atend + ' atendimento(s)' },
     { l: 'Margem de lucro', v: margem.toFixed(1) + '%', ic: 'check', tone: margem >= 0 ? 'up' : 'down', sub: 'sobre a receita' },
   ];
@@ -540,6 +557,23 @@ function VisaoGeralTab({ fin, save }) {
           </div>
         </div>
       </div>
+
+      {vetRevList.length > 0 && (
+        <div className="vt-card vt-sec fin-prem" style={{ marginBottom: 16 }}>
+          <h3 className="vt-sec-title">Receita por veterinário · {MES[now.getMonth()]}/{year}</h3>
+          <div className="fin-top">
+            {vetRevList.map(([vet, v], i) => (
+              <div key={vet} className="fin-top-row">
+                <span className="fin-top-rank">{i + 1}</span>
+                <div className="fin-top-body">
+                  <div className="fin-top-name"><span>{vet.replace('M.V. ', '')}</span><span>{finBRL(v)} <i style={{ color: 'var(--faint)', fontWeight: 600, fontStyle: 'normal' }}>· {receitaMes ? Math.round(v / receitaMes * 100) : 0}%</i></span></div>
+                  <div className="fin-top-bar"><span className="fin-top-fill" style={{ width: `${(v / vetRevMax) * 100}%`, background: 'var(--teal)' }} /></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="vt-card fin-prem fin-meta">
         <div className="fin-meta-head">

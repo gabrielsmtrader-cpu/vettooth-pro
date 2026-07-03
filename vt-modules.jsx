@@ -908,7 +908,7 @@ function agGCalUrl(ev) {
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(text)}&dates=${start}/${end}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(ev.local || 'Clínica própria')}`;
 }
 
-function AgendaModule({ focusNewPatient, clearAgendaFocus }) {
+function AgendaModule({ focusNewPatient, clearAgendaFocus, onIniciarAtendimento }) {
   const D = window.VtData;
   const CT = window.vtConsults();
   const [appts, setAppts] = vtUseState(() => { const d = window.VtStore && window.VtStore.getData(); return (d && d.agendaAppts) || []; });
@@ -1094,7 +1094,7 @@ function AgendaModule({ focusNewPatient, clearAgendaFocus }) {
 
       {/* ---- coluna direita: detalhes ---- */}
       <div className="ag-detail">
-        <AgendaDetail ev={sel} onEdit={() => setModal(sel)} onStatus={setStatus} onClose={() => setSel(null)} />
+        <AgendaDetail ev={sel} onEdit={() => setModal(sel)} onStatus={setStatus} onClose={() => setSel(null)} onIniciarAtendimento={onIniciarAtendimento} />
       </div>
 
       {modal && <AgendaEventModal ev={modal} onClose={() => setModal(null)} onSave={save} onDelete={del} />}
@@ -1171,7 +1171,7 @@ function MiniCal({ cursor, onPick, appts }) {
 }
 
 /* painel de detalhes do agendamento */
-function AgendaDetail({ ev, onEdit, onStatus, onClose }) {
+function AgendaDetail({ ev, onEdit, onStatus, onClose, onIniciarAtendimento }) {
   if (!ev) return (
     <div className="vt-card ag-detail-card">
       <h3 className="ag-detail-title">Detalhes do Agendamento</h3>
@@ -1201,6 +1201,7 @@ function AgendaDetail({ ev, onEdit, onStatus, onClose }) {
         <button className="vt-btn-primary" onClick={() => onStatus(ev.id, 'Confirmado')}><VtIcon name="check" size={16} /> Confirmar</button>
         <button className="vt-btn-ghost" onClick={() => { onStatus(ev.id, 'Realizado'); window.vtToast('Agendamento marcado como realizado.', 'ok'); }} style={{ color: 'var(--green)', borderColor: 'color-mix(in srgb, var(--green) 35%, transparent)' }}><VtIcon name="check" size={16} /> Concluído</button>
         <button className="vt-btn-ghost" onClick={onEdit}><VtIcon name="calendar" size={15} /> Reagendar</button>
+        {onIniciarAtendimento && <button className="vt-btn-primary" style={{ background: 'var(--blue)', borderColor: 'var(--blue)' }} onClick={() => onIniciarAtendimento(ev)}><VtIcon name="stethoscope" size={15} /> Iniciar Atendimento</button>}
         <button className="ag-msg-btn" onClick={() => window.vtToast(`Mensagem enviada ao tutor ${pat.owner || ''} via WhatsApp.`, 'ok')}>💬 Enviar mensagem</button>
       </div>
     </div>

@@ -524,6 +524,63 @@ function PrFinalizar({ at, patch, patient, vaccines, onFinalizar, onCommit }) {
   );
 }
 
+/* ---------- Modal WhatsApp Templates ---------- */
+function WaTemplatesModal({ at, patient, vaccines, onClose }) {
+  const cfg = window.vtIntegCfg ? window.vtIntegCfg() : {};
+  const fill = window.vtFillTemplate || ((t, v) => t);
+  const vars = {
+    tutor: patient.owner || '',
+    paciente: patient.name || '',
+    especie: patient.species || '',
+    data: at.date || '',
+    hora: at.time || '',
+    vet: (at.vet || '').replace('M.V. ', ''),
+    diag: (at.diag && at.diag.principal) || '',
+    retorno: (at.final && at.final.retorno) || '',
+    vacina: (vaccines && vaccines[0] && vaccines[0].tipo) || '',
+  };
+  const nextVac = vaccines && vaccines.find((v) => v.proxima);
+  const templates = [
+    { id: 'confirm', label: '📅 Confirmação de Consulta', body: cfg.waTplConfirm || 'Olá {tutor}! Confirmando a consulta de {paciente} em {data} às {hora}. Qualquer dúvida estamos à disposição. 🐾' },
+    { id: 'pos', label: '✅ Pós-consulta / Resumo', body: cfg.waTplPos || 'Olá {tutor}! Obrigado pela visita de {paciente}. {diag ? "Diagnóstico: " + diag + ". " : ""}Qualquer dúvida não hesite em entrar em contato. 🐾' },
+    { id: 'vac', label: '💉 Vacina — lembrete de retorno', body: nextVac ? 'Olá {tutor}! O retorno de {paciente} para a vacina {vacina} está previsto para ' + (nextVac.proxima || '{retorno}') + '. Agende com antecedência! 🐾' : 'Olá {tutor}! Lembre-se de agendar a próxima vacina de {paciente}. 🐾' },
+    { id: 'cir', label: '🩺 Pós-cirúrgico', body: 'Olá {tutor}! Passando para saber como {paciente} está se recuperando. Lembre-se dos cuidados: repouso, não molhar a incisão, e retorno em {retorno}. Qualquer sinal de alerta, entre em contato imediatamente. 🐾' },
+  ];
+  const [sel, setSel] = pUse(templates[0].id);
+  const [msg, setMsg] = pUse(() => fill(templates[0].body, vars));
+  const phone = patient.whats || patient.phone || '';
+  const selectTpl = (tpl) => { setSel(tpl.id); setMsg(fill(tpl.body, vars)); };
+  const send = () => {
+    if (!phone) { window.vtToast('Tutor sem número cadastrado.', 'err'); return; }
+    const link = window.vtWaLink ? window.vtWaLink(phone, msg) : ('https://wa.me/?text=' + encodeURIComponent(msg));
+    window.open(link, '_blank', 'noopener');
+    onClose();
+  };
+  return (
+    <div className="vt-modal-overlay" onClick={onClose}>
+      <div className="vt-modal" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+        <div className="vt-modal-head"><h3>💬 Mensagem ao Tutor via WhatsApp</h3><button className="vt-modal-x" onClick={onClose}>✕</button></div>
+        <div style={{ padding: '0 20px 20px' }}>
+          <p style={{ marginBottom: 12, color: 'var(--muted)', fontSize: 13 }}>Tutor: <b>{patient.owner || '—'}</b> · Fone: <b>{phone || 'não cadastrado'}</b></p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+            {templates.map((t) => (
+              <button key={t.id} className={sel === t.id ? 'vt-btn-primary' : 'vt-btn-ghost'} style={{ fontSize: 12.5, padding: '5px 12px' }} onClick={() => selectTpl(t)}>{t.label}</button>
+            ))}
+          </div>
+          <label className="pr-field" style={{ marginBottom: 14 }}>
+            <span>Mensagem</span>
+            <textarea rows={5} style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13, padding: 10, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)' }} value={msg} onChange={(e) => setMsg(e.target.value)} />
+          </label>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button className="vt-btn-ghost" onClick={onClose}>Cancelar</button>
+            <button className="vt-btn-primary" style={{ background: '#25D366', borderColor: '#25D366' }} onClick={send}>Abrir WhatsApp</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Shell do prontuário ---------- */
 function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit, onAddWeight, onSaveVaccines, onFinalizar, onOpenOdonto }) {
   const [at, setAt] = pUse(() => prEnsure(atendimento, patient));
@@ -532,6 +589,7 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
   const [cirSub, setCirSub] = pUse(null);   // sub-seleção dentro de Cirurgias/Internações
   const [pesoModal, setPesoModal] = pUse(false);
   const [odontoModal, setOdontoModal] = pUse(false);
+  const [waModal, setWaModal] = pUse(false);
   const [saving, setSaving] = pUse(false);
   const first = pRef(true);
   const tabRef = pRef(null);
@@ -555,7 +613,7 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
     if (id === 'salvar') { onCommit(at); window.vtToast('Atendimento salvo.', 'ok'); }
     else if (id === 'imprimir') window.print();
     else if (id === 'pdf') window.vtToast('PDF do atendimento gerado.', 'ok');
-    else if (id === 'whats') window.vtToast('Resumo enviado pelo WhatsApp.', 'ok');
+    else if (id === 'whats') setWaModal(true);
     else if (id === 'finalizar') { go('final'); }
     else if (id === 'faturar') {
       const r = window.vtFaturarAtendimento(at, patient);
@@ -695,6 +753,7 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
         {tab === 'final' && <PrFinalizar key={'fin-' + (at.procedimentos||[]).length + '-' + (at.medicamentos||[]).length + '-' + (vaccines||[]).length} at={at} patch={patch} patient={patient} vaccines={vaccines} onFinalizar={onFinalizar} onCommit={onCommit} />}
       </div>
       {pesoModal && <PesoModal p={patient} scale={window.VtScores.scaleFor(patient.species)} onClose={() => setPesoModal(false)} onSave={(w) => { onAddWeight(w); setPesoModal(false); }} />}
+      {waModal && <WaTemplatesModal at={at} patient={patient} vaccines={vaccines} onClose={() => setWaModal(false)} />}
     </div>
   );
 }
