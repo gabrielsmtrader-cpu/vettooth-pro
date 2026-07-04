@@ -489,9 +489,9 @@ function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos,
                   {history.slice(0, 3).map((h) => (
                     <div key={h.id} className="pf-proc-row" onClick={() => openAtendimento(p.id, h.id)}>
                       <span className="pf-proc-date">{h.date}</span>
-                      <b>{h.type}{h.status === 'finalizado' ? ' - ' : ''}</b>
+                      <b>{h.type}</b>
                       {h.status === 'finalizado' ? <span className="pf-proc-ok">Concluído</span> : <span className="pf-proc-pend">Em andamento</span>}
-                      <i>({(h.vet || '').replace('M.V. ', '')})</i>
+                      {h.vet && <i style={{ color: 'var(--muted)' }}>{(h.vet).replace('M.V. ', '').trim()}</i>}
                     </div>
                   ))}
                   {history.length === 0 && <p className="pf-empty">Nenhum procedimento.</p>}

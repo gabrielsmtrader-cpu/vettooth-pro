@@ -286,8 +286,8 @@ function PrCirurgias({ at, patch }) {
             <label className="pr-field"><span>Equipe</span><input value={f.equipe} onChange={(e) => s('equipe')(e.target.value)} placeholder="Cirurgião · anestesista" /></label>
           </div>
           <div className="pr-fieldrow c2" style={{ marginBottom: 12 }}>
-            <label className="pr-field"><span>Valor cobrado (R$)</span><input className="num" value={f.valor || ''} onChange={(e) => s('valor')(Number(e.target.value.replace(/\D/g, '')) / 100 || 0)} placeholder="0,00" /></label>
-            <label className="pr-field"><span>Custo estimado (R$)</span><input className="num" value={f.custo || ''} onChange={(e) => s('custo')(Number(e.target.value.replace(/\D/g, '')) / 100 || 0)} placeholder="0,00" /></label>
+            <label className="pr-field"><span>Valor cobrado (R$)</span><input className="num" value={f.valor || ''} onChange={(e) => s('valor')(Number(e.target.value.replace(/\D/g, '')) || 0)} placeholder="0" /></label>
+            <label className="pr-field"><span>Custo estimado (R$)</span><input className="num" value={f.custo || ''} onChange={(e) => s('custo')(Number(e.target.value.replace(/\D/g, '')) || 0)} placeholder="0" /></label>
           </div>
           <label className="pr-field" style={{ marginBottom: 12 }}><span>Descrição do ato cirúrgico</span><textarea style={xTA} value={f.descricao} onChange={(e) => s('descricao')(e.target.value)} placeholder="Técnica, achados, intercorrências..." /></label>
           <label className="pr-field"><span>Pós-operatório</span><textarea style={xTA} value={f.posop} onChange={(e) => s('posop')(e.target.value)} placeholder="Recomendações, medicação, retorno..." /></label>
@@ -345,9 +345,9 @@ function PrInternacoes({ at, patch }) {
             <label className="pr-field"><span>Box / leito</span><input value={f.box} onChange={(e) => s('box')(e.target.value)} placeholder="Ex.: 03" /></label>
           </div>
           <div className="pr-fieldrow c3">
-            <label className="pr-field"><span>Diária (R$)</span><input className="num" value={f.diaria || ''} onChange={(e) => { const d = Number(e.target.value.replace(/\D/g, '')) / 100 || 0; const dias = Number(f.totalDias) || 1; setF((p) => ({ ...p, diaria: d, valor: d * dias })); }} placeholder="0,00" /></label>
+            <label className="pr-field"><span>Diária (R$)</span><input className="num" value={f.diaria || ''} onChange={(e) => { const d = Number(e.target.value.replace(/\D/g, '')) || 0; const dias = Number(f.totalDias) || 1; setF((p) => ({ ...p, diaria: d, valor: d * dias })); }} placeholder="0" /></label>
             <label className="pr-field"><span>Dias internado</span><input className="num" value={f.totalDias || ''} onChange={(e) => { const dias = Number(e.target.value.replace(/\D/g, '')) || 0; const d = Number(f.diaria) || 0; setF((p) => ({ ...p, totalDias: dias, valor: d * dias })); }} placeholder="1" /></label>
-            <label className="pr-field"><span>Total cobrado (R$)</span><input className="num" value={f.valor || ''} onChange={(e) => s('valor')(Number(e.target.value.replace(/\D/g, '')) / 100 || 0)} placeholder="0,00" style={{ fontWeight: 700 }} /></label>
+            <label className="pr-field"><span>Total cobrado (R$)</span><input className="num" value={f.valor || ''} onChange={(e) => s('valor')(Number(e.target.value.replace(/\D/g, '')) || 0)} placeholder="0" style={{ fontWeight: 700 }} /></label>
           </div>
           <label className="pr-field"><span>Evolução / observações</span><textarea style={xTA} value={f.evolucao} onChange={(e) => s('evolucao')(e.target.value)} placeholder="Evolução diária, medicações, sinais vitais..." /></label>
           <div className="fin-modal-actions" style={{ marginTop: 14 }}><button className="vt-btn-ghost" onClick={() => setF(null)}>Cancelar</button><button className="vt-btn-primary" onClick={save}>Salvar internação</button></div>

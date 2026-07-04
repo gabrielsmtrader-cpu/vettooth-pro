@@ -543,7 +543,7 @@ function WaTemplatesModal({ at, patient, vaccines, onClose }) {
   const templates = [
     { id: 'confirm', label: '📅 Confirmação de Consulta', body: cfg.waTplConfirm || 'Olá {tutor}! Confirmando a consulta de {paciente} em {data} às {hora}. Qualquer dúvida estamos à disposição. 🐾' },
     { id: 'pos', label: '✅ Pós-consulta / Resumo', body: cfg.waTplPos || 'Olá {tutor}! Obrigado pela visita de {paciente}. {diag ? "Diagnóstico: " + diag + ". " : ""}Qualquer dúvida não hesite em entrar em contato. 🐾' },
-    { id: 'vac', label: '💉 Vacina — lembrete de retorno', body: nextVac ? 'Olá {tutor}! O retorno de {paciente} para a vacina {vacina} está previsto para ' + (nextVac.proxima || '{retorno}') + '. Agende com antecedência! 🐾' : 'Olá {tutor}! Lembre-se de agendar a próxima vacina de {paciente}. 🐾' },
+    { id: 'vac', label: '💉 Vacina — lembrete de retorno', body: nextVac ? 'Olá {tutor}! O retorno de {paciente} para a vacina {vacina} está previsto para ' + (nextVac.proxima || '{retorno}').replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2/$1') + '. Agende com antecedência! 🐾' : 'Olá {tutor}! Lembre-se de agendar a próxima vacina de {paciente}. 🐾' },
     { id: 'cir', label: '🩺 Pós-cirúrgico', body: 'Olá {tutor}! Passando para saber como {paciente} está se recuperando. Lembre-se dos cuidados: repouso, não molhar a incisão, e retorno em {retorno}. Qualquer sinal de alerta, entre em contato imediatamente. 🐾' },
   ];
   const [sel, setSel] = pUse(templates[0].id);
