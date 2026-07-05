@@ -141,7 +141,7 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
               </select>
             </label>
           </div>
-          <div className="pr-fieldrow c2">
+          <div className="pr-fieldrow c3" style={{ marginBottom: 10 }}>
             <label className="pr-field"><span>Local do atendimento</span>
               <select value={at.local} onChange={(e) => patch({ local: e.target.value })}>
                 {PR_LOCAIS.map((l) => <option key={l}>{l}</option>)}
@@ -150,6 +150,22 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
             <label className="pr-field"><span>Motivo da consulta</span>
               <input value={at.motivo} onChange={(e) => patch({ motivo: e.target.value })} placeholder="Ex.: Avaliação de rotina" />
             </label>
+            <label className="pr-field"><span>Peso atual</span>
+              <input value={at.weight || ''} onChange={(e) => patch({ weight: e.target.value })} placeholder="0,0 kg" />
+            </label>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>É retorno?</span>
+            {['Sim', 'Não'].map((opt) => {
+              const isYes = opt === 'Sim';
+              const sel = at.isRetorno ? isYes : !isYes;
+              return (
+                <button key={opt} onClick={() => patch({ isRetorno: isYes })}
+                  style={{ padding: '6px 20px', borderRadius: 9, border: `1.5px solid ${sel ? livreC : 'var(--line)'}`, background: sel ? `${livreC}18` : '#fff', color: sel ? livreC : 'var(--ink)', fontWeight: sel ? 700 : 400, fontSize: 13, cursor: 'pointer', transition: 'all 0.13s' }}>
+                  {opt}
+                </button>
+              );
+            })}
           </div>
           <SLabel color={livreC}>Queixa Principal</SLabel>
           <label className="pr-field"><span>Queixa principal (relato do tutor)</span>
@@ -175,6 +191,19 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
                 })}
               </div>
             </div>
+          </div>
+          <SLabel color={livreC}>Tratamento</SLabel>
+          <VtRichText value={at.tratamento || ''} onChange={(html) => patch({ tratamento: html })} placeholder="Tratamento instituído, condutas, medicações administradas na consulta..." minHeight={80} />
+          <SLabel color={livreC}>Próximos Passos</SLabel>
+          <VtRichText value={at.proximosPassos || ''} onChange={(html) => patch({ proximosPassos: html })} placeholder="Plano de alta, retorno previsto, orientações ao tutor..." minHeight={72} />
+          <div style={{ marginTop: 28, padding: '16px 20px', background: '#fefce8', border: '1.5px solid #fcd34d', borderRadius: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 15 }}>🔒</span>
+              <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: '#92400e' }}>Observações Internas <span style={{ fontWeight: 400 }}>— nunca compartilhadas com o tutor nem incluídas no PDF</span></p>
+            </div>
+            <textarea value={at.obsInterna || ''} onChange={(e) => patch({ obsInterna: e.target.value })}
+              placeholder="Notas clínicas privadas, suspeitas, observações de conduta interna..."
+              style={{ ...taStyle, minHeight: 72, background: '#fff', borderColor: '#fcd34d' }} />
           </div>
         </div>
       </div>
@@ -213,6 +242,24 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
 
           {/* ─── 1. QUEIXA PRINCIPAL & HISTÓRICO ─── */}
           <SLabel color={odC} first>Queixa principal &amp; histórico</SLabel>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
+            <label className="pr-field" style={{ flex: '0 0 160px' }}><span>Peso atual</span>
+              <input value={at.weight || ''} onChange={(e) => patch({ weight: e.target.value })} placeholder="0,0 kg" style={{ fontFamily: 'inherit', fontSize: 13.5, border: '1px solid var(--line)', borderRadius: 9, padding: '9px 12px', width: '100%', boxSizing: 'border-box' }} />
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>É retorno?</span>
+              {['Sim', 'Não'].map((opt) => {
+                const isYes = opt === 'Sim';
+                const sel = at.isRetorno ? isYes : !isYes;
+                return (
+                  <button key={opt} onClick={() => patch({ isRetorno: isYes })}
+                    style={{ padding: '6px 20px', borderRadius: 9, border: `1.5px solid ${sel ? odC : 'var(--line)'}`, background: sel ? `${odC}18` : '#fff', color: sel ? odC : 'var(--ink)', fontWeight: sel ? 700 : 400, fontSize: 13, cursor: 'pointer', transition: 'all 0.13s' }}>
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <label className="pr-field"><span>Queixa principal</span>
               <textarea value={at.queixa || ''} onChange={(e) => patch({ queixa: e.target.value })} placeholder="Motivo da consulta relatado pelo tutor…" style={{ ...taStyle, minHeight: 72 }} />
@@ -381,6 +428,21 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
             </label>
           </div>
 
+          {/* ─── 5. PRÓXIMOS PASSOS ─── */}
+          <SLabel color={odC}>Próximos Passos</SLabel>
+          <VtRichText value={at.proximosPassos || ''} onChange={(html) => patch({ proximosPassos: html })} placeholder="Orientações de alta: cuidados em casa, alimentação pós-procedimento, retorno, observações para o tutor..." minHeight={80} />
+
+          {/* ─── 6. OBSERVAÇÕES INTERNAS ─── */}
+          <div style={{ marginTop: 28, padding: '16px 20px', background: '#fefce8', border: '1.5px solid #fcd34d', borderRadius: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 15 }}>🔒</span>
+              <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: '#92400e' }}>Observações Internas <span style={{ fontWeight: 400 }}>— nunca compartilhadas com o tutor nem incluídas no PDF</span></p>
+            </div>
+            <textarea value={at.obsInterna || ''} onChange={(e) => patch({ obsInterna: e.target.value })}
+              placeholder="Notas clínicas privadas, suspeitas, observações de conduta interna..."
+              style={{ ...taStyle, minHeight: 72, background: '#fff', borderColor: '#fcd34d' }} />
+          </div>
+
         </div>
       </div>
     );
@@ -450,7 +512,7 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
               </select>
             </label>
           </div>
-          <div className="pr-fieldrow c2">
+          <div className="pr-fieldrow c3" style={{ marginBottom: 10 }}>
             <label className="pr-field"><span>Local do atendimento</span>
               <select value={at.local} onChange={(e) => patch({ local: e.target.value })}>
                 {PR_LOCAIS.map((l) => <option key={l}>{l}</option>)}
@@ -459,6 +521,22 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
             <label className="pr-field"><span>Motivo da consulta</span>
               <input value={at.motivo} onChange={(e) => patch({ motivo: e.target.value })} placeholder="Ex.: Avaliação odontológica de rotina" />
             </label>
+            <label className="pr-field"><span>Peso atual</span>
+              <input value={at.weight || ''} onChange={(e) => patch({ weight: e.target.value })} placeholder="0,0 kg" />
+            </label>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>É retorno?</span>
+            {['Sim', 'Não'].map((opt) => {
+              const isYes = opt === 'Sim';
+              const sel = at.isRetorno ? isYes : !isYes;
+              return (
+                <button key={opt} onClick={() => patch({ isRetorno: isYes })}
+                  style={{ padding: '6px 20px', borderRadius: 9, border: `1.5px solid ${sel ? activeC : 'var(--line)'}`, background: sel ? `${activeC}18` : '#fff', color: sel ? activeC : 'var(--ink)', fontWeight: sel ? 700 : 400, fontSize: 13, cursor: 'pointer', transition: 'all 0.13s' }}>
+                  {opt}
+                </button>
+              );
+            })}
           </div>
 
           {/* ─── 2. QUEIXA PRINCIPAL & HISTÓRICO ─── */}
@@ -613,6 +691,25 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
                 })}
               </div>
             </div>
+          </div>
+
+          {/* ─── 7. TRATAMENTO ─── */}
+          <SLabel color={activeC}>Tratamento</SLabel>
+          <VtRichText value={at.tratamento || ''} onChange={(html) => patch({ tratamento: html })} placeholder="Descreva o tratamento instituído: procedimentos realizados, medicações administradas na consulta, condutas adotadas..." minHeight={90} />
+
+          {/* ─── 8. PRÓXIMOS PASSOS ─── */}
+          <SLabel color={activeC}>Próximos Passos</SLabel>
+          <VtRichText value={at.proximosPassos || ''} onChange={(html) => patch({ proximosPassos: html })} placeholder="Plano de alta, retorno previsto, exames solicitados, orientações ao tutor sobre cuidados em casa..." minHeight={80} />
+
+          {/* ─── 9. OBSERVAÇÕES INTERNAS ─── */}
+          <div style={{ marginTop: 28, padding: '16px 20px', background: '#fefce8', border: '1.5px solid #fcd34d', borderRadius: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 15 }}>🔒</span>
+              <p style={{ margin: 0, fontSize: 12.5, fontWeight: 800, color: '#92400e' }}>Observações Internas <span style={{ fontWeight: 400 }}>— nunca compartilhadas com o tutor nem incluídas no PDF do prontuário</span></p>
+            </div>
+            <textarea value={at.obsInterna || ''} onChange={(e) => patch({ obsInterna: e.target.value })}
+              placeholder="Notas clínicas privadas, suspeitas não confirmadas, observações de conduta interna, notas para a equipe..."
+              style={{ ...taStyle, minHeight: 72, background: '#fff', borderColor: '#fcd34d' }} />
           </div>
 
         </div>
