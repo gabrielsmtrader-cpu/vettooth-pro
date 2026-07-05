@@ -27,6 +27,153 @@ function SLabel({ color, children, first }) {
 
 const taStyle = { width: '100%', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--ink)', background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 9, padding: '9px 12px', resize: 'vertical', lineHeight: 1.5, boxSizing: 'border-box' };
 
+/* ── Marcadores visuais de risco/alerta ── */
+function RiskBanner({ at, patch }) {
+  const alergias    = at.alergias    || '';
+  const comorbidades = at.comorbidades || [];
+  const medicacoes  = at.medicacoesUso || '';
+  const temAlgo = alergias || comorbidades.length > 0 || medicacoes;
+  const [edit, setEdit] = eUse(false);
+
+  const badgeStyle = (bg, border) => ({
+    display: 'inline-flex', alignItems: 'center', gap: 5,
+    padding: '4px 11px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+    background: bg, border: `1px solid ${border}`, whiteSpace: 'nowrap',
+  });
+
+  return (
+    <div style={{ margin: '0 0 16px', padding: '12px 16px', background: temAlgo ? '#fff8f0' : 'var(--surface-2)', border: `1.5px solid ${temAlgo ? '#fdba74' : 'var(--line)'}`, borderRadius: 11 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: temAlgo && !edit ? 8 : 0 }}>
+        <span style={{ fontSize: 12, fontWeight: 800, color: temAlgo ? '#c2410c' : 'var(--ink-2)', letterSpacing: 0.5 }}>
+          {temAlgo ? '⚠ ALERTAS CLÍNICOS' : '⚠ Alertas clínicos — sem registros'}
+        </span>
+        <button onClick={() => setEdit(e => !e)} style={{ fontSize: 11.5, color: 'var(--teal)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, padding: '2px 6px' }}>
+          {edit ? 'Fechar' : 'Editar'}
+        </button>
+      </div>
+
+      {!edit && temAlgo && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {alergias && alergias.split(',').map(a => a.trim()).filter(Boolean).map(a => (
+            <span key={a} style={badgeStyle('#fee2e2', '#fca5a5')}><span style={{ color: '#dc2626' }}>🔴</span> {a}</span>
+          ))}
+          {comorbidades.map(c => (
+            <span key={c} style={badgeStyle('#fef9c3', '#fde047')}><span style={{ color: '#ca8a04' }}>🟡</span> {c}</span>
+          ))}
+          {medicacoes && (
+            <span style={badgeStyle('#dbeafe', '#93c5fd')}><span style={{ color: '#2563eb' }}>🔵</span> Medicações: {medicacoes.length > 40 ? medicacoes.substring(0,40)+'…' : medicacoes}</span>
+          )}
+        </div>
+      )}
+
+      {edit && (
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', display: 'flex', flexDirection: 'column', gap: 3 }}>
+            🔴 Alergias <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: 11 }}>Separe por vírgula — ex: Penicilina, Dipirona, Látex</span>
+            <input value={at.alergias || ''} onChange={e => patch({ alergias: e.target.value })}
+              placeholder="Nenhuma alergia conhecida"
+              style={{ fontFamily: 'inherit', fontSize: 13, border: '1.5px solid #fca5a5', borderRadius: 7, padding: '6px 10px', background: '#fff5f5' }} />
+          </label>
+          <label style={{ fontSize: 12, fontWeight: 700, color: '#ca8a04', display: 'flex', flexDirection: 'column', gap: 3 }}>
+            🟡 Medicações em uso contínuo
+            <textarea value={at.medicacoesUso || ''} onChange={e => patch({ medicacoesUso: e.target.value })}
+              placeholder="Fármaco, dose e frequência…"
+              style={{ fontFamily: 'inherit', fontSize: 13, border: '1.5px solid #fde047', borderRadius: 7, padding: '6px 10px', background: '#fefce8', resize: 'vertical', minHeight: 48 }} />
+          </label>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Agendamento de retorno ao final da consulta ── */
+function AgendarRetorno({ at, patch, patient }) {
+  const [aberto, setAberto] = eUse(false);
+  const [agendado, setAgendado] = eUse(false);
+
+  const agendar = () => {
+    if (!at.retornoData) { window.vtToast('Informe a data do retorno.', 'err'); return; }
+    const D = window.VtStore && window.VtStore.getData();
+    if (!D) { window.vtToast('Erro ao acessar dados.', 'err'); return; }
+
+    const novoId = 'AG' + Date.now().toString(36);
+    const novoAt = {
+      id: novoId,
+      _agId: novoId,
+      patientId: patient.id,
+      patientName: patient.name,
+      type: at.retornoTipo || 'Retorno',
+      date: at.retornoData,
+      time: at.retornoHora || '08:00',
+      vet: at.vet || '',
+      vetColor: at.vetColor || '#14a8a0',
+      value: '',
+      status: 'agendado',
+    };
+    const ats = [novoAt, ...(D.atendimentos || [])];
+    window.VtStore.setData({ atendimentos: ats });
+    window.vtToast(`Retorno agendado para ${at.retornoData} às ${at.retornoHora || '08:00'}.`, 'ok');
+    setAgendado(true);
+    setAberto(false);
+  };
+
+  const consults = window.vtConsults ? window.vtConsults() : [];
+
+  return (
+    <div style={{ marginTop: 20, padding: '14px 18px', background: 'var(--surface-2)', border: '1.5px solid var(--line)', borderRadius: 11 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 16 }}>📅</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Agendar Retorno</span>
+          {agendado && <span style={{ fontSize: 11.5, color: '#16a34a', fontWeight: 700, background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12, padding: '2px 8px' }}>✓ Agendado</span>}
+          {at.retornoData && !agendado && <span style={{ fontSize: 11.5, color: '#2563eb', fontWeight: 600 }}>{at.retornoData}</span>}
+        </div>
+        <button onClick={() => setAberto(a => !a)}
+          style={{ fontSize: 12, color: 'var(--teal)', background: 'none', border: '1px solid var(--teal)', borderRadius: 7, padding: '4px 12px', cursor: 'pointer', fontWeight: 700 }}>
+          {aberto ? 'Fechar' : (at.retornoData ? 'Editar' : '+ Agendar')}
+        </button>
+      </div>
+
+      {aberto && (
+        <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, fontWeight: 700, color: 'var(--ink-2)' }}>
+              Data do retorno
+              <input type="text" value={at.retornoData || ''} onChange={e => patch({ retornoData: e.target.value })}
+                placeholder="DD/MM/AAAA"
+                style={{ fontFamily: 'inherit', fontSize: 13, border: '1px solid var(--line)', borderRadius: 7, padding: '6px 10px' }} />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, fontWeight: 700, color: 'var(--ink-2)' }}>
+              Horário
+              <input type="text" value={at.retornoHora || ''} onChange={e => patch({ retornoHora: e.target.value })}
+                placeholder="08:00"
+                style={{ fontFamily: 'inherit', fontSize: 13, border: '1px solid var(--line)', borderRadius: 7, padding: '6px 10px' }} />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, fontWeight: 700, color: 'var(--ink-2)' }}>
+              Tipo de consulta
+              <select value={at.retornoTipo || ''} onChange={e => patch({ retornoTipo: e.target.value })}
+                style={{ fontFamily: 'inherit', fontSize: 13, border: '1px solid var(--line)', borderRadius: 7, padding: '6px 10px', background: 'var(--bg)' }}>
+                <option value="Retorno">Retorno</option>
+                {consults.map(c => <option key={c.label} value={c.label}>{c.label}</option>)}
+              </select>
+            </label>
+          </div>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, fontWeight: 700, color: 'var(--ink-2)' }}>
+            Motivo / Observação
+            <input value={at.retornoObs || ''} onChange={e => patch({ retornoObs: e.target.value })}
+              placeholder="Ex.: Reavaliação pós-tratamento, retirada de pontos..."
+              style={{ fontFamily: 'inherit', fontSize: 13, border: '1px solid var(--line)', borderRadius: 7, padding: '6px 10px' }} />
+          </label>
+          <button onClick={agendar}
+            style={{ alignSelf: 'flex-start', padding: '8px 20px', background: 'var(--teal)', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            📅 Confirmar agendamento
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Botão quick-pick com cor da especialidade ── */
 function QBtn({ active, color, onClick, children }) {
   return (
@@ -127,6 +274,7 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
           <span style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>{at.date} · {at.time}</span>
         </div>
         <div style={{ padding: '4px 24px 40px' }}>
+          <div style={{ paddingTop: 16 }}><RiskBanner at={at} patch={patch} /></div>
           <SLabel color={livreC} first>Dados da Consulta</SLabel>
           <div className="pr-fieldrow c3" style={{ marginBottom: 12 }}>
             <label className="pr-field"><span>Data</span>
@@ -205,6 +353,7 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
               placeholder="Notas clínicas privadas, suspeitas, observações de conduta interna..."
               style={{ ...taStyle, minHeight: 72, background: '#fff', borderColor: '#fcd34d' }} />
           </div>
+          <AgendarRetorno at={at} patch={patch} patient={patient} />
         </div>
       </div>
     );
@@ -239,6 +388,7 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
 
         {/* ══ FORMULÁRIO ══ */}
         <div style={{ padding: '4px 24px 48px' }}>
+          <div style={{ paddingTop: 16 }}><RiskBanner at={at} patch={patch} /></div>
 
           {/* ─── 1. QUEIXA PRINCIPAL & HISTÓRICO ─── */}
           <SLabel color={odC} first>Queixa principal &amp; histórico</SLabel>
@@ -442,6 +592,7 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
               placeholder="Notas clínicas privadas, suspeitas, observações de conduta interna..."
               style={{ ...taStyle, minHeight: 72, background: '#fff', borderColor: '#fcd34d' }} />
           </div>
+          <AgendarRetorno at={at} patch={patch} patient={patient} />
 
         </div>
       </div>
@@ -496,6 +647,7 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
 
       {/* ══ FORMULÁRIO ══ */}
       <div style={{ padding: '4px 24px 40px' }}>
+          <div style={{ paddingTop: 16 }}><RiskBanner at={at} patch={patch} /></div>
 
           {/* ─── 1. DADOS DA CONSULTA ─── */}
           <SLabel color={activeC} first>Dados da Consulta</SLabel>
@@ -711,6 +863,7 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
               placeholder="Notas clínicas privadas, suspeitas não confirmadas, observações de conduta interna, notas para a equipe..."
               style={{ ...taStyle, minHeight: 72, background: '#fff', borderColor: '#fcd34d' }} />
           </div>
+          <AgendarRetorno at={at} patch={patch} patient={patient} />
 
         </div>
     </div>
