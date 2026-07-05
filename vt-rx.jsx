@@ -131,6 +131,24 @@ window.rxExtenso = function (n) {
   return ext[parseInt(n)] || String(n);
 };
 
+/* Numeração sequencial de receituários — NNN/ANO, reinicia a cada ano */
+window.rxNextNumero = function () {
+  const ano = new Date().getFullYear();
+  const key = 'vt_rx_num_' + ano;
+  const n = parseInt(localStorage.getItem(key) || '0') + 1;
+  localStorage.setItem(key, String(n));
+  return String(n).padStart(3, '0') + '/' + ano;
+};
+
+/* Obtém o número do receituário para um atendimento.
+   Se ainda não tem, gera e salva via patch para não incrementar ao reimprimir. */
+window.rxGetNumero = function (at, patch) {
+  if (at.rxNumero) return at.rxNumero;
+  const num = window.rxNextNumero();
+  if (patch) patch({ rxNumero: num });
+  return num;
+};
+
 /* gera o texto padrão da receita a partir dos itens */
 window.rxToText = function (at, patient) {
   const tipo = at.prescricaoTipo || 'comum';
@@ -142,7 +160,9 @@ window.rxToText = function (at, patient) {
   // cabeçalho: controlada exige indicação de via e validade
   const nVia = controlada ? (at.rxNVia || '1ª via') : null;
   const tLabel = (t || '').toUpperCase().replace(/^RECEITUÁRIO\s+/i, '');
-  let s = `RECEITUÁRIO ${tLabel}${nVia ? '  —  ' + nVia.toUpperCase() : ''}\n`;
+  let s = `RECEITUÁRIO ${tLabel}${nVia ? '  —  ' + nVia.toUpperCase() : ''}`;
+  if (at.rxNumero) s += `\nNº ${at.rxNumero}`;
+  s += '\n';
   if (controlada) s += `Validade: 30 dias a partir da emissão   (Portaria 344/98 — ${(at.rxNVias || 2)} vias)\n`;
   s += `${'─'.repeat(38)}\n`;
   s += `Paciente: ${patient.name}   Espécie: ${patient.species}   Raça: ${patient.breed || '—'}\n`;

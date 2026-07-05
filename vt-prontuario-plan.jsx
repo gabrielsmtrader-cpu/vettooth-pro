@@ -271,7 +271,10 @@ function PrPrescricoes({ at, patch, patient }) {
     <div>
       <div className="pr-sec-head">
         <div><h2 className="pr-h">Prescrições</h2><p className="pr-h-sub">Dose calculada para o peso de {patient.name} ({patient.weight || '—'})</p></div>
-        <button className="pr-qbtn primary" disabled={!rows.length} style={!rows.length ? { opacity: .5 } : null} onClick={() => setEditor(true)}><VtIcon name="receipt" size={16} /> Pré-visualizar / PDF</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {at.rxNumero && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', background: 'var(--surface-2)', padding: '3px 10px', borderRadius: 6, letterSpacing: '0.04em' }}>Nº {at.rxNumero}</span>}
+          <button className="pr-qbtn primary" disabled={!rows.length} style={!rows.length ? { opacity: .5 } : null} onClick={() => { window.rxGetNumero(at, patch); setEditor(true); }}><VtIcon name="receipt" size={16} /> Pré-visualizar / PDF</button>
+        </div>
       </div>
 
       <div className="pr-block">
@@ -323,7 +326,7 @@ function PrPrescricoes({ at, patch, patient }) {
         <div className="rx-preview-col">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <span className="pr-block-title" style={{ margin: 0 }}>Prévia com design</span>
-            <button className="vt-btn-primary" style={{ fontSize: 12, padding: '5px 14px' }} disabled={!rows.length} onClick={() => setEditor(true)}><VtIcon name="print" size={14} /> Emitir PDF</button>
+            <button className="vt-btn-primary" style={{ fontSize: 12, padding: '5px 14px' }} disabled={!rows.length} onClick={() => { window.rxGetNumero(at, patch); setEditor(true); }}><VtIcon name="print" size={14} /> Emitir PDF</button>
           </div>
           {(() => { const c = window.vtClinic ? window.vtClinic() : {}; const vet = window.vtVetSignature ? window.vtVetSignature(at.vet) : {}; const DP = window.DocPage; return DP ? <DP tipo={`Receituário ${tipoInfo.label}`} patient={patient} at={at} body="" accent={c.docColor||'#14a8a0'} layout={c.docLayout||'classico'} c={c} vet={vet} signed={false} onToggleSigned={null} /> : null; })()}
         </div>
