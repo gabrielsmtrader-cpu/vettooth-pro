@@ -79,9 +79,10 @@ window.rxPosologiaAuto = function (p) {
 };
 
 window.PR_RX_TYPES = [
-  { id: 'comum', label: 'Receituário comum', nota: 'Medicamentos de uso normal (venda comum ou sob prescrição). Receita simples, 1 via.' },
-  { id: 'controlada', label: 'Controle especial', nota: 'Substâncias controladas (Portaria 344/98). Receituário de Controle Especial em 2 vias, com identificação completa do MV e do tutor.' },
-  { id: 'manipulado', label: 'Manipulado', nota: 'Fórmula manipulada — encaminhada à farmácia de manipulação. Descreva a fórmula, concentração e forma farmacêutica.' },
+  { id: 'comum',         label: 'Receituário Simples',      vias: 1, validade: null, nota: 'Medicamentos de uso geral (venda livre ou sob prescrição). 1 via. Sem prazo de validade específico. (CFMV)' },
+  { id: 'antimicrobiano',label: 'Antimicrobiano',           vias: 2, validade: 10,   nota: 'Antibióticos e antimicrobianos. Obrigatório 2 vias — 1ª retida na farmácia. Válido por 10 dias. (CFMV/Anvisa)' },
+  { id: 'controlada',    label: 'Controle Especial (NRV)',  vias: 2, validade: 30,   nota: 'Psicotrópicos e entorpecentes (Portaria 344/98 / SNCR). Numeração controlada obrigatória. CPF e endereço do tutor exigidos. 2 vias.' },
+  { id: 'manipulado',    label: 'Manipulado',               vias: 1, validade: null, nota: 'Fórmula magistral para manipulação veterinária. Encaminhar à farmácia com especificação completa.' },
 ];
 
 /* ---- Modelos de prescrição (presets) editáveis ---- */
@@ -149,39 +150,67 @@ window.rxGetNumero = function (at, patch) {
   return num;
 };
 
-/* gera o texto padrão da receita a partir dos itens */
+/* gera o texto padrão da receita conforme CFMV/Anvisa */
 window.rxToText = function (at, patient) {
   const tipo = at.prescricaoTipo || 'comum';
-  const t = (window.PR_RX_TYPES.find((x) => x.id === tipo) || {}).label;
+  const tipoInfo = window.PR_RX_TYPES.find((x) => x.id === tipo) || window.PR_RX_TYPES[0];
   const kg = window.rxKg(patient);
   const controlada = tipo === 'controlada';
+  const antimicro  = tipo === 'antimicrobiano';
   const idade = patient.idade || (window.ageFrom ? window.ageFrom(patient.birth) : '') || '—';
 
-  // cabeçalho: controlada exige indicação de via e validade
+  // Dados do profissional
+  const vetObj  = window.vtVetSignature ? window.vtVetSignature(at.vet) : { name: (at.vet || '').replace('M.V.', '').trim(), crmv: '', especialidade: '' };
+  const clinic  = window.vtClinic ? window.vtClinic() : {};
+
+  // Dados do tutor — busca endereço no cadastro de responsáveis
+  const owners   = (window.VtData && window.VtData.owners) || [];
+  const ownerRec = owners.find((o) => o.name === patient.owner) || {};
+  const tutorCpf   = patient.cpf  || ownerRec.cpf  || '';
+  const tutorPhone = patient.phone || ownerRec.phone || '';
+  const tutorCity  = ownerRec.city || '';
+
+  // ── Cabeçalho ──
   const nVia = controlada ? (at.rxNVia || '1ª via') : null;
   let s = `RECEITUÁRIO`;
   if (at.rxNumero) s += `   Nº ${at.rxNumero}`;
   if (nVia) s += `   —   ${nVia.toUpperCase()}`;
   s += '\n';
-  if (controlada) s += `Validade: 30 dias a partir da emissão   (Portaria 344/98 — ${(at.rxNVias || 2)} vias)\n`;
+  if (controlada) s += `Validade: 30 dias   (Portaria 344/98 — ${at.rxNVias || 2} vias)\n`;
+  if (antimicro)  s += `Válido por 10 dias   (2 vias — 1ª via retida na farmácia)\n`;
+
+  // ── Profissional ──
+  s += `${'─'.repeat(38)}\n`;
+  s += `M.V. ${vetObj.name}`;
+  if (vetObj.crmv)          s += `   CRMV: ${vetObj.crmv}`;
+  if (vetObj.especialidade) s += `   ${vetObj.especialidade}`;
+  s += '\n';
+  if (clinic.name)    s += `${clinic.name}\n`;
+  if (clinic.address) s += `${clinic.address}\n`;
+
+  // ── Paciente e Tutor ──
   s += `${'─'.repeat(38)}\n`;
   s += `Paciente: ${patient.name}   Espécie: ${patient.species}   Raça: ${patient.breed || '—'}\n`;
   s += `Sexo: ${patient.sex || '—'}   Peso: ${patient.weight || '—'}   Idade: ${idade}\n`;
-  s += `Cor/pelagem: ${patient.color || '—'}   Microchip: ${patient.chip || '—'}\n`;
-  s += `Tutor(a): ${patient.owner}${patient.cpf ? '   CPF: ' + patient.cpf : ''}\n`;
-  if (controlada) {
-    if (!patient.cpf) s += `CPF: ___________   `;
-    s += `Tel: ${patient.phone || '___________'}\n`;
-    const addr = patient.address || {};
-    s += `Endereço: ${[addr.street, addr.num, addr.district, addr.city, addr.state].filter(Boolean).join(', ') || '___________'}\n`;
+  if (patient.chip) s += `Microchip: ${patient.chip}\n`;
+  s += `Tutor(a): ${patient.owner}`;
+  if (tutorCpf)   s += `   CPF: ${tutorCpf}`;
+  if (tutorPhone && (controlada || antimicro)) s += `   Tel: ${tutorPhone}`;
+  s += '\n';
+  if (controlada || antimicro) {
+    if (!tutorCpf)   s += `CPF: ___________   `;
+    if (!tutorPhone) s += `Tel: ___________`;
+    if (!tutorCpf || !tutorPhone) s += '\n';
+    s += `Endereço: ${tutorCity || '___________'}\n`;
   }
   s += `${'─'.repeat(38)}\n\n`;
 
+  // ── Medicamentos ──
   if (tipo === 'manipulado') {
     (at.prescricoes || []).forEach((r, i) => {
       s += `${i + 1}) MANIPULAR — ${r.forma || ''}${r.qtdProd ? ' (' + r.qtdProd + ' un.)' : ''}\n`;
       (r.componentes || [{ ativo: r.ativo, conc: r.conc }]).forEach((c) => { if (c.ativo) s += `   • ${c.ativo} ${c.conc || ''}${c.unidade || ''}\n`; });
-      if (r.qsp) s += `   q.s.p. ${r.qsp}\n`;
+      if (r.qsp)     s += `   q.s.p. ${r.qsp}\n`;
       if (r.farmacia) s += `   Farmácia: ${r.farmacia}${(r.pos && r.pos.viaFull) ? ' · via ' + r.pos.viaFull.toLowerCase() : ''}\n`;
       const pos = r.posologia || window.rxPosologiaAuto(r.pos);
       if (pos) s += `   Posologia: ${pos}\n`;
@@ -196,21 +225,30 @@ window.rxToText = function (at, patient) {
       const pos = r.posologia || window.rxPosologiaAuto(r.pos);
       const qtd = r.qtdProd;
       let qtdStr = '';
-      if (qtd) {
-        qtdStr = controlada
-          ? `Quantidade: ${qtd} (${window.rxExtenso(qtd)}) unidade(s)`
-          : `Quantidade: ${qtd} unidade(s)`;
-      }
+      if (qtd) qtdStr = controlada
+        ? `Quantidade: ${qtd} (${window.rxExtenso(qtd)}) unidade(s)`
+        : `Quantidade: ${qtd} unidade(s)`;
       s += `   ${[pos, qtdStr].filter(Boolean).join('  ·  ') || [r.freq, r.tempo].filter(Boolean).join(' · ')}\n`;
       if (r.obs) s += `   Obs: ${r.obs}\n`;
       s += '\n';
     });
   }
+
+  // ── Instruções gerais ──
   if (at.prescricaoInstrucoes) {
     s += `${'─'.repeat(38)}\n`;
-    s += `Instruções gerais do tratamento:\n${at.prescricaoInstrucoes}\n`;
+    s += `Instruções:\n${at.prescricaoInstrucoes}\n`;
   }
-  s += `\nData: ${window.PR.todayBR()}`;
+
+  // ── Rodapé: data e assinatura ──
+  s += `${'─'.repeat(38)}\n`;
+  s += `Data: ${window.PR.todayBR()}\n\n`;
+  s += `_`.repeat(38) + '\n';
+  s += `M.V. ${vetObj.name}`;
+  if (vetObj.crmv) s += `   CRMV: ${vetObj.crmv}`;
+  s += '\n';
+  if (clinic.name) s += `${clinic.name}`;
+  if (tipoInfo.vias > 1) s += `\n\n${tipoInfo.vias} vias — esta é a via do ${nVia ? 'Receituário de Controle Especial' : 'tutor/proprietário'}`;
   return s;
 };
 

@@ -283,10 +283,16 @@ function PrPrescricoes({ at, patch, patient }) {
           {window.PR_RX_TYPES.map((t) => <button key={t.id} onClick={() => patch({ prescricaoTipo: t.id })} style={prChipStyle(tipo === t.id)}>{t.label}</button>)}
         </div>
         <p className="vt-ai-note"><VtIcon name="spark" size={15} /> {tipoInfo.nota}</p>
+        {tipo === 'antimicrobiano' && (
+          <div style={{ marginTop: 10, padding: '10px 14px', background: '#eff6ff', borderRadius: 8, border: '1px solid #93c5fd', fontSize: 13, color: '#1e40af' }}>
+            <b>💊 Antimicrobiano (CFMV/Anvisa)</b> — Válido por <b>10 dias</b>.
+            Emita em <b>2 vias</b> (1ª via retida na farmácia · 2ª via do tutor). Verifique se o tutor consta no cadastro com endereço.
+          </div>
+        )}
         {tipo === 'controlada' && (
           <div style={{ marginTop: 10, padding: '10px 14px', background: '#fff3cd', borderRadius: 8, border: '1px solid #f5c842', fontSize: 13, color: '#7a5a00' }}>
-            <b>⚠ Receituário de Controle Especial (Portaria 344/98)</b> — Válido por <b>30 dias</b>.
-            Emita em <b>2 vias</b> (1ª via: farmácia · 2ª via: responsável). Identifique o paciente e o tutor com CPF e endereço completo.
+            <b>⚠ Controle Especial — NRV (Portaria 344/98 / SNCR)</b> — Válido por <b>30 dias</b>.
+            Emita em <b>2 vias</b>. Numeração controlada obrigatória. CPF e endereço completo do tutor exigidos.
           </div>
         )}
       </div>
