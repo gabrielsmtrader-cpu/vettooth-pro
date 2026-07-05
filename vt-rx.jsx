@@ -159,9 +159,9 @@ window.rxToText = function (at, patient) {
 
   // cabeçalho: controlada exige indicação de via e validade
   const nVia = controlada ? (at.rxNVia || '1ª via') : null;
-  const tLabel = (t || '').toUpperCase().replace(/^RECEITUÁRIO\s+/i, '');
-  let s = `RECEITUÁRIO ${tLabel}${nVia ? '  —  ' + nVia.toUpperCase() : ''}`;
-  if (at.rxNumero) s += `\nNº ${at.rxNumero}`;
+  let s = `RECEITUÁRIO`;
+  if (at.rxNumero) s += `   Nº ${at.rxNumero}`;
+  if (nVia) s += `   —   ${nVia.toUpperCase()}`;
   s += '\n';
   if (controlada) s += `Validade: 30 dias a partir da emissão   (Portaria 344/98 — ${(at.rxNVias || 2)} vias)\n`;
   s += `${'─'.repeat(38)}\n`;
