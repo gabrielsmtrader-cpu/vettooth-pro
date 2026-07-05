@@ -95,8 +95,26 @@ function PrRetornos({ at, patch }) {
 
 /* ---------- Atestados e Termos ---------- */
 const DOC_MODELS = [
-  'Atestado de saúde', 'Atestado de sanidade', 'Atestado de repouso', 'Atestado de óbito',
-  'Termo de consentimento', 'Termo de consentimento anestésico', 'Termo de internação', 'Termo de responsabilidade', 'Termo de eutanásia',
+  /* — Atestados (assinatura exclusiva do veterinário) — */
+  'Atestado de saúde',
+  'Atestado de sanidade',
+  'Atestado Sanitário',
+  'Atestado de Vacinação',
+  'Atestado de repouso',
+  'Atestado de Encaminhamento',
+  'Atestado de óbito',
+  /* — Termos de Consentimento (veterinário + tutor/responsável) — */
+  'Termo de consentimento',
+  'Termo para Realização de Exames',
+  'Termo para Realização de Procedimentos Anestésicos',
+  'Termo para Realização de Procedimentos Cirúrgicos',
+  'Termo para Realização de Procedimentos Terapêuticos de Risco',
+  'Termo de Internação e Tratamento Clínico ou Pós-Cirúrgico',
+  'Termo de Consentimento para Telemedicina Veterinária',
+  'Termo de responsabilidade',
+  'Termo de Óbito',
+  'Termo para Realização de Eutanásia',
+  'Termo para Retirada sem Alta Médica',
 ];
 function PrAtestados({ at, patch, patient }) {
   const docs = at.documentos || [];
