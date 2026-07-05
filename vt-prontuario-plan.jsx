@@ -283,18 +283,23 @@ function PrPrescricoes({ at, patch, patient }) {
           {window.PR_RX_TYPES.map((t) => <button key={t.id} onClick={() => patch({ prescricaoTipo: t.id })} style={prChipStyle(tipo === t.id)}>{t.label}</button>)}
         </div>
         <p className="vt-ai-note"><VtIcon name="spark" size={15} /> {tipoInfo.nota}</p>
-        {tipo === 'antimicrobiano' && (
-          <div style={{ marginTop: 10, padding: '10px 14px', background: '#eff6ff', borderRadius: 8, border: '1px solid #93c5fd', fontSize: 13, color: '#1e40af' }}>
-            <b>💊 Antimicrobiano (CFMV/Anvisa)</b> — Válido por <b>10 dias</b>.
-            Emita em <b>2 vias</b> (1ª via retida na farmácia · 2ª via do tutor). Verifique se o tutor consta no cadastro com endereço.
-          </div>
-        )}
-        {tipo === 'controlada' && (
-          <div style={{ marginTop: 10, padding: '10px 14px', background: '#fff3cd', borderRadius: 8, border: '1px solid #f5c842', fontSize: 13, color: '#7a5a00' }}>
-            <b>⚠ Controle Especial — NRV (Portaria 344/98 / SNCR)</b> — Válido por <b>30 dias</b>.
-            Emita em <b>2 vias</b>. Numeração controlada obrigatória. CPF e endereço completo do tutor exigidos.
-          </div>
-        )}
+        {(() => {
+          const isCtrl   = tipo === 'controlada';
+          const isAntim  = tipo === 'antimicrobiano';
+          if (!isCtrl && !isAntim) return null;
+          const bg     = isCtrl ? '#fff3cd' : '#eff6ff';
+          const border = isCtrl ? '#f5c842' : '#93c5fd';
+          const color  = isCtrl ? '#7a5a00' : '#1e40af';
+          const icon   = isCtrl ? '⚠' : '💊';
+          return (
+            <div style={{ marginTop: 10, padding: '12px 14px', background: bg, borderRadius: 8, border: `1px solid ${border}`, fontSize: 13, color, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span><b>{icon} {tipoInfo.label}</b>{tipoInfo.validade ? ` — Válido por ${tipoInfo.validade} dias · ${tipoInfo.vias} vias` : ''}</span>
+              <span style={{ fontSize: 12 }}>
+                🔏 <b>{tipoInfo.assinaturaLabel}</b> — {tipoInfo.assinaturaNota}
+              </span>
+            </div>
+          );
+        })()}
       </div>
 
       <div className="rx-split">

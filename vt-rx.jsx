@@ -79,10 +79,34 @@ window.rxPosologiaAuto = function (p) {
 };
 
 window.PR_RX_TYPES = [
-  { id: 'comum',         label: 'Receituário Simples',      vias: 1, validade: null, nota: 'Medicamentos de uso geral (venda livre ou sob prescrição). 1 via. Sem prazo de validade específico. (CFMV)' },
-  { id: 'antimicrobiano',label: 'Antimicrobiano',           vias: 2, validade: 10,   nota: 'Antibióticos e antimicrobianos. Obrigatório 2 vias — 1ª retida na farmácia. Válido por 10 dias. (CFMV/Anvisa)' },
-  { id: 'controlada',    label: 'Controle Especial (NRV)',  vias: 2, validade: 30,   nota: 'Psicotrópicos e entorpecentes (Portaria 344/98 / SNCR). Numeração controlada obrigatória. CPF e endereço do tutor exigidos. 2 vias.' },
-  { id: 'manipulado',    label: 'Manipulado',               vias: 1, validade: null, nota: 'Fórmula magistral para manipulação veterinária. Encaminhar à farmácia com especificação completa.' },
+  {
+    id: 'comum', label: 'Receituário Simples', vias: 1, validade: null,
+    assinatura: 'avancada',
+    assinaturaLabel: 'Assinatura Eletrônica Avançada',
+    assinaturaNota: 'Gov.br nível prata ou ouro (Lei nº 14.063/2020)',
+    nota: 'Medicamentos de uso geral (venda livre ou sob prescrição). 1 via. Sem prazo de validade específico. (CFMV)',
+  },
+  {
+    id: 'antimicrobiano', label: 'Antimicrobiano', vias: 2, validade: 10,
+    assinatura: 'avancada',
+    assinaturaLabel: 'Assinatura Eletrônica Avançada',
+    assinaturaNota: 'Gov.br nível prata ou ouro (Lei nº 14.063/2020)',
+    nota: 'Antibióticos e antimicrobianos. 2 vias — 1ª retida na farmácia. Válido por 10 dias. (CFMV/Anvisa)',
+  },
+  {
+    id: 'controlada', label: 'Controle Especial (NRV)', vias: 2, validade: 30,
+    assinatura: 'qualificada',
+    assinaturaLabel: 'Assinatura Eletrônica Qualificada (ICP-Brasil)',
+    assinaturaNota: 'e-CPF obrigatório — Gov.br nível simples NÃO é aceito (Portaria MAPA/SDA nº 837/2025)',
+    nota: 'Psicotrópicos e entorpecentes (Portaria 344/98 / SNCR). Numeração controlada obrigatória. CPF e endereço do tutor exigidos. 2 vias.',
+  },
+  {
+    id: 'manipulado', label: 'Manipulado', vias: 1, validade: null,
+    assinatura: 'avancada',
+    assinaturaLabel: 'Assinatura Eletrônica Avançada',
+    assinaturaNota: 'Gov.br nível prata ou ouro (Lei nº 14.063/2020)',
+    nota: 'Fórmula magistral para manipulação veterinária. Encaminhar à farmácia com especificação completa.',
+  },
 ];
 
 /* ---- Modelos de prescrição (presets) editáveis ---- */
@@ -247,8 +271,11 @@ window.rxToText = function (at, patient) {
   s += `M.V. ${vetObj.name}`;
   if (vetObj.crmv) s += `   CRMV: ${vetObj.crmv}`;
   s += '\n';
-  if (clinic.name) s += `${clinic.name}`;
-  if (tipoInfo.vias > 1) s += `\n\n${tipoInfo.vias} vias — esta é a via do ${nVia ? 'Receituário de Controle Especial' : 'tutor/proprietário'}`;
+  if (clinic.name) s += `${clinic.name}\n`;
+  s += '\n';
+  s += `Documento nato-digital — ${tipoInfo.assinaturaLabel}\n`;
+  s += `${tipoInfo.assinaturaNota}`;
+  if (tipoInfo.vias > 1) s += `\n${tipoInfo.vias} vias — ${nVia ? nVia.toUpperCase() : 'via do tutor/proprietário'}`;
   return s;
 };
 
