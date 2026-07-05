@@ -91,10 +91,13 @@ function DocClinicHeader({ c, accent, layout }) {
 /* ---- bloco de identificação do paciente ---- */
 function DocPatientInfo({ patient, at, accent }) {
   const idade = patient.idade || (window.ageFrom ? window.ageFrom(patient.birth) : '') || '—';
+  const tutorStr = patient.owner + (patient.cpf ? ' · CPF: ' + patient.cpf : '');
   const fields = [
     ['Paciente', patient.name], ['Espécie', patient.species], ['Raça', patient.breed || '—'],
     ['Sexo', patient.sex || '—'], ['Peso', at.weight || patient.weight || '—'], ['Idade', idade],
-    ['Tutor(a)', patient.owner], patient.chip ? ['Microchip', patient.chip] : null,
+    ['Tutor(a)', tutorStr],
+    patient.phone ? ['Fone', patient.phone] : null,
+    patient.chip ? ['Microchip', patient.chip] : null,
   ].filter(Boolean);
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 18px', fontSize: 12.5, marginBottom: 18, padding: '10px 14px', background: accent + '10', borderRadius: 6, borderLeft: '3px solid ' + accent }}>

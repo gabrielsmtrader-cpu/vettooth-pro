@@ -115,11 +115,12 @@ const DOC_MODELS = [
   'Termo de Óbito',
   'Termo para Realização de Eutanásia',
   'Termo para Retirada sem Alta Médica',
+  '— Documento em Branco —',
 ];
 function PrAtestados({ at, patch, patient }) {
   const docs = at.documentos || [];
   const [editor, setEditor] = xUse(null);
-  const gerar = (tipo) => setEditor({ tipo, body: null, id: null });
+  const gerar = (tipo) => setEditor({ tipo: tipo === '— Documento em Branco —' ? 'Documento' : tipo, body: tipo === '— Documento em Branco —' ? '' : null, id: null });
   const openDoc = (d) => setEditor({ tipo: d.tipo, body: d.body, id: d.id });
   const saveDoc = (body) => {
     if (editor.id) patch({ documentos: docs.map((d) => d.id === editor.id ? { ...d, body } : d) });

@@ -126,23 +126,44 @@ function PrDiagnosticos({ at, set }) {
 function PrExames({ at, patch, patient }) {
   const [custom, setCustom] = lUse('');
   const sel = at.exames;
+  const examObs = at.exameObs || {};       // { [nomeExame]: 'observação' }
+  const motivos = at.exameMotivos || [''];  // array de strings
+  const instrucoes = at.exameInstrucoes || '';
+
   const toggle = (n) => patch({ exames: sel.includes(n) ? sel.filter((x) => x !== n) : [...sel, n] });
+  const setExameObs = (nome, val) => patch({ exameObs: { ...examObs, [nome]: val } });
+  const setMotivo = (i, val) => { const m = [...motivos]; m[i] = val; patch({ exameMotivos: m }); };
+  const addMotivo = () => patch({ exameMotivos: [...motivos, ''] });
+  const delMotivo = (i) => patch({ exameMotivos: motivos.filter((_, j) => j !== i) });
+
   const addCustom = () => { if (custom.trim() && !sel.includes(custom.trim())) { patch({ exames: [...sel, custom.trim()] }); setCustom(''); } };
   const presets = window.vtExamPresets();
   const applyPreset = (p) => { patch({ exames: Array.from(new Set([...sel, ...p.itens])) }); window.vtToast(`Perfil "${p.nome}" adicionado.`, 'ok'); };
   const [editor, setEditor] = lUse(false);
+
   const examText = () => {
     const idade = patient.idade || (window.ageFrom ? window.ageFrom(patient.birth) : '') || '—';
     let s = `SOLICITAÇÃO DE EXAMES\n${'─'.repeat(38)}\n`;
     s += `Paciente: ${patient.name}   Espécie: ${patient.species}   Raça: ${patient.breed || '—'}\n`;
     s += `Sexo: ${patient.sex || '—'}   Peso: ${patient.weight || '—'}   Idade: ${idade}\n`;
     s += `Cor/pelagem: ${patient.color || '—'}   Microchip: ${patient.chip || '—'}\n`;
-    s += `Tutor(a): ${patient.owner}\n${'─'.repeat(38)}\n\n`;
-    s += `Suspeita clínica: ${at.exameSuspeita || (at.diag && at.diag.principal) || '___________'}\n\nExames solicitados:\n`;
-    (sel.length ? sel : ['___________']).forEach((e, i) => { s += `  ${i + 1}) ${e}\n`; });
+    s += `Tutor(a): ${patient.owner}${patient.cpf ? '   CPF: ' + patient.cpf : ''}\n${'─'.repeat(38)}\n\n`;
+    const mots = motivos.filter(Boolean);
+    if (mots.length) s += `Suspeita(s) clínica(s): ${mots.join(' · ')}\n\n`;
+    else if (at.exameSuspeita) s += `Suspeita clínica: ${at.exameSuspeita}\n\n`;
+    s += `Exames solicitados:\n`;
+    (sel.length ? sel : ['___________']).forEach((e, i) => {
+      s += `  ${i + 1}) ${e}\n`;
+      const ob = examObs[e];
+      if (ob) s += `      Obs: ${ob}\n`;
+    });
+    if (instrucoes) s += `\nInstruções / Observações gerais:\n${instrucoes}\n`;
     s += `\nData: ${window.PR.todayBR()}`;
     return s;
   };
+
+  const inputStyle = { fontFamily: 'inherit', fontSize: 13, border: '1px solid var(--line)', borderRadius: 8, padding: '7px 11px', width: '100%', boxSizing: 'border-box', background: '#fff' };
+
   return (
     <div>
       <div className="pr-sec-head">
@@ -151,9 +172,18 @@ function PrExames({ at, patch, patient }) {
       </div>
       <div className="rx-split">
         <div className="rx-build">
+          {/* Motivos / Suspeitas clínicas */}
           <div className="pr-block">
-            <label className="pr-field"><span style={{ fontWeight: 700, color: 'var(--ink)' }}>Suspeita clínica</span><input value={at.exameSuspeita || ''} onChange={(e) => patch({ exameSuspeita: e.target.value })} placeholder="Ex.: Insuficiência renal a esclarecer" style={{ width: '100%', fontFamily: 'inherit', fontSize: 14, border: '1px solid var(--line)', borderRadius: 9, padding: '9px 11px' }} /></label>
+            <p className="pr-block-title">Motivos / Suspeitas clínicas</p>
+            {motivos.map((m, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                <input style={{ ...inputStyle, flex: 1 }} value={m} onChange={(e) => setMotivo(i, e.target.value)} placeholder={`Suspeita ${i + 1} — Ex.: DRC a esclarecer`} />
+                {motivos.length > 1 && <button className="pr-del-btn" onClick={() => delMotivo(i)}>✕</button>}
+              </div>
+            ))}
+            <button className="pr-addrow" style={{ marginTop: 4 }} onClick={addMotivo}><VtIcon name="plus" size={14} /> Adicionar suspeita</button>
           </div>
+          {/* Perfis rápidos */}
           <div className="pr-block">
             <p className="pr-block-title">Perfis de exames</p>
             <div className="vt-chip-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
@@ -161,6 +191,7 @@ function PrExames({ at, patch, patient }) {
               <span className="vt-muted" style={{ fontSize: 12, alignSelf: 'center' }}>· personalize em Configurações › Exames</span>
             </div>
           </div>
+          {/* Catálogo por categoria */}
           {(window.PR_EXAM_CAT || []).map((g) => (
             <div className="pr-block" key={g.grupo}>
               <p className="pr-block-title">{g.grupo}</p>
@@ -172,8 +203,17 @@ function PrExames({ at, patch, patient }) {
                   </button>
                 ))}
               </div>
+              {/* Observações inline dos exames selecionados neste grupo */}
+              {g.itens.filter((n) => sel.includes(n)).map((n) => (
+                <div key={n + '-obs'} style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ fontSize: 11.5, color: 'var(--teal-d)', minWidth: 6, fontWeight: 700 }}>↳</span>
+                  <span style={{ fontSize: 12, color: 'var(--ink)', flex: '0 0 auto', maxWidth: '40%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n}:</span>
+                  <input style={{ ...inputStyle, fontSize: 12, padding: '4px 9px' }} value={examObs[n] || ''} onChange={(e) => setExameObs(n, e.target.value)} placeholder="Obs. opcional" />
+                </div>
+              ))}
             </div>
           ))}
+          {/* Exame personalizado */}
           <div className="vt-card vt-sec">
             <h3 className="vt-sec-title">Exame personalizado {sel.length ? <span className="vt-count-badge">{sel.length} selecionado(s)</span> : null}</h3>
             <div style={{ display: 'flex', gap: 10 }}>
@@ -181,6 +221,11 @@ function PrExames({ at, patch, patient }) {
               <button className="vt-btn-ghost" onClick={addCustom}><VtIcon name="plus" size={15} /> Adicionar</button>
             </div>
             {sel.length > 0 && <div className="vt-chip-row" style={{ marginTop: 14 }}>{sel.map((s) => <span key={s} className="vt-tag teal" style={{ cursor: 'pointer' }} onClick={() => toggle(s)}>{s} ✕</span>)}</div>}
+          </div>
+          {/* Instruções / Observações gerais */}
+          <div className="pr-block" style={{ marginTop: 12 }}>
+            <p className="pr-block-title">Instruções / Observações gerais da solicitação <span className="vt-muted">(opcional)</span></p>
+            <textarea className="rx-instrucoes" rows={3} value={instrucoes} onChange={(e) => patch({ exameInstrucoes: e.target.value })} placeholder="Ex.: Jejum de 8h. Entregar resultado no retorno em 15 dias..." />
           </div>
         </div>
         <div className="rx-preview-col">

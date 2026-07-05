@@ -241,18 +241,25 @@ Object.assign(window, { RxPresetsTab, RxMedDatalist });
    Fase 3 — Exames: catálogo ampliado + perfis personalizáveis
    ============================================================ */
 window.PR_EXAM_CAT = [
-  { grupo: 'Laboratório', itens: ['Hemograma completo', 'Perfil bioquímico', 'Função renal (ureia/creatinina)', 'Função hepática (ALT/AST/FA)', 'Glicemia', 'Urinálise (EAS)', 'Eletrólitos (Na/K/Cl)', 'Proteínas totais', 'T4 (tireoide)', 'Coagulograma', 'Parasitológico de fezes', 'Cultura + antibiograma'] },
-  { grupo: 'Imagem', itens: ['Radiografia', 'Ultrassonografia abdominal', 'Ecocardiograma', 'Tomografia', 'Ressonância magnética', 'Radiografia odontológica'] },
-  { grupo: 'Cardiologia', itens: ['Eletrocardiograma (ECG)', 'Pressão arterial'] },
-  { grupo: 'Citologia / Patologia', itens: ['Citologia', 'Histopatologia', 'PAAF (punção aspirativa)'] },
-  { grupo: 'Testes rápidos', itens: ['FIV / FeLV', 'Cinomose / Parvovirose', 'Leishmaniose', 'Erliquiose / Anaplasmose'] },
+  { grupo: 'Hematologia', itens: ['Hemograma completo', 'Teste de Compatibilidade Sanguínea', 'Pesquisa de Hematozoários', 'Coagulograma (TTPA)', 'Tempo de Protrombina (TP)', 'Tipagem sanguínea cães (DEA 1.1)', 'Tipagem sanguínea gatos (A/B/AB)'] },
+  { grupo: 'Bioquímico', itens: ['Perfil Bioquímico Completo', 'Perfil Renal 1 (ureia, creatinina)', 'Perfil Renal 2 (ureia, creatinina, eletrólitos)', 'Perfil Hepático (ALT, AST, FA, GGT, bilirrubinas)', 'Eletrólitos (Na, K, Cl)', 'Ureia', 'Creatinina', 'Glicose / Glicemia', 'Colesterol', 'Triglicérides', 'Proteínas totais e albumina', 'ALT (TGP)', 'AST (TGO)', 'Fosfatase alcalina (FA)', 'GGT', 'Bilirrubinas (total e frações)', 'Frutosamina', 'Cálcio', 'Fósforo'] },
+  { grupo: 'Urina e Fezes', itens: ['Urinálise (EAS / Urina tipo I)', 'Relação Proteína/Creatinina urinária (UPC)', 'Análise de cálculo vesical', 'Coproparasitológico', 'Coprológico funcional', 'Pesquisa de sangue oculto nas fezes'] },
+  { grupo: 'Imunologia / Testes rápidos', itens: ['FIV / FeLV (Elisa - snap)', 'Cinomose (Elisa)', 'Parvovirose / Coronavirose (Elisa)', 'Leishmaniose (Elisa / IFI)', 'Snap 4Dx (Erliquiose, Anaplasmose, Borreliose, Dirofilariose)', 'Brucelose (SAR / 2-mercaptoetanol)', 'Giardia sp (Elisa - snap)'] },
+  { grupo: 'Hormônios / Endocrinologia', itens: ['T4 livre', 'T4 total', 'T3', 'TSH', 'Cortisol', 'Teste de estimulação com ACTH', 'Teste de supressão com dexametasona', 'Progesterona', 'Estradiol', 'Testosterona', 'Insulina'] },
+  { grupo: 'Imagem', itens: ['Radiografia (sem contraste)', 'Radiografia com contraste', 'Radiografia odontológica', 'Ultrassonografia abdominal', 'Ecocardiograma (Ecodopplercardiograma)', 'Tomografia (sem contraste)', 'Tomografia com contraste', 'Ressonância magnética', 'Esofagograma com contraste', 'Trânsito intestinal com contraste', 'Uretrocistografia com contraste'] },
+  { grupo: 'Cardiologia', itens: ['Eletrocardiograma (ECG)', 'Pressão Arterial', 'Ecodopplercardiograma'] },
+  { grupo: 'Citologia / Patologia', itens: ['Citologia — ouvido', 'Citologia — pele', 'Citologia — vaginal', 'Citologia — formações externas', 'Citologia — lavado vesical', 'Citologia — pesquisa de ectoparasitas', 'PAAF (punção aspirativa de agulha fina)', 'Histopatológico (biópsia)', 'Necropsia'] },
+  { grupo: 'Líquidos Cavitários', itens: ['Líquido pleural', 'Líquido peritoneal (ascite)', 'Líquido pericárdico', 'Seroma / Abscesso'] },
+  { grupo: 'Microbiologia', itens: ['Cultura e antibiograma (bactérias aeróbicas)', 'Cultura para fungos (dermatofitose)'] },
 ];
 window.PR_EXAM_PRESETS_DEFAULT = [
-  { id: 'preop', nome: 'Pré-operatório / anestésico', itens: ['Hemograma completo', 'Perfil bioquímico', 'Função renal (ureia/creatinina)', 'Função hepática (ALT/AST/FA)', 'Eletrocardiograma (ECG)', 'Coagulograma'] },
-  { id: 'geriatrico', nome: 'Check-up geriátrico', itens: ['Hemograma completo', 'Perfil bioquímico', 'Urinálise (EAS)', 'T4 (tireoide)', 'Pressão arterial', 'Ultrassonografia abdominal'] },
-  { id: 'renal', nome: 'Perfil renal', itens: ['Função renal (ureia/creatinina)', 'Urinálise (EAS)', 'Eletrólitos (Na/K/Cl)', 'Pressão arterial'] },
-  { id: 'hepatico', nome: 'Perfil hepático', itens: ['Função hepática (ALT/AST/FA)', 'Proteínas totais', 'Ultrassonografia abdominal'] },
-  { id: 'felino', nome: 'Triagem felina', itens: ['FIV / FeLV', 'Hemograma completo', 'Perfil bioquímico', 'T4 (tireoide)'] },
+  { id: 'preop', nome: 'Pré-operatório / anestésico', itens: ['Hemograma completo', 'Perfil Renal 1 (ureia, creatinina)', 'Perfil Hepático (ALT, AST, FA, GGT, bilirrubinas)', 'Proteínas totais e albumina', 'Eletrocardiograma (ECG)', 'Coagulograma (TTPA)'] },
+  { id: 'geriatrico', nome: 'Check-up geriátrico', itens: ['Hemograma completo', 'Perfil Bioquímico Completo', 'Urinálise (EAS / Urina tipo I)', 'T4 livre', 'Pressão Arterial', 'Ultrassonografia abdominal'] },
+  { id: 'renal', nome: 'Perfil renal', itens: ['Perfil Renal 1 (ureia, creatinina)', 'Urinálise (EAS / Urina tipo I)', 'Relação Proteína/Creatinina urinária (UPC)', 'Eletrólitos (Na, K, Cl)', 'Pressão Arterial'] },
+  { id: 'hepatico', nome: 'Perfil hepático', itens: ['Perfil Hepático (ALT, AST, FA, GGT, bilirrubinas)', 'Proteínas totais e albumina', 'Ultrassonografia abdominal'] },
+  { id: 'felino', nome: 'Triagem felina', itens: ['FIV / FeLV (Elisa - snap)', 'Hemograma completo', 'Perfil Bioquímico Completo', 'T4 livre'] },
+  { id: 'senil_combo', nome: 'Perfil Senil completo', itens: ['Hemograma completo', 'Perfil Renal 1 (ureia, creatinina)', 'Perfil Hepático (ALT, AST, FA, GGT, bilirrubinas)', 'Urinálise (EAS / Urina tipo I)', 'Glicose / Glicemia', 'Pressão Arterial', 'Ultrassonografia abdominal'] },
+  { id: 'odonto_preop', nome: 'Pré-dental (odontologia)', itens: ['Hemograma completo', 'Perfil Renal 1 (ureia, creatinina)', 'Perfil Hepático (ALT, AST, FA, GGT, bilirrubinas)', 'Coagulograma (TTPA)', 'Radiografia odontológica'] },
 ];
 window.vtExamPresets = function () { const d = window.VtStore && window.VtStore.getData(); return (d && d.examPresets) || window.PR_EXAM_PRESETS_DEFAULT; };
 window.vtSaveExamPresets = function (l) { if (window.VtStore) window.VtStore.setData({ examPresets: l }); };
