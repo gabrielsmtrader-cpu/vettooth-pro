@@ -13,6 +13,7 @@ function docCtx(patient, at) {
 window.DOC_TEMPLATES = {
   'Atestado de saúde': (c) => `ATESTADO DE SAÚDE\n\nAtesto, para os devidos fins, que o animal ${c.patient.name} (espécie ${c.patient.species}, raça ${c.patient.breed}, sexo ${c.patient.sex}), de propriedade de ${c.tutor}, foi submetido a exame clínico nesta data e encontra-se em bom estado geral de saúde, apto para as atividades a que se destina.\n\nObservações: ___________________________________________\n\n${c.clinic.address || ''}\nData: ${c.date}`,
   'Atestado de sanidade': (c) => `ATESTADO DE SANIDADE\n\nAtesto que o animal ${c.patient.name} (${c.patient.species} · ${c.patient.breed}), de propriedade de ${c.tutor}, encontra-se clinicamente sadio, sem sinais de doença infectocontagiosa no momento do exame.\n\nData: ${c.date}`,
+  'Atestado de repouso': (c) => `ATESTADO DE REPOUSO\n\nAtesto que o animal ${c.patient.name} (${c.patient.species} · ${c.patient.breed}), de propriedade de ${c.tutor}, necessita de repouso pelo período de ___ dias, a contar de ${c.date}, devendo ser afastado de atividades físicas, exercícios e esforços durante este período.\n\nMotivo: ___________________________________________\nObservações: ___________________________________________\n\nData: ${c.date}`,
   'Atestado de óbito': (c) => `ATESTADO DE ÓBITO\n\nAtesto o óbito do animal ${c.patient.name} (${c.patient.species} · ${c.patient.breed}), de propriedade de ${c.tutor}, ocorrido em ___/___/______.\n\nCausa provável: ___________________________________________\n\nData: ${c.date}`,
   'Termo de consentimento': (c) => `TERMO DE CONSENTIMENTO LIVRE E ESCLARECIDO\n\nEu, ${c.tutor}, responsável pelo animal ${c.patient.name} (${c.patient.species}), declaro que fui devidamente informado(a) pelo(a) médico(a) veterinário(a) sobre o procedimento indicado, seus riscos, benefícios e alternativas, e AUTORIZO sua realização.\n\nDeclaro estar ciente de que a medicina veterinária não é ciência exata e não há garantia de resultados.\n\nData: ${c.date}`,
   'Termo de consentimento anestésico': (c) => `TERMO DE CONSENTIMENTO ANESTÉSICO\n\nEu, ${c.tutor}, autorizo a sedação/anestesia do animal ${c.patient.name} (${c.patient.species}), estando ciente dos riscos anestésicos inerentes ao procedimento, classificação ASA e da necessidade de exames pré-operatórios.\n\nData: ${c.date}`,
@@ -72,7 +73,7 @@ function DocPatientInfo({ patient, at, accent }) {
 }
 
 /* ---- bloco de assinaturas ---- */
-function DocSignatures({ vet, tutor, signed, onToggleSigned }) {
+function DocSignatures({ vet, tutor, signed, onToggleSigned, showTutor }) {
   return (
     <div className="doc-signs" style={{ marginTop: 40 }}>
       <div className="doc-sign">
@@ -80,13 +81,15 @@ function DocSignatures({ vet, tutor, signed, onToggleSigned }) {
         <b>{vet.name ? 'M.V. ' + vet.name : 'Médico(a) Veterinário(a)'}</b>
         <span>{[vet.crmv, vet.especialidade].filter(Boolean).join(' · ') || 'CRMV'}</span>
       </div>
-      <div className="doc-sign">
-        <div className="doc-sign-line" style={signed ? { borderColor: 'var(--teal)' } : null} />
-        <b>{tutor}</b>
-        {onToggleSigned
-          ? <span style={{ cursor: 'pointer', color: 'var(--teal-d)', fontWeight: 700 }} onClick={onToggleSigned}>{signed ? '✓ Assinado digitalmente' : 'Tutor (clique p/ simular)'}</span>
-          : <span style={{ color: 'var(--muted)', fontSize: 11 }}>Tutor / Responsável</span>}
-      </div>
+      {showTutor && (
+        <div className="doc-sign">
+          <div className="doc-sign-line" style={signed ? { borderColor: 'var(--teal)' } : null} />
+          <b>{tutor}</b>
+          {onToggleSigned
+            ? <span style={{ cursor: 'pointer', color: 'var(--teal-d)', fontWeight: 700 }} onClick={onToggleSigned}>{signed ? '✓ Assinado digitalmente' : 'Tutor (clique p/ simular)'}</span>
+            : <span style={{ color: 'var(--muted)', fontSize: 11 }}>Tutor / Responsável</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -187,8 +190,11 @@ function DocTextBody({ body, tipo, accent }) {
 
 /* ---- página de documento completa (usada no preview e na impressão) ---- */
 function DocPage({ tipo, patient, at, body, accent, layout, c, vet, signed, onToggleSigned }) {
-  const isRx    = /receitu/i.test(tipo || '');
-  const isExame = /solicita|exame/i.test(tipo || '');
+  const isRx       = /receitu/i.test(tipo || '');
+  const isExame    = /solicita|exame/i.test(tipo || '');
+  const isAtestado = /^Atestado/i.test(tipo || '');
+  // Termos precisam de vet + tutor. Atestados, receituários e exames: só vet.
+  const showTutor  = !isRx && !isExame && !isAtestado;
   const showLogo = isRx ? c.logoRx !== false : isExame ? c.logoEx !== false : c.logoDoc !== false;
   const showObs  = isRx ? c.obsRx  !== false : isExame ? c.obsEx  !== false : c.obsDoc  !== false;
   return (
@@ -198,7 +204,7 @@ function DocPage({ tipo, patient, at, body, accent, layout, c, vet, signed, onTo
       {isRx    && <DocRxBody    at={at} patient={patient} accent={accent} />}
       {isExame && <DocExamesBody at={at} patient={patient} accent={accent} />}
       {!isRx && !isExame && <DocTextBody body={body} tipo={tipo} accent={accent} />}
-      <DocSignatures vet={vet} tutor={patient.owner} signed={signed} onToggleSigned={onToggleSigned} />
+      <DocSignatures vet={vet} tutor={patient.owner} signed={signed} onToggleSigned={showTutor ? onToggleSigned : null} showTutor={showTutor} />
       {showObs && c.docObs ? <div className="doc-obs-foot" style={{ borderColor: accent, marginTop: 20 }}>{c.docObs}</div> : null}
     </div>
   );
