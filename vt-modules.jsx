@@ -239,7 +239,16 @@ window.vtSaveTeam = function (list) {
 window.vtVetSignature = function (vetName) {
   const n = (vetName || '').replace('M.V. ', '').trim();
   const m = (window.vtTeam() || []).find((x) => x.vet && (x.name === n || ('M.V. ' + x.name) === vetName));
-  return m ? { name: m.name, crmv: m.crmv || '', especialidade: m.especialidade || '', sign: m.sign || '' } : { name: n, crmv: '', especialidade: '', sign: '' };
+  if (!m) return { name: n, crmv: '', especialidade: '', sign: '', icp: null };
+  const icp = (m.icpTipo || m.icpTitular || m.icpCpf) ? {
+    tipo: m.icpTipo || 'A1',
+    titular: m.icpTitular || m.name,
+    cpf: m.icpCpf || '',
+    ac: m.icpAC || '',
+    validade: m.icpValidade || '',
+    serial: m.icpSerial || '',
+  } : null;
+  return { name: m.name, crmv: m.crmv || '', especialidade: m.especialidade || '', sign: m.sign || '', icp };
 };
 window.vtClinic = function () {
   const d = window.VtStore && window.VtStore.getData();
@@ -2562,6 +2571,50 @@ function ContaTab() {
           <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const file = e.target.files[0]; if (!file) return; const r = new FileReader(); r.onload = () => setMeK('sign')(r.result); r.readAsDataURL(file); }} />
         </label>
         <div className="vt-form-actions"><button className="vt-btn-primary" onClick={saveMe}>Salvar assinatura</button></div>
+      </div>
+
+      <div className="vt-card vt-sec vt-form" style={{ marginBottom: 16 }}>
+        <div className="vt-form-sec">🔏 Certificado Digital ICP-Brasil</div>
+        <p className="vt-muted" style={{ fontSize: 13, marginTop: 0 }}>
+          Dados do seu certificado ICP-Brasil para inclusão no carimbo de autenticidade das receitas digitais.
+          O certificado físico (token A3) ou arquivo A1 continua sendo usado fora do sistema para assinar o PDF final.
+        </p>
+        <div style={{ marginBottom: 12, padding: '10px 14px', background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 8, fontSize: 12.5, color: '#1e40af' }}>
+          <b>Tipo de assinatura por receituário:</b><br />
+          • <b>Simples / Antimicrobiano:</b> Assinatura Avançada — Gov.br prata/ouro (Lei 14.063/2020)<br />
+          • <b>Controle Especial (NRV):</b> Assinatura <b>Qualificada</b> — e-CPF ICP-Brasil (Portaria MAPA/SDA 837/2025)
+        </div>
+        <div className="vt-form-row">
+          <label className="vtf-wrap" style={{ width: '32%' }}>
+            <span className="vtf-label">Tipo de certificado</span>
+            <select className="vtf-input" value={me.icpTipo || 'A1'} onChange={(e) => setMeK('icpTipo')(e.target.value)}>
+              <option value="">Não configurado</option>
+              <option value="A1">e-CPF A1 (arquivo .pfx)</option>
+              <option value="A3">e-CPF A3 (token/smartcard)</option>
+              <option value="nuvem">e-CPF em nuvem (VidaaS / SafeSign)</option>
+            </select>
+          </label>
+          <VtField label="Titular (nome no certificado)" value={me.icpTitular || ''} onChange={setMeK('icpTitular')} placeholder="Como consta no certificado" width="66%" />
+        </div>
+        <div className="vt-form-row">
+          <VtField label="e-CPF (CPF do titular)" value={me.icpCpf || ''} onChange={setMeK('icpCpf')} placeholder="000.000.000-00" width="32%" />
+          <VtField label="Autoridade Certificadora (AC)" value={me.icpAC || ''} onChange={setMeK('icpAC')} placeholder="Ex.: Certisign, Serpro, Valid" width="36%" />
+          <VtField label="Validade do certificado" value={me.icpValidade || ''} onChange={setMeK('icpValidade')} placeholder="MM/AAAA" width="28%" />
+        </div>
+        <VtField label="Número de série do certificado (opcional)" value={me.icpSerial || ''} onChange={setMeK('icpSerial')} placeholder="Ex.: 12:AB:CD:EF:..." />
+        <div style={{ marginTop: 14, padding: '10px 14px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, fontSize: 12.5, color: '#166534' }}>
+          <b>Como assinar digitalmente o PDF gerado:</b><br />
+          1. Clique em <b>Emitir PDF</b> na prescrição e salve o arquivo<br />
+          2. Acesse <b>assinador.iti.br</b> (gratuito, oficial ICP-Brasil) → faça upload do PDF → assine com seu token/A1/nuvem<br />
+          3. Baixe o PDF assinado e envie ao tutor / farmácia<br />
+          <span style={{ marginTop: 6, display: 'block' }}>Alternativas: <b>Lacuna Web PKI</b> (extensão de navegador), <b>VidaaS</b> (cloud A3), <b>SafeSign</b> (token físico)</span>
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginTop: 14, alignItems: 'center' }}>
+          <button className="vt-btn-primary" onClick={saveMe}>Salvar certificado</button>
+          <a href="https://assinador.iti.br" target="_blank" rel="noopener noreferrer" className="vt-btn-ghost" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+            🔗 Abrir Assinador ITI
+          </a>
+        </div>
       </div>
 
       <div className="vt-card vt-sec vt-form">

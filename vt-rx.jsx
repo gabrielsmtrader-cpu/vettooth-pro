@@ -274,8 +274,20 @@ window.rxToText = function (at, patient) {
   if (clinic.name) s += `${clinic.name}\n`;
   s += '\n';
   s += `Documento nato-digital — ${tipoInfo.assinaturaLabel}\n`;
-  s += `${tipoInfo.assinaturaNota}`;
-  if (tipoInfo.vias > 1) s += `\n${tipoInfo.vias} vias — ${nVia ? nVia.toUpperCase() : 'via do tutor/proprietário'}`;
+  if (vetObj.icp) {
+    const icp = vetObj.icp;
+    s += `Certificado ICP-Brasil e-CPF ${icp.tipo}`;
+    if (icp.titular) s += ` · ${icp.titular}`;
+    if (icp.cpf)     s += ` · CPF: ${icp.cpf}`;
+    s += '\n';
+    if (icp.ac)       s += `AC: ${icp.ac}`;
+    if (icp.validade) s += `   Válido até: ${icp.validade}`;
+    if (icp.serial)   s += `   Série: ${icp.serial}`;
+    if (icp.ac || icp.validade || icp.serial) s += '\n';
+  } else {
+    s += `${tipoInfo.assinaturaNota}\n`;
+  }
+  if (tipoInfo.vias > 1) s += `${tipoInfo.vias} vias — ${nVia ? nVia.toUpperCase() : 'via do tutor/proprietário'}`;
   return s;
 };
 
