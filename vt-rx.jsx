@@ -163,6 +163,10 @@ window.rxToText = function (at, patient) {
       s += '\n';
     });
   }
+  if (at.prescricaoInstrucoes) {
+    s += `${'─'.repeat(38)}\n`;
+    s += `Instruções gerais do tratamento:\n${at.prescricaoInstrucoes}\n`;
+  }
   s += `\nData: ${window.PR.todayBR()}`;
   return s;
 };

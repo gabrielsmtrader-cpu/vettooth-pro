@@ -278,6 +278,17 @@ function PrPrescricoes({ at, patch, patient }) {
         </div>
       </div>
 
+      <div className="pr-block" style={{ marginTop: 12 }}>
+        <p className="pr-block-title">Instruções gerais do tratamento <span className="vt-muted" style={{ fontWeight: 400, fontSize: 12 }}>(opcional)</span></p>
+        <textarea
+          className="rx-instrucoes"
+          rows={3}
+          value={at.prescricaoInstrucoes || ''}
+          onChange={(e) => patch({ prescricaoInstrucoes: e.target.value })}
+          placeholder="Ex: Alimentação pastosa por 7 dias. Uso de colar elizabetano. Retorno em 10 dias para retirada de pontos."
+        />
+      </div>
+
       <RxMedDatalist />
       {editor && <DocEditor tipo={`Receituário ${tipoInfo.label}`} patient={patient} at={at} initialBody={window.rxToText(at, patient)} onClose={() => setEditor(false)} onSave={() => setEditor(false)} />}
     </div>
@@ -289,20 +300,34 @@ function RxPosBuilder({ pos, onChange }) {
   const p = pos || {};
   const set = (k) => (v) => onChange({ ...p, [k]: v });
   const auto = window.rxPosologiaAuto(p);
+  const modoAuto = !p.modoLivre;
+  const setModo = (livre) => onChange({ ...p, modoLivre: livre });
   return (
     <div className="rx-pos">
-      <div className="rx-pos-grid">
-        <label><span>Dosagem</span><select value={p.dosagem || ''} onChange={(e) => set('dosagem')(e.target.value)}><option value="">—</option>{window.PR_RX_DOSAGENS.map((d) => <option key={d}>{d}</option>)}</select></label>
-        <label><span>Medida</span><select value={p.medida || ''} onChange={(e) => set('medida')(e.target.value)}><option value="">—</option>{window.PR_RX_MEDIDAS.map((m) => <option key={m}>{m}</option>)}</select></label>
-        <label><span>A cada</span><input value={p.freqNum || ''} onChange={(e) => set('freqNum')(e.target.value)} placeholder="8" /></label>
-        <label><span>Período</span><select value={p.freqUni || ''} onChange={(e) => set('freqUni')(e.target.value)}><option value="">—</option>{window.PR_RX_PERIODOS.map((x) => <option key={x}>{x}</option>)}</select></label>
-        <label><span>Durante</span><input value={p.durNum || ''} disabled={p.durCont} onChange={(e) => set('durNum')(e.target.value)} placeholder="7" /></label>
-        <label><span>Período</span><select value={p.durUni || ''} disabled={p.durCont} onChange={(e) => set('durUni')(e.target.value)}><option value="">—</option>{window.PR_RX_PERIODOS.map((x) => <option key={x}>{x}</option>)}</select></label>
-        <label><span>Via</span><select value={p.viaFull || 'Oral'} onChange={(e) => set('viaFull')(e.target.value)}>{window.PR_RX_VIAS_FULL.map((v) => <option key={v}>{v}</option>)}</select></label>
-        <label style={{ alignSelf: 'end' }}><span style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}><input type="checkbox" checked={!!p.durCont} onChange={(e) => set('durCont')(e.target.checked)} /> Contínuo</span></label>
+      <div className="rx-pos-toggle-bar">
+        <span className="rx-pos-label">Posologia</span>
+        <div className="rx-pos-toggle">
+          <button className={`rx-pos-tab${modoAuto ? ' active' : ''}`} onClick={() => setModo(false)}>Automática</button>
+          <button className={`rx-pos-tab${!modoAuto ? ' active' : ''}`} onClick={() => setModo(true)}>Texto livre</button>
+        </div>
       </div>
-      <div className="rx-pos-auto">{auto || 'Preencha os campos para gerar a posologia, ou escreva abaixo.'}</div>
-      <input className="rx-pos-free" value={p.livre || ''} onChange={(e) => set('livre')(e.target.value)} placeholder="Posologia livre (sobrescreve a automática)" />
+      {modoAuto ? (
+        <>
+          <div className="rx-pos-grid">
+            <label><span>Dosagem</span><select value={p.dosagem || ''} onChange={(e) => set('dosagem')(e.target.value)}><option value="">—</option>{window.PR_RX_DOSAGENS.map((d) => <option key={d}>{d}</option>)}</select></label>
+            <label><span>Medida</span><select value={p.medida || ''} onChange={(e) => set('medida')(e.target.value)}><option value="">—</option>{window.PR_RX_MEDIDAS.map((m) => <option key={m}>{m}</option>)}</select></label>
+            <label><span>A cada</span><input value={p.freqNum || ''} onChange={(e) => set('freqNum')(e.target.value)} placeholder="8" /></label>
+            <label><span>Período</span><select value={p.freqUni || ''} onChange={(e) => set('freqUni')(e.target.value)}><option value="">—</option>{window.PR_RX_PERIODOS.map((x) => <option key={x}>{x}</option>)}</select></label>
+            <label><span>Durante</span><input value={p.durNum || ''} disabled={p.durCont} onChange={(e) => set('durNum')(e.target.value)} placeholder="7" /></label>
+            <label><span>Período</span><select value={p.durUni || ''} disabled={p.durCont} onChange={(e) => set('durUni')(e.target.value)}><option value="">—</option>{window.PR_RX_PERIODOS.map((x) => <option key={x}>{x}</option>)}</select></label>
+            <label><span>Via</span><select value={p.viaFull || 'Oral'} onChange={(e) => set('viaFull')(e.target.value)}>{window.PR_RX_VIAS_FULL.map((v) => <option key={v}>{v}</option>)}</select></label>
+            <label style={{ alignSelf: 'end' }}><span style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}><input type="checkbox" checked={!!p.durCont} onChange={(e) => set('durCont')(e.target.checked)} /> Contínuo</span></label>
+          </div>
+          <div className="rx-pos-auto">{auto || 'Preencha os campos acima para gerar a posologia automaticamente.'}</div>
+        </>
+      ) : (
+        <textarea className="rx-pos-textarea" rows={3} value={p.livre || ''} onChange={(e) => set('livre')(e.target.value)} placeholder="Ex: Administrar 1 comprimido a cada 12 horas por 7 dias, após alimentação." />
+      )}
     </div>
   );
 }
@@ -324,7 +349,9 @@ function RxMedCard({ r, idx, kg, onChange, onDel }) {
         <label><span>Concentração</span><input value={r.conc || ''} onChange={(e) => onChange({ conc: e.target.value })} placeholder="50 mg" /></label>
         <label><span>Dose/kg</span><input value={r.dose || ''} onChange={(e) => onChange({ dose: e.target.value })} placeholder="mg/kg" /></label>
         <label><span>Dose p/ {kg || '?'} kg</span><div className="rx-calc">{calc ? `${calc.total} ${calc.unit}` : '—'}</div></label>
-        <label><span>Qtd produto</span><select value={r.qtdProd || '1'} onChange={(e) => onChange({ qtdProd: e.target.value })}>{Array.from({ length: 60 }, (_, i) => i + 1).map((n) => <option key={n}>{n}</option>)}</select></label>
+        <label><span>Qtd</span><select value={r.qtdProd || '1'} onChange={(e) => onChange({ qtdProd: e.target.value })}>{Array.from({ length: 60 }, (_, i) => i + 1).map((n) => <option key={n} value={String(n)}>{n} {n === 1 ? 'unidade' : 'unidades'}</option>)}</select></label>
+        <label><span>Via</span><select value={(r.pos || {}).viaFull || 'Oral'} onChange={(e) => setPos({ ...(r.pos || {}), viaFull: e.target.value })}>{window.PR_RX_VIAS_FULL.map((v) => <option key={v}>{v}</option>)}</select></label>
+        <label><span>Farmácia</span><select value={r.farmacia || 'Veterinária'} onChange={(e) => onChange({ farmacia: e.target.value })}>{window.PR_RX_FARMACIA.map((f) => <option key={f}>{f}</option>)}</select></label>
       </div>
       <RxPosBuilder pos={r.pos} onChange={setPos} />
     </div>
