@@ -122,6 +122,15 @@ window.rxDoseCalc = function (perKg, kg) {
 };
 window.rxIsControlled = function (nome) { const m = window.PR_MEDS.find((x) => x.nome.toLowerCase() === (nome || '').toLowerCase()); return !!(m && m.controlado); };
 
+/* extenso para quantidades (1-30) */
+window.rxExtenso = function (n) {
+  const ext = ['','um','dois','três','quatro','cinco','seis','sete','oito','nove','dez',
+    'onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove','vinte',
+    'vinte e um','vinte e dois','vinte e três','vinte e quatro','vinte e cinco',
+    'vinte e seis','vinte e sete','vinte e oito','vinte e nove','trinta'];
+  return ext[parseInt(n)] || String(n);
+};
+
 /* gera o texto padrão da receita a partir dos itens */
 window.rxToText = function (at, patient) {
   const tipo = at.prescricaoTipo || 'comum';
@@ -129,26 +138,34 @@ window.rxToText = function (at, patient) {
   const kg = window.rxKg(patient);
   const controlada = tipo === 'controlada';
   const idade = patient.idade || (window.ageFrom ? window.ageFrom(patient.birth) : '') || '—';
-  let s = `RECEITUÁRIO ${(t || '').toUpperCase()}\n`;
+
+  // cabeçalho: controlada exige indicação de via e validade
+  const nVia = controlada ? (at.rxNVia || '1ª via') : null;
+  const tLabel = (t || '').toUpperCase().replace(/^RECEITUÁRIO\s+/i, '');
+  let s = `RECEITUÁRIO ${tLabel}${nVia ? '  —  ' + nVia.toUpperCase() : ''}\n`;
+  if (controlada) s += `Validade: 30 dias a partir da emissão   (Portaria 344/98 — ${(at.rxNVias || 2)} vias)\n`;
   s += `${'─'.repeat(38)}\n`;
   s += `Paciente: ${patient.name}   Espécie: ${patient.species}   Raça: ${patient.breed || '—'}\n`;
   s += `Sexo: ${patient.sex || '—'}   Peso: ${patient.weight || '—'}   Idade: ${idade}\n`;
   s += `Cor/pelagem: ${patient.color || '—'}   Microchip: ${patient.chip || '—'}\n`;
-  s += `Tutor(a): ${patient.owner}\n`;
+  s += `Tutor(a): ${patient.owner}${patient.cpf ? '   CPF: ' + patient.cpf : ''}\n`;
   if (controlada) {
+    if (!patient.cpf) s += `CPF: ___________   `;
+    s += `Tel: ${patient.phone || '___________'}\n`;
     const addr = patient.address || {};
-    s += `CPF: ${patient.cpf || '___________'}   Tel: ${patient.phone || '___________'}\n`;
     s += `Endereço: ${[addr.street, addr.num, addr.district, addr.city, addr.state].filter(Boolean).join(', ') || '___________'}\n`;
   }
   s += `${'─'.repeat(38)}\n\n`;
+
   if (tipo === 'manipulado') {
     (at.prescricoes || []).forEach((r, i) => {
       s += `${i + 1}) MANIPULAR — ${r.forma || ''}${r.qtdProd ? ' (' + r.qtdProd + ' un.)' : ''}\n`;
       (r.componentes || [{ ativo: r.ativo, conc: r.conc }]).forEach((c) => { if (c.ativo) s += `   • ${c.ativo} ${c.conc || ''}${c.unidade || ''}\n`; });
       if (r.qsp) s += `   q.s.p. ${r.qsp}\n`;
-      if (r.farmacia) s += `   Farmácia: ${r.farmacia} · via ${(r.viaFull || '').toLowerCase()}\n`;
+      if (r.farmacia) s += `   Farmácia: ${r.farmacia}${(r.pos && r.pos.viaFull) ? ' · via ' + r.pos.viaFull.toLowerCase() : ''}\n`;
       const pos = r.posologia || window.rxPosologiaAuto(r.pos);
       if (pos) s += `   Posologia: ${pos}\n`;
+      if (r.obs) s += `   Obs: ${r.obs}\n`;
       s += '\n';
     });
   } else {
@@ -157,8 +174,14 @@ window.rxToText = function (at, patient) {
       s += `${i + 1}) ${r.nome}${r.apresentacao ? ' — ' + r.apresentacao : ''}${r.conc ? ' ' + r.conc : ''}\n`;
       if (calc) s += `   Dose p/ ${kg} kg: ${calc.total} ${calc.unit}\n`;
       const pos = r.posologia || window.rxPosologiaAuto(r.pos);
-      s += `   ${[pos, r.qtdProd ? 'Quantidade: ' + r.qtdProd + ' un.' : ''].filter(Boolean).join('  ·  ') || [r.freq, r.tempo].filter(Boolean).join(' · ')}\n`;
-      if (window.rxIsControlled(r.nome)) s += `   ⚠ Controle especial (Portaria 344/98)\n`;
+      const qtd = r.qtdProd;
+      let qtdStr = '';
+      if (qtd) {
+        qtdStr = controlada
+          ? `Quantidade: ${qtd} (${window.rxExtenso(qtd)}) unidade(s)`
+          : `Quantidade: ${qtd} unidade(s)`;
+      }
+      s += `   ${[pos, qtdStr].filter(Boolean).join('  ·  ') || [r.freq, r.tempo].filter(Boolean).join(' · ')}\n`;
       if (r.obs) s += `   Obs: ${r.obs}\n`;
       s += '\n';
     });

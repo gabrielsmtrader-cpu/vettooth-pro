@@ -280,6 +280,12 @@ function PrPrescricoes({ at, patch, patient }) {
           {window.PR_RX_TYPES.map((t) => <button key={t.id} onClick={() => patch({ prescricaoTipo: t.id })} style={prChipStyle(tipo === t.id)}>{t.label}</button>)}
         </div>
         <p className="vt-ai-note"><VtIcon name="spark" size={15} /> {tipoInfo.nota}</p>
+        {tipo === 'controlada' && (
+          <div style={{ marginTop: 10, padding: '10px 14px', background: '#fff3cd', borderRadius: 8, border: '1px solid #f5c842', fontSize: 13, color: '#7a5a00' }}>
+            <b>⚠ Receituário de Controle Especial (Portaria 344/98)</b> — Válido por <b>30 dias</b>.
+            Emita em <b>2 vias</b> (1ª via: farmácia · 2ª via: responsável). Identifique o paciente e o tutor com CPF e endereço completo.
+          </div>
+        )}
       </div>
 
       <div className="rx-split">
@@ -399,6 +405,10 @@ function RxMedCard({ r, idx, kg, onChange, onDel }) {
         <label><span>Farmácia</span><select value={r.farmacia || 'Veterinária'} onChange={(e) => onChange({ farmacia: e.target.value })}>{window.PR_RX_FARMACIA.map((f) => <option key={f}>{f}</option>)}</select></label>
       </div>
       <RxPosBuilder pos={r.pos} onChange={setPos} />
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+        <span style={{ fontSize: 12, color: 'var(--ink-2)', fontWeight: 600 }}>Observação (opcional)</span>
+        <input value={r.obs || ''} onChange={(e) => onChange({ obs: e.target.value })} placeholder="Ex.: administrar após alimentação, não partir o comprimido..." style={{ fontFamily: 'inherit', fontSize: 13, border: '1px solid var(--line)', borderRadius: 8, padding: '6px 10px' }} />
+      </label>
     </div>
   );
 }
