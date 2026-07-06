@@ -4,16 +4,26 @@ Sistema de gestão odontológica veterinária para pequenos animais e equinos.
 
 ## Executar localmente
 
-O projeto atual não usa bundler: React e Babel são carregados pelo navegador. Sirva a raiz por HTTP e abra `VetTooth Pro.html`.
+O projeto atual não usa bundler: React e Babel são carregados pelo navegador. Sirva a raiz por HTTP e abra a URL raiz.
 
 ```bash
 python3 -m http.server 8080
 ```
 
-- Aplicação principal: `http://localhost:8080/VetTooth%20Pro.html`
+- Aplicação principal: `http://localhost:8080/`
 - Odontograma equino isolado: `http://localhost:8080/EquiChart.html`
 
 Não abra os HTMLs diretamente com `file://`; alguns navegadores bloqueiam os scripts JSX externos.
+
+## Deploy na Vercel
+
+A Vercel procura um `index.html` na raiz para responder `/`. O arquivo `index.html` deste projeto redireciona para `VetTooth Pro.html`, que continua sendo o entrypoint real da aplicação principal.
+
+Rotas úteis após o deploy:
+
+- `/`: aplicação principal
+- `/app`: aplicação principal via rewrite
+- `/equichart`: odontograma equino isolado
 
 ## Estrutura
 

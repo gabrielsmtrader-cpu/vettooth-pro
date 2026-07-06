@@ -84,7 +84,7 @@ Ao alterar um contrato global, pesquise todos os consumidores e mantenha a ordem
 
 ## Ordem de carregamento
 
-`VetTooth Pro.html` é o manifesto executável da aplicação. A ordem obrigatória é:
+`index.html` é a entrada de hosting para Vercel e servidores estáticos. Ele apenas redireciona para `VetTooth Pro.html`, que continua sendo o manifesto executável da aplicação. A ordem obrigatória é:
 
 1. bibliotecas externas;
 2. `shared` básico e integrações sem estado;

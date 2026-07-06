@@ -1,0 +1,14 @@
+{
+  "cleanUrls": false,
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/app",
+      "destination": "/VetTooth%20Pro.html"
+    },
+    {
+      "source": "/equichart",
+      "destination": "/EquiChart.html"
+    }
+  ]
+}
