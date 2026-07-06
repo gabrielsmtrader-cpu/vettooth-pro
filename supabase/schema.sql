@@ -156,6 +156,14 @@ create table if not exists exames (
   created_at timestamptz default now()
 );
 
+-- BACKUP/SINCRONIZAÇÃO DO WORKSPACE LOCAL
+-- Mantém compatibilidade com o bridge atual em src/core/vt-db.jsx.
+create table if not exists dados_clinica (
+  email text primary key,
+  payload jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 -- RLS (Row Level Security) - ativar para produção
 alter table pacientes enable row level security;
 alter table tutores enable row level security;
@@ -167,6 +175,7 @@ alter table assinaturas enable row level security;
 alter table procedimentos enable row level security;
 alter table vacinas enable row level security;
 alter table exames enable row level security;
+alter table dados_clinica enable row level security;
 
 -- Policies: acesso público (ajuste para auth quando tiver login)
 create policy "allow all" on pacientes for all using (true);
@@ -179,6 +188,7 @@ create policy "allow all" on assinaturas for all using (true);
 create policy "allow all" on procedimentos for all using (true);
 create policy "allow all" on vacinas for all using (true);
 create policy "allow all" on exames for all using (true);
+create policy "allow all" on dados_clinica for all using (true);
 
 -- Índices para performance
 create index on atendimentos(paciente_id);
