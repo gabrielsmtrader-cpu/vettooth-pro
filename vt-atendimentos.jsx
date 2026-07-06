@@ -398,7 +398,8 @@ function AtendimentosModule({ openPatient, openOdonto, focus, clearFocus }) {
     const exists = atend.some((a) => a.id === at.id);
     const nextAt = exists ? atend.map((a) => a.id === at.id ? at : a) : [at, ...atend];
     setAtend(nextAt);
-    const nextPatients = patients.map((p) => p.id === at.patientId ? { ...p, lastVisit: at.date, weight: at.weight || p.weight } : p);
+    const exPeso = (at.exame && at.exame.peso && at.exame.peso.v) ? at.exame.peso.v : null;
+    const nextPatients = patients.map((p) => p.id === at.patientId ? { ...p, lastVisit: at.date, weight: at.weight || exPeso || p.weight } : p);
     setPatients(nextPatients);
     if (store) store.setData({ atendimentos: nextAt, patients: nextPatients });
     setView((v) => v.mode === 'pront' ? { ...v, at } : v);

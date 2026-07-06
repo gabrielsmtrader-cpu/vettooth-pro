@@ -351,6 +351,57 @@ async function vtGerarFichaPDF(p, ownerData, history, includeInternal) {
   }
 }
 
+function OdoHistModal({ patient, onClose, onNewOdonto }) {
+  const hist = React.useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('vt-odonto-hist:' + patient.id) || '[]'); } catch(e) { return []; }
+  }, [patient.id]);
+  const printEntry = (entry) => {
+    const w = window.open('', '_blank');
+    if (!w) return;
+    const rows = (entry.marks || []).map((m) => `<tr><td>${m.tooth || '—'}</td><td>${m.label || '—'}</td><td>${m.obs || ''}</td></tr>`).join('');
+    w.document.write(`<!DOCTYPE html><html><head><title>Odontograma – ${patient.name} – ${entry.date || ''}</title>
+<style>body{font-family:Arial,sans-serif;padding:24px;color:#1a1a2e}h2{margin:0 0 4px}p{margin:2px 0 8px;color:#555}table{border-collapse:collapse;width:100%;margin-top:12px}th,td{border:1px solid #ccc;padding:6px 10px;text-align:left}th{background:#f0f4f8}.footer{margin-top:24px;font-size:11px;color:#999}</style>
+</head><body>
+<h2>Odontograma — ${patient.name}</h2>
+<p><b>Data:</b> ${entry.date || '—'} &nbsp;|&nbsp; <b>Médico(a):</b> ${entry.vet || '—'} &nbsp;|&nbsp; <b>Espécie:</b> ${entry.speciesLabel || entry.species || '—'}</p>
+${entry.anorm !== undefined ? `<p><b>Alterações detectadas:</b> ${entry.anorm} &nbsp;|&nbsp; <b>Tratamentos:</b> ${entry.tratados || 0}</p>` : ''}
+${entry.summary ? `<p><b>Observações:</b> ${entry.summary}</p>` : ''}
+${rows ? `<table><thead><tr><th>Dente</th><th>Diagnóstico</th><th>Observação</th></tr></thead><tbody>${rows}</tbody></table>` : ''}
+<div class="footer">Dentalis Vet · VetTooth Pro · Gerado em ${new Date().toLocaleDateString('pt-BR')}</div>
+</body></html>`);
+    w.document.close(); w.print();
+  };
+  return (
+    <div className="vt-modal-overlay" onClick={onClose}>
+      <div className="vt-modal" style={{ maxWidth: 680, maxHeight: '82vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+        <div className="vt-modal-hd">
+          <b>Odontogramas — {patient.name}</b>
+          <button className="vt-modal-x" onClick={onClose}>✕</button>
+        </div>
+        <div style={{ padding: '0 20px 20px' }}>
+          <button className="vt-btn" style={{ background: 'var(--teal)', color: '#fff', marginBottom: 16, marginTop: 12 }} onClick={() => { onClose(); onNewOdonto(patient.id); }}>
+            + Novo Odontograma
+          </button>
+          {hist.length === 0 ? <p className="pf-empty">Nenhum odontograma registrado para este paciente.</p> : hist.map((entry, i) => (
+            <div key={entry.id || i} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '12px 16px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{entry.date || '—'} {entry.vet && <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: 13 }}>· {entry.vet}</span>}</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                  {entry.speciesLabel || entry.species || ''}
+                  {entry.anorm !== undefined && ` · ${entry.anorm} alterações`}
+                  {entry.tratados ? ` · ${entry.tratados} tratamentos` : ''}
+                  {entry.summary ? ` · ${entry.summary}` : ''}
+                </div>
+              </div>
+              <button className="vt-btn-ghost" style={{ whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => printEntry(entry)}>🖨 PDF</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos, openAtendimento, onEdit, onStatus, onAfterTransfer }) {
   const p = patient;
   const dead = p.status === 'Óbito';
@@ -432,10 +483,12 @@ function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos,
     return `${dt.getDate()}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()} - ${fmtH ? fmtH(fut.start) : fut.start}`;
   })();
   const [tab, setTab] = vtUseState('geral');
+  const [odoHistOpen, setOdoHistOpen] = vtUseState(false);
   const TABS = [['geral', 'Visão Geral'], ['odonto', 'Odontograma'], ['tratamentos', 'Tratamentos'], ['exames', 'Exames'], ['fotos', 'Fotos'], ['arquivos', 'Arquivos'], ['notas', 'Notas']];
   const anexos = (last.anexos || []);
   return (
     <div>
+      {odoHistOpen && <OdoHistModal patient={p} onClose={() => setOdoHistOpen(false)} onNewOdonto={onOpenOdonto} />}
       <div className="pf-crumb"><button onClick={onBack}>Pacientes</button> <span>›</span> {p.name}</div>
 
       <div className="pf-grid">
@@ -460,7 +513,7 @@ function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos,
 
           {/* abas */}
           <div className="pf-tabs">
-            {TABS.map(([id, l]) => <button key={id} className={`pf-tab${tab === id ? ' on' : ''}`} onClick={() => { if (id === 'odonto') onOpenOdonto(p.id); else setTab(id); }}>{l}</button>)}
+            {TABS.map(([id, l]) => <button key={id} className={`pf-tab${tab === id ? ' on' : ''}`} onClick={() => { if (id === 'odonto') setOdoHistOpen(true); else setTab(id); }}>{l}</button>)}
           </div>
 
           {tab === 'geral' && (
@@ -483,6 +536,51 @@ function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos,
                   {!anим.queixa && !last.queixa && !anим.evolucao && <p className="pf-empty">Sem anamnese registrada.</p>}
                 </div>
               </div>
+              {(() => {
+                const d = window.VtStore && window.VtStore.getData();
+                const txAll = (d && d.fin && d.fin.tx) || [];
+                const txPac = txAll.filter((t) => t.patient === p.name || t.patientId === p.id).sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 5);
+                const totalPago = txPac.filter((t) => t.status === 'pago' || t.status === 'Pago').reduce((s, t) => s + (parseFloat(t.valor) || 0), 0);
+                const pendente = txPac.filter((t) => t.status !== 'pago' && t.status !== 'Pago').reduce((s, t) => s + (parseFloat(t.valor) || 0), 0);
+                return (
+                  <div className="vt-card pf-ocard">
+                    <div className="pf-ocard-hd"><VtIcon name="receipt" size={18} /> <div><b>Financeiro</b>{txPac.length > 0 && <i>Pago: R$ {totalPago.toFixed(2).replace('.', ',')} {pendente > 0 ? `· Pendente: R$ ${pendente.toFixed(2).replace('.', ',')}` : ''}</i>}</div></div>
+                    {txPac.length === 0 ? <p className="pf-empty">Nenhuma transação registrada.</p> : (
+                      <div className="pf-proc">
+                        {txPac.map((t, i) => (
+                          <div key={t.id || i} className="pf-proc-row">
+                            <span className="pf-proc-date">{t.date || '—'}</span>
+                            <b>{t.descricao || t.tipo || '—'}</b>
+                            <span style={{ fontWeight: 700 }}>R$ {parseFloat(t.valor || 0).toFixed(2).replace('.', ',')}</span>
+                            {(t.status === 'pago' || t.status === 'Pago') ? <span className="pf-proc-ok">Pago</span> : <span className="pf-proc-pend">Pendente</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+              {(() => {
+                const d = window.VtStore && window.VtStore.getData();
+                const agAll = (d && d.agendaAppts) || [];
+                const agPac = agAll.filter((a) => a.patient === p.name && a.status !== 'Cancelado').sort((a, b) => (a.date || '').localeCompare(b.date || '')).slice(0, 3);
+                if (!agPac.length) return null;
+                return (
+                  <div className="vt-card pf-ocard">
+                    <div className="pf-ocard-hd teal"><VtIcon name="calendar" size={18} /> <b>Próximos Agendamentos</b></div>
+                    <div className="pf-proc">
+                      {agPac.map((a, i) => (
+                        <div key={a.id || i} className="pf-proc-row">
+                          <span className="pf-proc-date">{a.date || '—'}</span>
+                          <b>{a.type || a.title || '—'}</b>
+                          {a.start && <span style={{ color: 'var(--muted)' }}>{a.start}</span>}
+                          <span className="pf-proc-ok">{a.status || 'Agendado'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="vt-card pf-ocard">
                 <div className="pf-ocard-hd"><b>Procedimentos Recentes</b></div>
                 <div className="pf-proc">
@@ -580,7 +678,7 @@ function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos,
           </div>
           <div className="vt-card pf-actions">
             <h3 className="pf-aside-title">Ações Rápidas</h3>
-            <button className="pf-act teal" onClick={() => onOpenOdonto(p.id)}><VtIcon name="tooth" size={16} /> Abrir Odontograma</button>
+            <button className="pf-act teal" onClick={() => setOdoHistOpen(true)}><VtIcon name="tooth" size={16} /> Odontogramas</button>
             <button className="pf-act navy" onClick={() => openAtendimento(p.id)}><VtIcon name="plus" size={16} /> Novo Procedimento</button>
             <button className="pf-act" style={{ background: 'linear-gradient(135deg,#6d28d9,#4f46e5)', color: '#fff' }} onClick={() => window.vtOpenIA && window.vtOpenIA(`Resumo completo e sugestão de conduta clínica para o paciente ${p.name} (${p.species}, ${p.breed}, ${p.sex}, ${p.weight||'?'}kg, tutor: ${p.owner}).`, p.id)}><VtIcon name="spark" size={16} /> Consultar VetIA</button>
             <button className="pf-act navy" onClick={() => vtGerarFichaPDF(p, ownerData, history, true)}><VtIcon name="receipt" size={16} /> Gerar PDF do Prontuário</button>
