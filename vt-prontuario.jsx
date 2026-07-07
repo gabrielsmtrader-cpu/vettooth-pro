@@ -166,6 +166,7 @@ const PR_FLOW_CARDS = [
   { id: 'prescricao',     label: 'Receituários',           icon: 'receipt',     color: '#d97706', bg: '#fef3c7' },
   { id: 'orcamento',      label: 'Orçamentos',             icon: 'dollar',      color: '#ea580c', bg: '#ffedd5' },
   { id: 'cirurgias',      label: 'Cirurgias / Intern.',    icon: 'alert',       color: '#dc2626', bg: '#fee2e2' },
+  { id: 'anestesia',      label: 'Ficha Anestésica',       icon: 'spark',       color: '#0f766e', bg: '#ccfbf1' },
   { id: 'atestados',      label: 'Termos e Docs',          icon: 'pen',         color: '#475569', bg: '#f1f5f9' },
   { id: 'anexos',         label: 'Anexos',                 icon: 'box',         color: '#64748b', bg: '#f8fafc' },
 ];
@@ -730,6 +731,10 @@ function Prontuario({ patient, atendimento, weights, vaccines, onBack, onCommit,
         {tab === 'exames' && <PrExames at={at} patch={patch} patient={patient} />}
         {tab === 'agendamento' && <PrAgendamento at={at} patch={patch} />}
         {tab === 'retornos' && <PrRetornos at={at} patch={patch} />}
+        {tab === 'anestesia' && (window.FichaAnestesica
+          ? <window.FichaAnestesica atendimentoId={at.id} patientId={patient && patient.id} patient={patient} />
+          : <p style={{padding:20,color:'var(--muted)'}}>Módulo de anestesia não carregado.</p>
+        )}
         {tab === 'atestados' && <PrAtestados at={at} patch={patch} patient={patient} />}
         {tab === 'cirurgias' && !cirSub && (
           <div>

@@ -511,6 +511,30 @@ function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos,
           {xfer && <TransferModal patient={p} onClose={() => setXfer(false)} onTransfer={doTransfer} />}
           {dead && <div className="vt-obito-banner"><b>Óbito registrado.</b> Agenda e novos procedimentos bloqueados. Histórico mantido para consulta.</div>}
 
+          {/* ---- Banner de alerta clínico ---- */}
+          {((p.allergies && p.allergies.length > 0) || (p.meds && p.meds.length > 0)) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+              {p.allergies && p.allergies.length > 0 && (
+                <div style={{ background: '#fef2f2', border: '1.5px solid var(--red)', borderRadius: 12, padding: '11px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>⚠️</span>
+                  <div>
+                    <b style={{ color: 'var(--red)', fontSize: 14 }}>ALERGIAS / REAÇÕES ADVERSAS</b>
+                    <div style={{ color: 'var(--red)', fontSize: 13.5, marginTop: 2, fontWeight: 600 }}>{p.allergies.join(' · ')}</div>
+                  </div>
+                </div>
+              )}
+              {p.meds && p.meds.length > 0 && (
+                <div style={{ background: '#fffbeb', border: '1.5px solid var(--amber)', borderRadius: 12, padding: '11px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>💊</span>
+                  <div>
+                    <b style={{ color: 'var(--amber)', fontSize: 14 }}>MEDICAMENTOS CONTÍNUOS</b>
+                    <div style={{ color: '#92610a', fontSize: 13.5, marginTop: 2, fontWeight: 600 }}>{p.meds.join(' · ')}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* abas */}
           <div className="pf-tabs">
             {TABS.map(([id, l]) => <button key={id} className={`pf-tab${tab === id ? ' on' : ''}`} onClick={() => { if (id === 'odonto') setOdoHistOpen(true); else setTab(id); }}>{l}</button>)}
@@ -527,6 +551,56 @@ function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos,
                   <div><span>Peso:</span><b>{p.weight || exV('peso') || '—'}</b></div>
                 </div>
               </div>
+              {/* Histórico de peso com sparkline */}
+              {(() => {
+                const allAts = (((window.VtStore && window.VtStore.getData()) || {}).atendimentos || [])
+                  .filter(a => a.patientId === p.id && a.exame && a.exame.peso && a.exame.peso.v)
+                  .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+                // peso atual do cadastro
+                const pesoAtual = p.weight ? { date: 'Atual', v: parseFloat((p.weight || '').replace(',', '.')) } : null;
+                const pts = allAts.map(a => ({ date: a.date || '', v: parseFloat((a.exame.peso.v || '').replace(',', '.')) })).filter(x => !isNaN(x.v));
+                if (pesoAtual && !isNaN(pesoAtual.v)) pts.push(pesoAtual);
+                if (pts.length === 0) return null;
+                const minV = Math.min(...pts.map(x => x.v));
+                const maxV = Math.max(...pts.map(x => x.v));
+                const range = maxV - minV || 1;
+                const W = 180, H = 50;
+                const toX = (i) => pts.length === 1 ? W/2 : (i / (pts.length - 1)) * W;
+                const toY = (v) => H - ((v - minV) / range) * (H - 8) - 4;
+                const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(p.v).toFixed(1)}`).join(' ');
+                const last2 = pts[pts.length - 1];
+                const first = pts[0];
+                const diff = last2.v - first.v;
+                return (
+                  <div className="vt-card pf-ocard" style={{ gridColumn: 'span 1' }}>
+                    <div className="pf-ocard-hd teal"><VtIcon name="chart" size={18} /> <div><b>Histórico de Peso</b><i>{pts.length} medição(ões)</i></div></div>
+                    <div style={{ padding: '12px 16px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <div>
+                          <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--teal-d)', lineHeight: 1 }}>{last2.v.toFixed(1)} kg</div>
+                          <div style={{ fontSize: 12, color: diff > 0 ? 'var(--amber)' : diff < 0 ? 'var(--green)' : 'var(--muted)', marginTop: 3, fontWeight: 600 }}>
+                            {diff > 0 ? '▲' : diff < 0 ? '▼' : '—'} {Math.abs(diff).toFixed(1)} kg vs primeira medição
+                          </div>
+                        </div>
+                        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ overflow: 'visible' }}>
+                          <path d={pathD} fill="none" stroke="var(--teal)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+                          {pts.map((pt, i) => (
+                            <circle key={i} cx={toX(i)} cy={toY(pt.v)} r="4" fill="var(--teal)" stroke="#fff" strokeWidth="2" />
+                          ))}
+                        </svg>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {pts.slice(-4).map((pt, i) => (
+                          <div key={i} style={{ background: 'var(--bg)', borderRadius: 8, padding: '5px 10px', fontSize: 12 }}>
+                            <div style={{ color: 'var(--muted)' }}>{pt.date === 'Atual' ? 'Cadastro' : pt.date}</div>
+                            <div style={{ fontWeight: 700 }}>{pt.v.toFixed(1)} kg</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="vt-card pf-ocard">
                 <div className="pf-ocard-hd teal"><VtIcon name="stethoscope" size={18} /> <b>Anamnese</b></div>
                 <div className="pf-text">

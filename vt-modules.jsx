@@ -1678,13 +1678,29 @@ function RelatoriosModule() {
   const porEspecie = {};
   patients.forEach(p => { if(p.species) porEspecie[p.species] = (porEspecie[p.species]||0)+1; });
 
+  // taxa de retorno: pacientes com >1 atendimento / total com algum atendimento
+  const pacComAt = new Set(ats.map(a => a.patientId).filter(Boolean));
+  const pacRetorno = new Set(ats.filter(a => {
+    const iso = (a.date||'').match(/(\d{2})\/(\d{2})\/(\d{4})/) ? `${(a.date||'').slice(6)}-${(a.date||'').slice(3,5)}-${(a.date||'').slice(0,2)}` : a.date||'';
+    return iso >= periodoStart;
+  }).map(a => a.patientId).filter(Boolean));
+  const multiAt = [...pacRetorno].filter(id => ats.filter(a => a.patientId === id).length > 1);
+  const taxaRetorno = pacRetorno.size > 0 ? Math.round(multiAt.length / pacRetorno.size * 100) : 0;
+
+  // ranking de procedimentos
+  const procCount = {};
+  atsFiltrados.forEach(a => { const k = a.procedure || a.type || 'Sem procedimento'; procCount[k] = (procCount[k]||0)+1; });
+  const topProc = Object.entries(procCount).sort((a,b)=>b[1]-a[1])[0];
+
   const CARDS = [
-    { id:'atendimentos', icon:'stethoscope', title:'Atendimentos',    desc:'Por tipo, veterinário e período',    n: String(atsFiltrados.length), sub:'registros no período' },
-    { id:'receita',      icon:'dollar',      title:'Receita',         desc:'Entradas e faturamento por período', n: money0(receita),             sub: `lucro ${money0(lucro)}` },
-    { id:'custos',       icon:'chart',       title:'Custos',          desc:'Despesas e saídas no período',       n: money0(custo),               sub: `margem ${receita ? Math.round(lucro/receita*100):0}%` },
-    { id:'pacientes',    icon:'paw',         title:'Pacientes',       desc:'Base de pacientes por espécie',      n: String(patients.filter(p=>p.status!=='Óbito').length), sub:`${patients.length} total` },
-    { id:'estoque',      icon:'box',         title:'Estoque',         desc:'Inventário e alertas de reposição',  n: String(lowStock.length),     sub:'itens abaixo do mínimo' },
-    { id:'especies',     icon:'tooth',       title:'Espécies',        desc:'Distribuição da base de pacientes',  n: String(Object.keys(porEspecie).length), sub:'espécies atendidas' },
+    { id:'atendimentos',  icon:'stethoscope', title:'Atendimentos',       desc:'Por tipo, veterinário e período',    n: String(atsFiltrados.length), sub:'registros no período' },
+    { id:'receita',       icon:'dollar',      title:'Receita',            desc:'Entradas e faturamento por período', n: money0(receita),             sub: `lucro ${money0(lucro)}` },
+    { id:'custos',        icon:'chart',       title:'Custos',             desc:'Despesas e saídas no período',       n: money0(custo),               sub: `margem ${receita ? Math.round(lucro/receita*100):0}%` },
+    { id:'pacientes',     icon:'paw',         title:'Pacientes',          desc:'Base de pacientes por espécie',      n: String(patients.filter(p=>p.status!=='Óbito').length), sub:`${patients.length} total` },
+    { id:'procedimentos', icon:'tooth',       title:'Procedimentos',      desc:'Ranking de procedimentos realizados', n: topProc ? String(topProc[1]) : '0', sub: topProc ? `1º: ${topProc[0].substring(0,20)}` : 'Sem dados' },
+    { id:'retorno',       icon:'users',       title:'Taxa de Retorno',    desc:'Pacientes que retornaram ao período', n: `${taxaRetorno}%`,           sub:`${multiAt.length} de ${pacRetorno.size} pacientes` },
+    { id:'estoque',       icon:'box',         title:'Estoque',            desc:'Inventário e alertas de reposição',  n: String(lowStock.length),     sub:'itens abaixo do mínimo' },
+    { id:'especies',      icon:'tooth',       title:'Espécies',           desc:'Distribuição da base de pacientes',  n: String(Object.keys(porEspecie).length), sub:'espécies atendidas' },
   ];
 
   // impressão
@@ -1912,6 +1928,114 @@ function RelatoriosModule() {
                     </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // Relatório de Procedimentos (ranking)
+    if (open === 'procedimentos') {
+      const procMap = {};
+      atsFiltrados.forEach(a => {
+        const k = a.procedure || a.type || 'Sem procedimento';
+        if (!procMap[k]) procMap[k] = { n: 0, total: 0, vet: {} };
+        procMap[k].n++;
+        const v = Number((a.value||'').replace(/[^\d,]/g,'').replace(',','.')) || 0;
+        procMap[k].total += v;
+        const vet = (a.vet||'').replace('M.V.','').trim() || 'Não informado';
+        procMap[k].vet[vet] = (procMap[k].vet[vet]||0)+1;
+      });
+      const ranking = Object.entries(procMap).sort((a,b)=>b[1].n-a[1].n);
+      const maxN = ranking[0] ? ranking[0][1].n : 1;
+      const html = `<table><thead><tr><th>#</th><th>Procedimento</th><th>Realizações</th><th>Faturamento</th></tr></thead><tbody>
+        ${ranking.map(([proc,d],i)=>`<tr><td>${i+1}º</td><td>${proc}</td><td>${d.n}</td><td>R$ ${d.total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`).join('')}
+      </tbody></table>`;
+      return (
+        <div>
+          <button className="vt-back" onClick={()=>{setOpen(null);setBusca('')}}><VtIcon name="chevron" size={16}/> Relatórios</button>
+          <div className="vt-page-head vt-head-row">
+            <div><h1>Ranking de Procedimentos</h1><p>{ranking.length} procedimentos · {atsFiltrados.length} atendimentos no período</p></div>
+            <button className="vt-btn-primary" onClick={()=>imprimir('Ranking de Procedimentos',html)}><VtIcon name="print" size={15}/> Imprimir / PDF</button>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:18}}>
+            {ranking.map(([proc,d],i)=>{
+              const pct = Math.round(d.n/maxN*100);
+              const topVet = Object.entries(d.vet).sort((a,b)=>b[1]-a[1])[0];
+              return (
+                <div key={proc} className="vt-card" style={{padding:'14px 18px'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:8}}>
+                    <span style={{width:28,height:28,borderRadius:8,background:'var(--teal-t)',color:'var(--teal-d)',display:'grid',placeItems:'center',fontWeight:800,fontSize:13,flexShrink:0}}>{i+1}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <b style={{fontSize:14}}>{proc}</b>
+                      {topVet && <span style={{fontSize:12,color:'var(--muted)',marginLeft:8}}>Principal: {topVet[0]}</span>}
+                    </div>
+                    <div style={{textAlign:'right',flexShrink:0}}>
+                      <div style={{fontWeight:800,color:'var(--teal-d)',fontSize:16}}>{d.n}x</div>
+                      <div style={{fontSize:12,color:'var(--muted)'}}>{money(d.total)}</div>
+                    </div>
+                  </div>
+                  <div style={{height:6,borderRadius:3,background:'var(--bg)'}}>
+                    <div style={{height:'100%',borderRadius:3,background:'var(--teal)',width:pct+'%',transition:'width .3s'}}/>
+                  </div>
+                </div>
+              );
+            })}
+            {ranking.length===0 && <p className="vt-muted" style={{padding:16}}>Nenhum procedimento no período.</p>}
+          </div>
+        </div>
+      );
+    }
+
+    // Relatório de Taxa de Retorno
+    if (open === 'retorno') {
+      // por paciente: quantos atendimentos teve
+      const porPaciente = {};
+      ats.forEach(a => {
+        if (!a.patientId) return;
+        if (!porPaciente[a.patientId]) {
+          const pac = patients.find(p => p.id === a.patientId) || {};
+          porPaciente[a.patientId] = { name: pac.name||a.patientName||a.patientId, species: pac.species||'', owner: pac.owner||'', count: 0, dates: [] };
+        }
+        porPaciente[a.patientId].count++;
+        if (a.date) porPaciente[a.patientId].dates.push(a.date);
+      });
+      const rows = Object.values(porPaciente).sort((a,b)=>b.count-a.count);
+      const retornaram = rows.filter(r=>r.count>1);
+      const totalAtivos = rows.length;
+      return (
+        <div>
+          <button className="vt-back" onClick={()=>{setOpen(null);setBusca('')}}><VtIcon name="chevron" size={16}/> Relatórios</button>
+          <div className="vt-page-head vt-head-row">
+            <div><h1>Taxa de Retorno</h1><p>Pacientes que retornaram à clínica no período</p></div>
+            <button className="vt-btn-primary" onClick={()=>imprimir('Taxa de Retorno',`<table><thead><tr><th>Paciente</th><th>Espécie</th><th>Tutor</th><th>Visitas</th></tr></thead><tbody>${retornaram.map(r=>`<tr><td>${r.name}</td><td>${r.species}</td><td>${r.owner}</td><td>${r.count}</td></tr>`).join('')}</tbody></table>`)}><VtIcon name="print" size={15}/> Imprimir</button>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:18}}>
+            {[
+              {label:'Pacientes atendidos', n:totalAtivos, color:'var(--navy)'},
+              {label:'Retornaram',          n:retornaram.length, color:'var(--green)'},
+              {label:'Taxa de retorno',     n:`${totalAtivos?Math.round(retornaram.length/totalAtivos*100):0}%`, color:'var(--teal-d)'},
+            ].map(c=>(
+              <div key={c.label} className="vt-card" style={{padding:'16px 20px'}}>
+                <div style={{fontSize:12,color:'var(--muted)',marginBottom:4}}>{c.label}</div>
+                <div style={{fontSize:26,fontWeight:800,color:c.color}}>{c.n}</div>
+              </div>
+            ))}
+          </div>
+          <div className="vt-card vt-sec" style={{overflowX:'auto'}}>
+            <table className="pr-dtable" style={{width:'100%'}}>
+              <thead><tr><th>Paciente</th><th>Espécie</th><th>Tutor</th><th>Nº de visitas</th><th>Última visita</th></tr></thead>
+              <tbody>
+                {rows.map((r,i)=>(
+                  <tr key={i} style={{background:r.count>1?'var(--green-t)':'transparent'}}>
+                    <td><b>{r.name}</b></td>
+                    <td style={{fontSize:12}}>{r.species||'—'}</td>
+                    <td style={{fontSize:12}}>{r.owner||'—'}</td>
+                    <td style={{fontWeight:800,color:r.count>1?'var(--green)':'var(--muted)'}}>{r.count}x {r.count>1?'✓ Retornou':''}</td>
+                    <td style={{fontSize:12,color:'var(--muted)'}}>{r.dates.sort().slice(-1)[0]||'—'}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
