@@ -156,33 +156,204 @@ function GlobalSearch({ nav }) {
 
 function TopBar({ user, onLogout, onAvatar, nav }) {
   const [menu, setMenu] = useState(false);
+  const [modal, setModal] = useState(null); // 'perfil' | 'atalhos' | 'novidades' | 'ajuda'
+  const [dark, setDark] = useState(() => document.body.classList.contains('vt-dark'));
+  const [pf, setPf] = useState({});
   const initials = (user && user.name ? user.name.split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('') : 'VT').toUpperCase();
+
+  const toggleDark = () => {
+    const next = !dark;
+    setDark(next);
+    document.body.classList.toggle('vt-dark', next);
+    if (window.VtStore) window.VtStore.setData({ darkMode: next });
+  };
+
+  const openModal = (m) => { setMenu(false); if (m === 'perfil') setPf({ name: user && user.name || '', email: user && user.email || '', phone: user && user.phone || '', cargo: user && user.cargo || '', especialidade: user && user.especialidade || '' }); setModal(m); };
+
+  const savePerfil = () => {
+    if (window.VtStore && window.VtStore.updateProfile) window.VtStore.updateProfile(pf);
+    window.vtToast && window.vtToast('Perfil atualizado com sucesso!', 'ok');
+    setModal(null);
+  };
+
+  const closeMenu = () => setMenu(false);
+
+  React.useEffect(() => {
+    const saved = window.VtStore && window.VtStore.getData && window.VtStore.getData();
+    if (saved && saved.darkMode) { setDark(true); document.body.classList.add('vt-dark'); }
+    const handler = (e) => { if (!e.target.closest('.vt-user')) setMenu(false); };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, []);
+
+  const SHORTCUTS = [
+    { key: 'Ctrl + K', label: 'Busca global' }, { key: 'Ctrl + N', label: 'Novo paciente' },
+    { key: 'Ctrl + A', label: 'Nova consulta' }, { key: 'Ctrl + F', label: 'Ir para Finanças' },
+    { key: 'Ctrl + E', label: 'Ir para Estoque' }, { key: 'Esc', label: 'Fechar modal / menu' },
+    { key: 'Alt + 1', label: 'Dashboard' }, { key: 'Alt + 2', label: 'Pacientes' },
+    { key: 'Alt + 3', label: 'Agenda' }, { key: 'Alt + 4', label: 'Atendimentos' },
+  ];
+
+  const NEWS = [
+    { ver: 'v2.4', data: 'Jul/2026', titulo: 'Ficha do Responsável completa', desc: 'KPIs financeiros, classificação automática (VIP/Frequente), status de pagamento e gráfico de gastos mensais.' },
+    { ver: 'v2.3', data: 'Jun/2026', titulo: 'Ficha Anestésica + Estoque v3', desc: 'Novo módulo de anestesia com checklists pré/pós e monitoração intraoperatória. Estoque com código de barras, markup e fornecedores.' },
+    { ver: 'v2.2', data: 'Mai/2026', titulo: 'Financeiro v4 e multi-contas', desc: 'Múltiplas contas bancárias, DRE por regime (caixa/competência), fluxo de caixa previsto vs. real.' },
+  ];
+
+  const menuItem = (icon, label, onClick, color, badge) => (
+    <button className="vt-umi" style={{ color: color || 'var(--ink)' }} onClick={onClick}>
+      <span className="vt-umi-ic">{icon}</span>
+      <span style={{ flex: 1 }}>{label}</span>
+      {badge && <span style={{ fontSize: 10, background: 'var(--teal)', color: '#fff', padding: '1px 7px', borderRadius: 99, fontWeight: 700 }}>{badge}</span>}
+    </button>
+  );
+
   return (
     <header className="vt-topbar">
       <GlobalSearch nav={nav} />
       <div className="vt-topbar-spacer" />
       <div className="vt-topbar-actions">
-        <button className="vt-bell"><VtIcon name="bell" size={20} /><span className="dot" /></button>
+        <button className="vt-bell" onClick={() => window.vtToast && window.vtToast('Sem notificações novas.', 'ok')}><VtIcon name="bell" size={20} /><span className="dot" /></button>
         <div className="vt-user" style={{ position: 'relative' }} onClick={() => setMenu(!menu)}>
           {user && user.avatar ? <img className="vt-avatar" src={user.avatar} alt="" style={{ objectFit: 'cover' }} /> : <div className="vt-avatar">{initials}</div>}
-          <div className="vt-user-name">{user ? user.name : 'Usuário'}</div>
+          <div className="vt-user-name">{user ? user.name.split(' ')[0] : 'Usuário'}</div>
           <VtIcon name="chevron" size={16} />
           {menu && (
-            <div className="vt-user-menu" onClick={(e) => e.stopPropagation()}>
+            <div className="vt-user-menu" onClick={(e) => e.stopPropagation()} style={{ width: 260 }}>
               <div className="vt-user-menu-head">
-                <b>{user ? user.name : ''}</b>
-                <i>{user ? user.email : ''}</i>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                  {user && user.avatar ? <img className="vt-avatar" src={user.avatar} alt="" style={{ objectFit: 'cover', width: 40, height: 40, fontSize: 16 }} /> : <div className="vt-avatar" style={{ width: 40, height: 40, fontSize: 16, flex: 'none' }}>{initials}</div>}
+                  <div><b style={{ fontSize: 14 }}>{user ? user.name : ''}</b><i style={{ display: 'block', fontSize: 12, color: 'var(--muted)', fontStyle: 'normal' }}>{user ? user.email : ''}</i></div>
+                </div>
                 {user && user.clinic && <span>{user.clinic}</span>}
               </div>
-              <label className="vt-user-menu-item" style={{ color: 'var(--ink)', cursor: 'pointer' }}>
-                <VtIcon name="plus" size={15} style={{ transform: 'none' }} /> Trocar foto / avatar
-                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { window.VtStore.updateProfile && window.VtStore.updateProfile({ avatar: r.result }); if (onAvatar) onAvatar(r.result); }; r.readAsDataURL(f); }} />
-              </label>
-              <button className="vt-user-menu-item" onClick={onLogout}><VtIcon name="chevron" size={15} /> Sair da conta</button>
+              <div style={{ padding: '6px 4px' }}>
+                {menuItem('👤', 'Meu perfil', () => openModal('perfil'))}
+                <label className="vt-umi" style={{ color: 'var(--ink)', cursor: 'pointer' }}>
+                  <span className="vt-umi-ic">📷</span>
+                  <span style={{ flex: 1 }}>Trocar foto / avatar</span>
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { window.VtStore.updateProfile && window.VtStore.updateProfile({ avatar: r.result }); if (onAvatar) onAvatar(r.result); }; r.readAsDataURL(f); closeMenu(); }} />
+                </label>
+                <div className="vt-umi" style={{ color: 'var(--ink)', cursor: 'pointer' }} onClick={toggleDark}>
+                  <span className="vt-umi-ic">{dark ? '☀️' : '🌙'}</span>
+                  <span style={{ flex: 1 }}>{dark ? 'Modo claro' : 'Modo escuro'}</span>
+                  <span style={{ width: 36, height: 20, background: dark ? 'var(--teal)' : '#d1d5db', borderRadius: 99, display: 'flex', alignItems: 'center', padding: '0 3px', transition: 'background 0.2s' }}>
+                    <span style={{ width: 14, height: 14, borderRadius: 99, background: '#fff', transform: dark ? 'translateX(16px)' : 'translateX(0)', transition: 'transform 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,.2)' }} />
+                  </span>
+                </div>
+                <div style={{ borderTop: '1px solid var(--line-2)', margin: '6px 0' }} />
+                {menuItem('⌨️', 'Atalhos de teclado', () => openModal('atalhos'))}
+                {menuItem('🆕', 'Novidades', () => openModal('novidades'), null, 'v2.4')}
+                {menuItem('❓', 'Ajuda & Suporte', () => openModal('ajuda'))}
+                <div style={{ borderTop: '1px solid var(--line-2)', margin: '6px 0' }} />
+                {menuItem('🚪', 'Sair da conta', onLogout, 'var(--red)')}
+              </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Modal: Meu Perfil */}
+      {modal === 'perfil' && (
+        <div className="fin-modal-bg" onClick={() => setModal(null)}>
+          <div className="fin-modal" style={{ width: 480 }} onClick={(e) => e.stopPropagation()}>
+            <button className="fin-modal-x" onClick={() => setModal(null)}>×</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+              {user && user.avatar ? <img className="vt-avatar" src={user.avatar} alt="" style={{ width: 56, height: 56, objectFit: 'cover' }} /> : <div className="vt-avatar" style={{ width: 56, height: 56, fontSize: 20 }}>{initials}</div>}
+              <div><h3 style={{ margin: 0 }}>Meu Perfil</h3><p style={{ margin: '4px 0 0', color: 'var(--muted)', fontSize: 13 }}>Dados do usuário logado</p></div>
+            </div>
+            <div className="vt-form-row">
+              <VtField label="Nome completo" value={pf.name} onChange={(v) => setPf({ ...pf, name: v })} width="100%" required />
+            </div>
+            <div className="vt-form-row">
+              <VtField label="E-mail" value={pf.email} onChange={(v) => setPf({ ...pf, email: v })} width="60%" />
+              <VtField label="Telefone / WhatsApp" value={pf.phone} onChange={(v) => setPf({ ...pf, phone: v })} width="38%" />
+            </div>
+            <div className="vt-form-row">
+              <VtField label="Cargo / Função" value={pf.cargo} onChange={(v) => setPf({ ...pf, cargo: v })} placeholder="Ex: Médico-veterinário" width="48%" />
+              <VtField label="Especialidade" value={pf.especialidade} onChange={(v) => setPf({ ...pf, especialidade: v })} placeholder="Ex: Odontologia veterinária" width="48%" />
+            </div>
+            <div style={{ borderTop: '1px solid var(--line-2)', paddingTop: 16, marginTop: 8 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)', marginBottom: 10 }}>ALTERAR SENHA</p>
+              <div className="vt-form-row">
+                <VtField label="Nova senha" value={pf.newPass} onChange={(v) => setPf({ ...pf, newPass: v })} type="password" width="48%" />
+                <VtField label="Confirmar nova senha" value={pf.confPass} onChange={(v) => setPf({ ...pf, confPass: v })} type="password" width="48%" />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
+              <button className="vt-btn-ghost" onClick={() => setModal(null)}>Cancelar</button>
+              <button className="vt-btn-primary" onClick={savePerfil}>Salvar alterações</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Atalhos de Teclado */}
+      {modal === 'atalhos' && (
+        <div className="fin-modal-bg" onClick={() => setModal(null)}>
+          <div className="fin-modal" style={{ width: 420 }} onClick={(e) => e.stopPropagation()}>
+            <button className="fin-modal-x" onClick={() => setModal(null)}>×</button>
+            <h3 style={{ marginTop: 0 }}>⌨️ Atalhos de Teclado</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {SHORTCUTS.map((s) => (
+                <div key={s.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 12px', borderRadius: 9, background: 'var(--bg)' }}>
+                  <span style={{ fontSize: 14 }}>{s.label}</span>
+                  <kbd style={{ background: 'var(--card)', border: '1.5px solid var(--line)', borderRadius: 7, padding: '3px 10px', fontSize: 12, fontWeight: 700, fontFamily: 'monospace', color: 'var(--navy)', boxShadow: '0 1px 0 var(--line)' }}>{s.key}</kbd>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Novidades */}
+      {modal === 'novidades' && (
+        <div className="fin-modal-bg" onClick={() => setModal(null)}>
+          <div className="fin-modal" style={{ width: 480 }} onClick={(e) => e.stopPropagation()}>
+            <button className="fin-modal-x" onClick={() => setModal(null)}>×</button>
+            <h3 style={{ marginTop: 0 }}>🆕 Novidades do VetTooth Pro</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {NEWS.map((n) => (
+                <div key={n.ver} style={{ background: 'var(--bg)', borderRadius: 12, padding: '14px 16px', borderLeft: '4px solid var(--teal)' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ background: 'var(--teal)', color: '#fff', fontWeight: 800, fontSize: 12, padding: '2px 9px', borderRadius: 99 }}>{n.ver}</span>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{n.data}</span>
+                  </div>
+                  <b style={{ fontSize: 14 }}>{n.titulo}</b>
+                  <p style={{ margin: '5px 0 0', fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>{n.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Ajuda */}
+      {modal === 'ajuda' && (
+        <div className="fin-modal-bg" onClick={() => setModal(null)}>
+          <div className="fin-modal" style={{ width: 420 }} onClick={(e) => e.stopPropagation()}>
+            <button className="fin-modal-x" onClick={() => setModal(null)}>×</button>
+            <h3 style={{ marginTop: 0 }}>❓ Ajuda & Suporte</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                { icon: '📖', label: 'Central de Ajuda', desc: 'Tutoriais e documentação do sistema', action: () => window.vtToast && window.vtToast('Documentação em construção.', 'ok') },
+                { icon: '💬', label: 'Falar com Suporte', desc: 'Chat com a equipe técnica', action: () => window.vtToast && window.vtToast('Suporte via WhatsApp em breve.', 'ok') },
+                { icon: '🐞', label: 'Reportar um problema', desc: 'Enviar bug ou sugestão', action: () => window.vtToast && window.vtToast('Obrigado! Feedback registrado.', 'ok') },
+                { icon: '📹', label: 'Vídeos tutoriais', desc: 'Aprenda a usar o sistema', action: () => window.vtToast && window.vtToast('Vídeos em construção.', 'ok') },
+              ].map((item) => (
+                <button key={item.label} onClick={item.action} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: 'var(--bg)', textAlign: 'left', width: '100%', border: 'none', cursor: 'pointer' }}>
+                  <span style={{ fontSize: 24 }}>{item.icon}</span>
+                  <div><b style={{ fontSize: 14 }}>{item.label}</b><p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--muted)' }}>{item.desc}</p></div>
+                </button>
+              ))}
+            </div>
+            <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--teal-t)', borderRadius: 12 }}>
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--teal-d)', fontWeight: 600 }}>VetTooth Pro · Dentalis Vet</p>
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--muted)' }}>Sistema de gestão veterinária para odontologia. Versão 2.4</p>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

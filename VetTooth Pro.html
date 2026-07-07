@@ -1015,6 +1015,21 @@ select.vtf-input { appearance: none; cursor: pointer; }
 .vt-user-menu-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 9px 12px; border-radius: 9px; font-weight: 600; font-size: 13.5px; color: var(--red); }
 .vt-user-menu-item:hover { background: var(--red-t); }
 .vt-user-menu-item .vt-ic { transform: rotate(90deg); }
+/* user menu items (new style) */
+.vt-umi { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 9px 12px; border-radius: 9px; font-weight: 600; font-size: 13.5px; cursor: pointer; border: none; background: none; font-family: inherit; transition: background .15s; }
+.vt-umi:hover { background: var(--bg); }
+.vt-umi-ic { font-size: 16px; width: 22px; text-align: center; flex: none; }
+/* dark mode */
+body.vt-dark { --bg: #0f1923; --card: #162233; --ink: #e2eaf3; --muted: #7a91a8; --faint: #4a6070; --line: #1e3048; --line-2: #1a2c3e; --navy: #0a1927; --shadow: 0 1px 4px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.4); }
+body.vt-dark .vt-sidebar { background: #060e18; }
+body.vt-dark .vt-topbar { background: #0d1b2a; border-color: #1e3048; }
+body.vt-dark .vt-user-menu, body.vt-dark .fin-modal { background: #162233; border-color: #1e3048; }
+body.vt-dark .vt-card, body.vt-dark .vt-sec { background: #162233; }
+body.vt-dark input, body.vt-dark select, body.vt-dark textarea { background: #0f1923; color: #e2eaf3; border-color: #1e3048; }
+body.vt-dark .vt-avatar { background: #1e3a50; }
+body.vt-dark .vt-umi:hover { background: #1e3048; }
+body.vt-dark .vt-search { background: #162233; border-color: #1e3048; }
+body.vt-dark .vt-search input { background: transparent; color: #e2eaf3; }
 
 /* ============ Upload de foto / check inline ============ */
 .vt-photo-up { width: 96px; height: 96px; border-radius: 16px; border: 2px dashed var(--line); display: grid; place-items: center; cursor: pointer; overflow: hidden; flex: none; background: var(--bg); }
@@ -1754,7 +1769,7 @@ select.vtf-input { appearance: none; cursor: pointer; }
 <script type="text/babel" src="vt-anestesia.jsx?v=1"></script>
 <script type="text/babel" src="vt-estoque3.jsx?v=1"></script>
 <script type="text/babel" src="vt-financeiro4.jsx?v=1"></script>
-<script type="text/babel" src="vt-app.jsx?v=9"></script>
+<script type="text/babel" src="vt-app.jsx?v=10"></script>
 <style id="__om-edit-overrides"></style>
 </body>
 </html>
