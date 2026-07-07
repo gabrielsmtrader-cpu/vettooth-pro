@@ -2095,10 +2095,10 @@ function SegurancaTab() {
   const save = (next) => { setC(next); if (window.VtStore) window.VtStore.setData({ securityCfg: next }); };
   const set = (k, v) => save({ ...c, [k]: v });
   const [pw, setPw] = vtUseState({ atual: '', nova: '' });
-  const changePw = () => {
+  const changePw = async () => {
     if (!window.VtStore || !window.VtStore.changePassword) { window.vtToast('Indisponível.', 'err'); return; }
     if ((pw.nova || '').length < 6) { window.vtToast('A nova senha precisa de 6+ caracteres.', 'err'); return; }
-    const r = window.VtStore.changePassword(pw.atual, pw.nova);
+    const r = await window.VtStore.changePassword(pw.atual, pw.nova);
     if (r.ok) { window.vtToast('Senha alterada.', 'ok'); setPw({ atual: '', nova: '' }); } else window.vtToast(r.error || 'Falha.', 'err');
   };
   const log = (() => { const d = window.VtStore && window.VtStore.getData(); return (d && d.accessLog) || []; })();
@@ -2529,8 +2529,8 @@ function ContaTab() {
     };
     r.readAsText(file);
   };
-  const changePw = () => {
-    const res = window.VtStore.changePassword(pw.atual, pw.nova);
+  const changePw = async () => {
+    const res = await window.VtStore.changePassword(pw.atual, pw.nova);
     if (res.ok) { window.vtToast('Senha alterada.', 'ok'); setPw({ atual: '', nova: '' }); }
     else window.vtToast(res.error, 'err');
   };

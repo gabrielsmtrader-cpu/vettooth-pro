@@ -67,8 +67,8 @@ function AuthScreen({ onAuthed }) {
   const doLogin = () => {
     if (!f.email || !f.password) return setErr('Preencha email e senha.');
     setLoad(true);
-    setTimeout(() => {
-      const r = window.VtStore.login({ email: f.email, password: f.password });
+    setTimeout(async () => {
+      const r = await window.VtStore.login({ email: f.email, password: f.password });
       setLoad(false);
       if (!r.ok) return setErr(r.error);
       if (f.remember) localStorage.setItem('vt-remember', f.email);
@@ -82,14 +82,14 @@ function AuthScreen({ onAuthed }) {
     if (f.password !== f.password2 && f.password2) return setErr('As senhas não conferem.');
     if (!f.acceptTerms) return setErr('Aceite os termos de uso para continuar.');
     setLoad(true);
-    setTimeout(() => {
-      const r = window.VtStore.register({
+    setTimeout(async () => {
+      const r = await window.VtStore.register({
         name: f.name, clinic: f.clinic, email: f.email,
         password: f.password, demo: !!f.demo,
       });
       if (!r.ok) { setLoad(false); return setErr(r.error); }
       /* salvar campos extras no perfil */
-      window.VtStore.updateProfile({ crmv: f.crmv || '', crmvUF: f.crmvuf || 'SP', phone: f.phone || '', specialty: f.specialty || 'Odontologia Veterinária' });
+      await window.VtStore.updateProfile({ crmv: f.crmv || '', crmvUF: f.crmvuf || 'SP', phone: f.phone || '', specialty: f.specialty || 'Odontologia Veterinária' });
       window.VtStore.migrate();
       setLoad(false);
       onAuthed(r.user);
@@ -97,14 +97,14 @@ function AuthScreen({ onAuthed }) {
   };
 
   /* ── RESET DE SENHA ── */
-  const doSendReset = () => {
-    const r = window.VtStore.requestReset(resetState?.email || f.email || '');
+  const doSendReset = async () => {
+    const r = await window.VtStore.requestReset(resetState?.email || f.email || '');
     if (!r.ok) return setErr(r.error);
     setRS({ email: r.email, sentCode: r.code });
     window.vtToast && window.vtToast(`Código (simulado): ${r.code}`, 'ok');
   };
-  const doConfirmReset = () => {
-    const r = window.VtStore.confirmReset(resetState.email, f.resetCode || '', f.newPw || '');
+  const doConfirmReset = async () => {
+    const r = await window.VtStore.confirmReset(resetState.email, f.resetCode || '', f.newPw || '');
     if (!r.ok) return setErr(r.error);
     window.vtToast && window.vtToast('Senha redefinida! Faça login.', 'ok');
     setMode('login'); setRS(null); setF({}); setErr('');

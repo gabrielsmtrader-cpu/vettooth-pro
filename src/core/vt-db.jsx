@@ -6,8 +6,8 @@
    - Expõe helpers por tabela: window.dbPacientes, etc.
    ============================================================ */
 (function () {
-  const SB_URL = 'https://nxxyjzrkumwumkhxiijy.supabase.co';
-  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54eHlqenJrdW13dW1raHhpaWp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjQxMzYsImV4cCI6MjA5NzkwMDEzNn0.p-nzq_c49AJCRU5Fz0unpMyREUTO4sxlyiMwlpwYoC8';
+  const SB_URL = 'https://rqdxybuxjtzzzpjqzojk.supabase.co';
+  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxZHh5YnV4anR6enpwanF6b2prIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNjcwOTIsImV4cCI6MjA5ODk0MzA5Mn0.5-lMvhedwmXNYI6n_GbjBu4jlvNAJVTZl-RAz3fSQTU';
 
   /* ── INIT SUPABASE ─────────────────────────────────────────── */
   function initClient() {
@@ -120,7 +120,7 @@
     if (!window.VtStore._origLogin) {
       window.VtStore._origLogin = window.VtStore.login;
       window.VtStore.login = async function (creds) {
-        const result = window.VtStore._origLogin.call(this, creds);
+        const result = await window.VtStore._origLogin.call(this, creds);
         if (result && result.ok) {
           const email = (creds.email || '').trim().toLowerCase();
           const restored = await _pull(email);

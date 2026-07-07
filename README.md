@@ -48,7 +48,11 @@ Veja [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) antes de criar ou mover módul
 2. Execute `supabase/schema.sql` no SQL Editor.
 3. Configure a URL e a chave pública usadas pelo bridge em `src/core/vt-db.jsx`.
 
-O estado funcional ainda é local-first: `VtStore` persiste no `localStorage`, e o Supabase atua como sincronização/backup. As policies atuais são permissivas e precisam ser substituídas por Supabase Auth + isolamento por clínica antes de produção.
+O cadastro/login atual usa a tabela `usuarios_app`. O estado funcional ainda é local-first: `VtStore` persiste no `localStorage`, e o Supabase atua como sincronização/backup em `dados_clinica`.
+
+Veja [docs/DATABASE.md](docs/DATABASE.md) para o passo a passo e a lista das tabelas.
+
+As policies atuais são permissivas e precisam ser substituídas por Supabase Auth + isolamento por clínica antes de produção.
 
 ## Desenvolvido por
 

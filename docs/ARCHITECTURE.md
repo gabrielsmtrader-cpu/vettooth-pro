@@ -106,7 +106,7 @@ Ao alterar um contrato global, pesquise todos os consumidores e mantenha a ordem
 
 ## Débitos arquiteturais priorizados
 
-1. Substituir autenticação local por Supabase Auth e policies por clínica/usuário.
+1. Substituir `usuarios_app` por Supabase Auth e policies por clínica/usuário.
 2. Escolher uma fonte de verdade e migrar o JSON `dados_clinica` para repositórios por domínio.
 3. Adotar Vite (ou equivalente), módulos ES e variáveis de ambiente.
 4. Dividir arquivos legados grandes, especialmente dashboard, IA, pacientes e prontuário.
