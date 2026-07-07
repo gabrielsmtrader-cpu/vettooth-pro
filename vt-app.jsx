@@ -699,8 +699,9 @@ function App() {
   useEffect(() => {
     const handler = () => setDataVer((v) => v + 1);
     document.addEventListener('vtDataRestored', handler);
+    window.addEventListener('vtCfgChanged', handler);
     window.vtForceRefresh = handler;
-    return () => { document.removeEventListener('vtDataRestored', handler); delete window.vtForceRefresh; };
+    return () => { document.removeEventListener('vtDataRestored', handler); window.removeEventListener('vtCfgChanged', handler); delete window.vtForceRefresh; };
   }, []);
 
   if (!user) return <AuthScreen onAuthed={(u) => { setUser(u); setActive('dashboard'); }} />;

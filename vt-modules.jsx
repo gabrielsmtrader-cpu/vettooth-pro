@@ -297,7 +297,7 @@ window.vtFormatDate = function(dateStr) {
   return `${d}/${m}/${y}`;
 };
 window.vtSysCfg = function () { const d = window.VtStore && window.VtStore.getData(); return Object.assign({ idioma: 'pt-BR', moeda: 'BRL', dataFmt: 'dd/mm/yyyy', docStyle: 'classico' }, (d && d.sysCfg) || {}); };
-window.vtSaveSysCfg = function (c) { if (window.VtStore) window.VtStore.setData({ sysCfg: c }); };
+window.vtSaveSysCfg = function (c) { if (window.VtStore) window.VtStore.setData({ sysCfg: c }); window.dispatchEvent(new CustomEvent('vtCfgChanged', { detail: c })); };
 /* ---- Formatação global de moeda e data ---- */
 window.vtMoney = function(n, decimals) {
   const cfg = window.vtSysCfg ? window.vtSysCfg() : {};
