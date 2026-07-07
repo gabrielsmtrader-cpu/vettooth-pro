@@ -256,8 +256,47 @@ window.vtClinic = function () {
   const u = (window.VtStore && window.VtStore.currentUser && window.VtStore.currentUser()) || {};
   return { name: u.clinic || '', cnpj: '', address: '' };
 };
-window.VT_CURRENCIES = { BRL: { sym: 'R$', loc: 'pt-BR', label: 'Real (R$)' }, USD: { sym: 'US$', loc: 'en-US', label: 'Dólar (US$)' }, EUR: { sym: '€', loc: 'de-DE', label: 'Euro (€)' } };
-window.vtSysCfg = function () { const d = window.VtStore && window.VtStore.getData(); return Object.assign({ idioma: 'pt-BR', moeda: 'BRL', docStyle: 'classico' }, (d && d.sysCfg) || {}); };
+window.VT_CURRENCIES = {
+  BRL: { sym: 'R$',  loc: 'pt-BR', label: 'Real (R$)',           flag: '🇧🇷' },
+  USD: { sym: 'US$', loc: 'en-US', label: 'Dólar americano (US$)', flag: '🇺🇸' },
+  EUR: { sym: '€',   loc: 'de-DE', label: 'Euro (€)',             flag: '🇪🇺' },
+  ARS: { sym: '$',   loc: 'es-AR', label: 'Peso argentino (ARS)', flag: '🇦🇷' },
+  CLP: { sym: '$',   loc: 'es-CL', label: 'Peso chileno (CLP)',   flag: '🇨🇱' },
+  COP: { sym: '$',   loc: 'es-CO', label: 'Peso colombiano (COP)',flag: '🇨🇴' },
+  MXN: { sym: '$',   loc: 'es-MX', label: 'Peso mexicano (MXN)', flag: '🇲🇽' },
+  PYG: { sym: '₲',   loc: 'es-PY', label: 'Guarani (PYG)',       flag: '🇵🇾' },
+  PEN: { sym: 'S/',  loc: 'es-PE', label: 'Sol peruano (PEN)',    flag: '🇵🇪' },
+  UYU: { sym: '$U',  loc: 'es-UY', label: 'Peso uruguaio (UYU)', flag: '🇺🇾' },
+  GBP: { sym: '£',   loc: 'en-GB', label: 'Libra esterlina (£)', flag: '🇬🇧' },
+};
+window.VT_IDIOMAS = [
+  { value: 'pt-BR', label: 'Português (Brasil)',   flag: '🇧🇷' },
+  { value: 'pt-PT', label: 'Português (Portugal)', flag: '🇵🇹' },
+  { value: 'es',    label: 'Español',              flag: '🇪🇸' },
+  { value: 'es-AR', label: 'Español (Argentina)',  flag: '🇦🇷' },
+  { value: 'en',    label: 'English',              flag: '🇺🇸' },
+  { value: 'fr',    label: 'Français',             flag: '🇫🇷' },
+  { value: 'de',    label: 'Deutsch',              flag: '🇩🇪' },
+];
+window.VT_DATE_FORMATS = [
+  { value: 'dd/mm/yyyy', label: 'DD/MM/AAAA  (31/12/2026)', example: () => { const d = new Date(); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`; } },
+  { value: 'mm/dd/yyyy', label: 'MM/DD/AAAA  (12/31/2026)', example: () => { const d = new Date(); return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`; } },
+  { value: 'yyyy-mm-dd', label: 'AAAA-MM-DD  (2026-12-31)', example: () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; } },
+  { value: 'dd-mm-yyyy', label: 'DD-MM-AAAA  (31-12-2026)', example: () => { const d = new Date(); return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`; } },
+  { value: 'dd mmm yyyy', label: 'DD Mmm AAAA (31 Dez 2026)', example: () => new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'numeric' }) },
+];
+window.vtFormatDate = function(dateStr) {
+  if (!dateStr) return '';
+  const fmt = (window.vtSysCfg && window.vtSysCfg().dataFmt) || 'dd/mm/yyyy';
+  const [y, m, d] = String(dateStr).split('-');
+  if (!y || !m || !d) return dateStr;
+  if (fmt === 'mm/dd/yyyy') return `${m}/${d}/${y}`;
+  if (fmt === 'yyyy-mm-dd') return `${y}-${m}-${d}`;
+  if (fmt === 'dd-mm-yyyy') return `${d}-${m}-${y}`;
+  if (fmt === 'dd mmm yyyy') { try { return new Date(`${y}-${m}-${d}`).toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'numeric' }); } catch(e) { return dateStr; } }
+  return `${d}/${m}/${y}`;
+};
+window.vtSysCfg = function () { const d = window.VtStore && window.VtStore.getData(); return Object.assign({ idioma: 'pt-BR', moeda: 'BRL', dataFmt: 'dd/mm/yyyy', docStyle: 'classico' }, (d && d.sysCfg) || {}); };
 window.vtSaveSysCfg = function (c) { if (window.VtStore) window.VtStore.setData({ sysCfg: c }); };
 /* ---- Configuração de integrações reais (Google Agenda iCal + WhatsApp) ---- */
 window.VT_WA_DEFAULTS = {
@@ -2857,18 +2896,72 @@ function SistemaTab() {
   const [c, setC] = vtUseState(() => window.vtSysCfg());
   const set = (k, v) => { const next = { ...c, [k]: v }; setC(next); window.vtSaveSysCfg(next); };
   const cur = window.VT_CURRENCIES[c.moeda] || window.VT_CURRENCIES.BRL;
-  const exemplo = (1234.5).toLocaleString(cur.loc, { style: 'currency', currency: c.moeda });
+  const idiomaInfo = (window.VT_IDIOMAS || []).find(i => i.value === c.idioma) || { flag: '🌐', label: c.idioma };
+  const fmtInfo = (window.VT_DATE_FORMATS || []).find(f => f.value === (c.dataFmt || 'dd/mm/yyyy'));
+  let exemploMoeda = '';
+  try { exemploMoeda = (1234.5).toLocaleString(cur.loc, { style: 'currency', currency: c.moeda }); } catch(e) { exemploMoeda = cur.sym + ' 1.234,50'; }
+  const exemploData = fmtInfo ? fmtInfo.example() : '';
   return (
     <div>
       <div className="vt-card vt-sec vt-form" style={{ marginBottom: 16 }}>
-        <div className="vt-form-sec">Idioma & moeda</div>
-        <div className="vt-form-row">
-          <label className="vtf" style={{ width: '48%' }}><span className="vtf-label">Idioma do sistema</span><span className="vtf-inputwrap"><select className="vtf-input" value={c.idioma} onChange={(e) => set('idioma', e.target.value)}>
-            <option value="pt-BR">Português (Brasil)</option><option value="es">Español</option><option value="en">English</option></select></span></label>
-          <label className="vtf" style={{ width: '48%' }}><span className="vtf-label">Moeda</span><span className="vtf-inputwrap"><select className="vtf-input" value={c.moeda} onChange={(e) => set('moeda', e.target.value)}>
-            {Object.entries(window.VT_CURRENCIES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></span></label>
+        <div className="vt-form-sec">Idioma &amp; Moeda</div>
+        <div className="vt-form-row" style={{ marginBottom: 12 }}>
+          <label className="vtf" style={{ width: '48%' }}>
+            <span className="vtf-label">Idioma do sistema</span>
+            <span className="vtf-inputwrap">
+              <select className="vtf-input" value={c.idioma} onChange={(e) => set('idioma', e.target.value)}>
+                {(window.VT_IDIOMAS || [{ value:'pt-BR', label:'Português (Brasil)', flag:'🇧🇷' }]).map(i =>
+                  <option key={i.value} value={i.value}>{i.flag} {i.label}</option>
+                )}
+              </select>
+            </span>
+          </label>
+          <label className="vtf" style={{ width: '48%' }}>
+            <span className="vtf-label">Moeda</span>
+            <span className="vtf-inputwrap">
+              <select className="vtf-input" value={c.moeda} onChange={(e) => set('moeda', e.target.value)}>
+                {Object.entries(window.VT_CURRENCIES).map(([k, v]) =>
+                  <option key={k} value={k}>{v.flag} {v.label}</option>
+                )}
+              </select>
+            </span>
+          </label>
         </div>
-        <p className="vt-ai-note"><VtIcon name="spark" size={15} /> Exemplo de valor formatado: <b>{exemplo}</b></p>
+        <div className="vt-form-row" style={{ marginBottom: 14 }}>
+          <label className="vtf" style={{ width: '48%' }}>
+            <span className="vtf-label">Formato de data</span>
+            <span className="vtf-inputwrap">
+              <select className="vtf-input" value={c.dataFmt || 'dd/mm/yyyy'} onChange={(e) => set('dataFmt', e.target.value)}>
+                {(window.VT_DATE_FORMATS || []).map(f =>
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                )}
+              </select>
+            </span>
+          </label>
+        </div>
+        <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+          <div style={{ flex:'1 1 200px', background:'var(--teal-t,#e2f4f3)', borderRadius:10, padding:'10px 14px', display:'flex', alignItems:'center', gap:10 }}>
+            <span style={{ fontSize:22 }}>{idiomaInfo.flag}</span>
+            <div>
+              <div style={{ fontSize:11, color:'var(--muted,#6b7280)', fontWeight:600, textTransform:'uppercase', letterSpacing:'.04em' }}>Idioma ativo</div>
+              <div style={{ fontSize:14, fontWeight:600, color:'var(--ink,#0e2c4d)' }}>{idiomaInfo.label}</div>
+            </div>
+          </div>
+          <div style={{ flex:'1 1 200px', background:'var(--teal-t,#e2f4f3)', borderRadius:10, padding:'10px 14px', display:'flex', alignItems:'center', gap:10 }}>
+            <span style={{ fontSize:22 }}>{cur.flag}</span>
+            <div>
+              <div style={{ fontSize:11, color:'var(--muted,#6b7280)', fontWeight:600, textTransform:'uppercase', letterSpacing:'.04em' }}>Moeda · Exemplo</div>
+              <div style={{ fontSize:14, fontWeight:700, color:'var(--teal,#14a8a0)' }}>{exemploMoeda}</div>
+            </div>
+          </div>
+          <div style={{ flex:'1 1 200px', background:'var(--teal-t,#e2f4f3)', borderRadius:10, padding:'10px 14px', display:'flex', alignItems:'center', gap:10 }}>
+            <span style={{ fontSize:22 }}>📅</span>
+            <div>
+              <div style={{ fontSize:11, color:'var(--muted,#6b7280)', fontWeight:600, textTransform:'uppercase', letterSpacing:'.04em' }}>Data · Hoje</div>
+              <div style={{ fontSize:14, fontWeight:600, color:'var(--ink,#0e2c4d)' }}>{exemploData}</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="vt-card vt-sec" style={{ marginBottom: 16 }}>
