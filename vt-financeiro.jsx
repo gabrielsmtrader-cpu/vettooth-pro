@@ -218,7 +218,7 @@ function ReceberTab({ fin, save }) {
     </div>
   );
 }
-function fmtBR(iso) { const m = (iso || '').match(/(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : iso; }
+function fmtBR(iso) { if (!iso) return ''; if (window.vtFormatDate) return window.vtFormatDate(iso); const m = (iso || '').match(/(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : iso; }
 
 /* ---------------- Receita ---------------- */
 function ReceitaTab({ fin, save }) {

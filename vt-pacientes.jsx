@@ -64,7 +64,8 @@ function PatientsList({ patients, onOpen, onNew }) {
   const ageOf = (p) => { if (p.birth && window.vtBirthToAge) { const a = window.vtBirthToAge(p.birth); if (a) return `${a.anos}a ${a.meses}m`; } return p.idade || '—'; };
   const histOf = (p) => ats.filter((a) => a.patientId === p.id).sort((a, b) => (b.id || '').localeCompare(a.id || '')).slice(0, 3);
   const ag = d.agendaAppts || [];
-  const fmtNext = (iso) => { if (!iso) return ''; const dd = new Date(iso + 'T00:00:00'); return `${dd.getDate()}/${String(dd.getMonth() + 1).padStart(2, '0')}/${dd.getFullYear()}`; };
+  const fmtNext = (iso) => window.vtDate ? window.vtDate(iso) : (iso ? (() => { const dd = new Date(iso + 'T00:00:00'); return `${dd.getDate()}/${String(dd.getMonth() + 1).padStart(2, '0')}/${dd.getFullYear()}`; })() : '');
+  const fmtDate = (d) => window.vtDate ? window.vtDate(d) : (d || '');
   const nextOf = (p) => { const today = new Date().toISOString().slice(0, 10); return (ag.filter((a) => a.patient === p.name && a.status !== 'Cancelado' && (a.date || '') >= today).sort((a, b) => (a.date || '').localeCompare(b.date || '')))[0]; };
   return (
     <div>
@@ -108,7 +109,7 @@ function PatientsList({ patients, onOpen, onNew }) {
                 </button>
                 <div className="vt-pat-foot">
                   <button className="vt-pat-exp" onClick={() => setExp(exp === p.id ? null : p.id)}>{exp === p.id ? 'Ocultar histórico' : 'Histórico resumido'} <VtIcon name="chevron" size={13} /></button>
-                  <span className="vt-muted" style={{ fontSize: 11.5 }}>Últ. visita {p.lastVisit || '—'}</span>
+                  <span className="vt-muted" style={{ fontSize: 11.5 }}>Últ. visita {fmtDate(p.lastVisit) || '—'}</span>
                 </div>
                 {exp === p.id && (
                   <div className="vt-pat-hist">
@@ -405,6 +406,7 @@ ${rows ? `<table><thead><tr><th>Dente</th><th>Diagnóstico</th><th>Observação<
 function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos, openAtendimento, onEdit, onStatus, onAfterTransfer }) {
   const p = patient;
   const dead = p.status === 'Óbito';
+  const fmtDate = (d) => window.vtDate ? window.vtDate(d) : (d || '');
   const ownerData = (() => {
     const d = window.VtStore && window.VtStore.getData();
     const ow = ((d && d.owners) || []).find((o) => o.name === p.owner) || {};
@@ -623,7 +625,7 @@ function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos,
                       <div className="pf-proc">
                         {txPac.map((t, i) => (
                           <div key={t.id || i} className="pf-proc-row">
-                            <span className="pf-proc-date">{t.date || '—'}</span>
+                            <span className="pf-proc-date">{fmtDate(t.date) || '—'}</span>
                             <b>{t.descricao || t.tipo || '—'}</b>
                             <span style={{ fontWeight: 700 }}>R$ {parseFloat(t.valor || 0).toFixed(2).replace('.', ',')}</span>
                             {(t.status === 'pago' || t.status === 'Pago') ? <span className="pf-proc-ok">Pago</span> : <span className="pf-proc-pend">Pendente</span>}
@@ -645,7 +647,7 @@ function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos,
                     <div className="pf-proc">
                       {agPac.map((a, i) => (
                         <div key={a.id || i} className="pf-proc-row">
-                          <span className="pf-proc-date">{a.date || '—'}</span>
+                          <span className="pf-proc-date">{fmtDate(a.date) || '—'}</span>
                           <b>{a.type || a.title || '—'}</b>
                           {a.start && <span style={{ color: 'var(--muted)' }}>{a.start}</span>}
                           <span className="pf-proc-ok">{a.status || 'Agendado'}</span>
@@ -660,7 +662,7 @@ function PatientProfile({ patient, onBack, onOpenOdonto, goAgenda, atendimentos,
                 <div className="pf-proc">
                   {history.slice(0, 3).map((h) => (
                     <div key={h.id} className="pf-proc-row" onClick={() => openAtendimento(p.id, h.id)}>
-                      <span className="pf-proc-date">{h.date}</span>
+                      <span className="pf-proc-date">{fmtDate(h.date)}</span>
                       <b>{h.type}</b>
                       {h.status === 'finalizado' ? <span className="pf-proc-ok">Concluído</span> : <span className="pf-proc-pend">Em andamento</span>}
                       {h.vet && <i style={{ color: 'var(--muted)' }}>{(h.vet).replace('M.V. ', '').trim()}</i>}

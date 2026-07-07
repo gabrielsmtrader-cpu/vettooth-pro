@@ -7,7 +7,7 @@
 /* ---------- helpers ---------- */
 const f4Money = (n) => window.vtMoney(n);
 const f4Today = () => new Date().toISOString().slice(0, 10);
-const f4Fmt = (iso) => { if (!iso) return '—'; const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; };
+const f4Fmt = (iso) => { if (!iso) return '—'; if (window.vtFormatDate) return window.vtFormatDate(iso); const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; };
 function f4UID() { return 'F4' + Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
 function f4ParseMoney(v) { return Number((v||'').toString().replace(/[^\d,]/g,'').replace(',','.')) || 0; }
 const f4Months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];

@@ -448,6 +448,7 @@ function Dashboard({ setActive }) {
   const today = new Date().toISOString().slice(0, 10);
   const appts = d.agendaAppts || [];
   const money = (n) => window.vtMoney(n, 0);
+  const fmtDate = (d) => window.vtDate ? window.vtDate(d) : (d || '');
   const mPrefix = today.slice(0, 7);
   const brToYM = (br) => { const m = (br || '').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? `${m[3]}-${m[2]}` : (br || '').slice(0, 7); };
 
@@ -532,7 +533,7 @@ function Dashboard({ setActive }) {
       {/* Agenda de Hoje */}
       <div className="vt-card vt-sec" style={{ marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <h3 className="vt-sec-title" style={{ margin: 0 }}>Agenda de Hoje — {today.slice(8, 10)}/{today.slice(5, 7)}/{today.slice(0, 4)}</h3>
+          <h3 className="vt-sec-title" style={{ margin: 0 }}>Agenda de Hoje — {fmtDate(today)}</h3>
           <button className="vt-btn-ghost" style={{ fontSize: 12 }} onClick={() => setActive('agenda')}>Ver tudo</button>
         </div>
         {aptsHoje.length === 0 ? (
@@ -582,7 +583,7 @@ function Dashboard({ setActive }) {
             <div key={i} className="vt-list-row">
               <span className="name">{n.patient}</span>
               <span className="meta">{n.type || n.kind || ''}</span>
-              <span className="time">{(n.date || '').slice(8, 10)}/{(n.date || '').slice(5, 7)} {n.time || ''}</span>
+              <span className="time">{fmtDate(n.date)} {n.time || ''}</span>
             </div>
           ))}
           <button className="vt-btn-ghost" style={{ marginTop: 10 }} onClick={() => setActive('agenda')}>Ver agenda</button>
@@ -635,7 +636,7 @@ function Dashboard({ setActive }) {
                   <b>{a.patientName || patName(a.patientId) || 'Paciente'}</b>
                   <i>{a.type || 'Atendimento'}{a.procedure ? ' · ' + a.procedure : ''}</i>
                 </div>
-                <span className="vt-act-meta">{a.date || ''}{a.status ? <em className={`vt-act-st ${a.status}`}>{a.status === 'finalizado' ? 'Finalizado' : a.status === 'arquivado' ? 'Arquivado' : 'Em andamento'}</em> : null}</span>
+                <span className="vt-act-meta">{fmtDate(a.date)}{a.status ? <em className={`vt-act-st ${a.status}`}>{a.status === 'finalizado' ? 'Finalizado' : a.status === 'arquivado' ? 'Arquivado' : 'Em andamento'}</em> : null}</span>
               </button>
             ))}
           </div>

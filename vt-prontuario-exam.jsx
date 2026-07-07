@@ -234,6 +234,7 @@ function SpecialtyPicker({ models, onSelect }) {
    Tela 2: formulário completo da especialidade selecionada
    ============================================================ */
 function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSistemas, setDiag, patient }) {
+  const fmtDate = (d) => window.vtDate ? window.vtDate(d) : (d || '');
   const models  = (window.vtConsultModels ? window.vtConsultModels() : window.PR.consultModels);
   const [view, setView] = eUse('pick');
   const activeId = at.consultModel || 'geral';
@@ -271,7 +272,7 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
           <button onClick={() => setView('pick')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: `1.5px solid ${livreC}40`, background: `${livreC}10`, color: livreC, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}>
             <VtIcon name="chevron" size={12} style={{ transform: 'rotate(180deg)' }} /> Trocar especialidade
           </button>
-          <span style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>{at.date} · {at.time}</span>
+          <span style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>{fmtDate(at.date)} · {at.time}</span>
         </div>
         <div style={{ padding: '4px 24px 40px' }}>
           <div style={{ paddingTop: 16 }}><RiskBanner at={at} patch={patch} /></div>
@@ -383,7 +384,7 @@ function PrConsulta({ at, patch, go, integrated, setAnamnese, setExame, setSiste
           <button onClick={() => setView('pick')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: `1.5px solid ${odC}40`, background: `${odC}10`, color: odC, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}>
             <VtIcon name="chevron" size={12} style={{ transform: 'rotate(180deg)' }} /> Trocar especialidade
           </button>
-          <span style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>{at.date} · {at.time}</span>
+          <span style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>{fmtDate(at.date)} · {at.time}</span>
         </div>
 
         {/* ══ FORMULÁRIO ══ */}

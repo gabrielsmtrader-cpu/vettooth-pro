@@ -422,6 +422,7 @@ function buildChargeItems(at, vaccines) {
 
 function PrFinalizar({ at, patch, patient, vaccines, onFinalizar, onCommit }) {
   const money = window.PR.money;
+  const fmtDate = (d) => window.vtDate ? window.vtDate(d) : (d || '');
   const [items, setItems] = pUse(() => buildChargeItems(at, vaccines));
   const [obs, setObs] = pUse('');
   const [sent, setSent] = pUse(false);
@@ -462,7 +463,7 @@ function PrFinalizar({ at, patch, patient, vaccines, onFinalizar, onCommit }) {
       <div className="pr-sec-head" style={{ marginBottom: 20 }}>
         <div>
           <h2 className="pr-h">Finalizar Atendimento</h2>
-          <p className="pr-h-sub">{patient.name} · {at.type || 'Consulta'} · {at.date}</p>
+          <p className="pr-h-sub">{patient.name} · {at.type || 'Consulta'} · {fmtDate(at.date)}</p>
         </div>
       </div>
 

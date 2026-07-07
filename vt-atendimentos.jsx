@@ -4,6 +4,7 @@
 
 /* Lista de histórico de atendimentos de um paciente */
 function AtendimentoHistory({ list, onOpen }) {
+  const fmtDate = (d) => window.vtDate ? window.vtDate(d) : (d || '');
   if (!list || list.length === 0) return <p className="vt-empty" style={{ padding: '8px 0' }}>Nenhum atendimento registrado ainda.</p>;
   return (
     <div className="vt-at-timeline">
@@ -13,7 +14,7 @@ function AtendimentoHistory({ list, onOpen }) {
           <div className="vt-at-body">
             <div className="vt-at-top">
               <span className="vt-at-type">{a.type}</span>
-              <span className="vt-at-date">{a.date}{onOpen ? <VtIcon name="chevron" size={14} /> : null}</span>
+              <span className="vt-at-date">{fmtDate(a.date)}{onOpen ? <VtIcon name="chevron" size={14} /> : null}</span>
             </div>
             <div className="vt-at-proc">{a.procedure}</div>
             <div className="vt-at-meta">
@@ -61,6 +62,7 @@ const VT_MED_SUGEST = ['Meloxicam 0,2%', 'Amoxicilina + Clavulanato', 'Dipirona'
 function FinalizarConsultaModal({ at, patient, defaultWhats, onClose, onConfirm }) {
   const vets = window.vtVets();
   const money = (n) => window.vtMoney(n);
+  const fmtDate = (d) => window.vtDate ? window.vtDate(d) : (d || '');
   const parseMoney = (s) => Number(String(s == null ? '' : s).replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
   const [data, setData] = vtUseState(at.date || (window.PR ? window.PR.todayBR() : ''));
   const [hora, setHora] = vtUseState(at.time || (window.PR && window.PR.nowHM ? window.PR.nowHM() : '09:00'));
@@ -290,6 +292,7 @@ function FinalizarAtendimentoModal({ at, onClose, onConfirm }) {
 /* Módulo global Atendimentos — lista + prontuário eletrônico completo */
 function AtendimentosModule({ openPatient, openOdonto, focus, clearFocus }) {
   const store = window.VtStore;
+  const fmtDate = (d) => window.vtDate ? window.vtDate(d) : (d || '');
   const [patients, setPatients] = vtUseState(() => { const d = store && store.getData(); return (d && d.patients) || []; });
   const [atend, setAtend] = vtUseState(() => { const d = store && store.getData(); return (d && d.atendimentos) || []; });
   const [agenda, setAgenda] = vtUseState(() => { const d = store && store.getData(); return (d && d.agendaAppts) || []; });
@@ -775,7 +778,7 @@ function AtendimentosModule({ openPatient, openOdonto, focus, clearFocus }) {
                           ? <p className="pr-empty" style={{ padding: '6px 2px' }}>Nenhum atendimento nesta data.</p>
                           : items.map((a) => (
                             <button key={a.id} className="vt-hist-row" onClick={() => openExisting(a)}>
-                              <span className="vt-hist-date">{a.date}{a.time ? ' · ' + a.time : ''}</span>
+                              <span className="vt-hist-date">{fmtDate(a.date)}{a.time ? ' · ' + a.time : ''}</span>
                               <span className="vt-hist-pat"><b>{a.patientName}</b><i>{a.type}</i></span>
                               <span className="vt-hist-val">{a.value || '—'}</span>
                               <VtIcon name="chevron" size={15} />
