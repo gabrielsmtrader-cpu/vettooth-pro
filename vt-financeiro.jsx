@@ -602,9 +602,9 @@ function FinEmBreve({ title, desc }) {
 }
 
 /* ---------------- Módulo ---------------- */
-function FinancasModule() {
+function FinancasModule({ hideTabs, initialTab } = {}) {
   const [fin, save] = useFin();
-  const [tab, setTab] = vtUseState('visao');
+  const [tab, setTab] = vtUseState(initialTab || 'visao');
   const FluxoCaixaTab = window.FluxoCaixaTab, ReceitasTab = window.ReceitasTab, DespesasTab = window.DespesasTab, OrcamentosFinTab = window.OrcamentosFinTab, PrecificacaoTab = window.PrecificacaoTab;
   const AssinaturasTab = window.AssinaturasTab, ProjecoesTab = window.ProjecoesTab, IAFinanceiraTab = window.IAFinanceiraTab;
   const tabs = [
@@ -614,8 +614,8 @@ function FinancasModule() {
   ];
   return (
     <div>
-      <div className="vt-page-head"><h1>Financeiro</h1><p>Visão geral, fluxo de caixa, receitas, despesas, precificação e projeções</p></div>
-      <div className="fin-tabs">{tabs.map(([id, l]) => <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{l}</button>)}</div>
+      {!hideTabs && <div className="vt-page-head"><h1>Financeiro</h1><p>Visão geral, fluxo de caixa, receitas, despesas, precificação e projeções</p></div>}
+      {!hideTabs && <div className="fin-tabs">{tabs.map(([id, l]) => <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{l}</button>)}</div>}
       {tab === 'visao' && <VisaoGeralTab fin={fin} save={save} />}
       {tab === 'fluxo' && <FluxoCaixaTab fin={fin} save={save} />}
       {tab === 'receitas' && <ReceitasTab fin={fin} save={save} />}

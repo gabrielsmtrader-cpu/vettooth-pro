@@ -583,26 +583,33 @@ function FluxoCaixaPrevistoReal({ fin }) {
    FinancasModuleV4 — wrapper que extende o módulo existente
    ============================================================ */
 function FinancasModuleV4() {
-  const [tab, setTab] = vtUseState('lancamentos');
+  const [tab, setTab] = vtUseState('visao');
   const [fin, setFin] = vtUseState(() => {
     const d = window.VtStore && window.VtStore.getData();
     return (d && d.fin) || { tx: [] };
   });
 
   const TABS = [
-    { id: 'lancamentos',   label: 'Lançamentos' },
-    { id: 'caixa',         label: 'Fluxo de Caixa' },
-    { id: 'fluxo_prev',    label: 'Fluxo Previsto' },
-    { id: 'receitas',      label: 'Receitas' },
-    { id: 'despesas',      label: 'Despesas' },
-    { id: 'contas_pagar',  label: 'Contas a Pagar' },
-    { id: 'contas_banco',  label: 'Contas e Cartões' },
-    { id: 'conciliacao',   label: 'Conciliação' },
-    { id: 'dre',           label: 'DRE' },
-    { id: 'assinaturas',   label: 'Assinaturas' },
-    { id: 'projecoes',     label: 'Projeções' },
-    { id: 'split',         label: 'Split' },
+    { id: 'visao',        label: 'Visão Geral' },
+    { id: 'fluxo',        label: 'Fluxo de Caixa' },
+    { id: 'fluxo_prev',   label: 'Fluxo Previsto' },
+    { id: 'receitas',     label: 'Receitas' },
+    { id: 'despesas',     label: 'Despesas' },
+    { id: 'contas_pagar', label: 'Contas a Pagar' },
+    { id: 'contas_banco', label: 'Contas e Cartões' },
+    { id: 'conciliacao',  label: 'Conciliação' },
+    { id: 'dre',          label: 'DRE' },
+    { id: 'orcamentos',   label: 'Orçamentos' },
+    { id: 'precificacao', label: 'Precificação' },
+    { id: 'comissoes',    label: 'Comissões' },
+    { id: 'assinaturas',  label: 'Assinaturas' },
+    { id: 'pagamentos',   label: 'Pagamentos' },
+    { id: 'projecoes',    label: 'Projeções' },
+    { id: 'ia',           label: 'IA Financeira' },
   ];
+
+  // Abas cujo conteúdo vive no FinancasModule original
+  const OLD_TABS = ['visao','fluxo','receitas','despesas','orcamentos','precificacao','comissoes','assinaturas','pagamentos','projecoes','ia'];
 
   return (
     <div>
@@ -611,21 +618,19 @@ function FinancasModuleV4() {
         <p>Gestão financeira completa da clínica</p>
       </div>
 
-      {/* Abas horizontais */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--line)', marginBottom: 20, overflowX: 'auto' }}>
+      {/* Único tab bar unificado */}
+      <div className="fin-tabs">
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: '9px 16px', fontWeight: 700, fontSize: 13.5, border: 'none', background: 'none', cursor: 'pointer', color: tab === t.id ? 'var(--teal-d)' : 'var(--muted)', borderBottom: tab === t.id ? '2px solid var(--teal)' : '2px solid transparent', whiteSpace: 'nowrap' }}>
+          <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
             {t.label}
           </button>
         ))}
       </div>
 
-      {/* Delegar abas antigas ao FinancasModule original */}
-      {['lancamentos','caixa','receitas','despesas','assinaturas','projecoes','split'].includes(tab) && (
-        <FinancasModule initialTab={tab} />
-      )}
+      {/* Conteúdo das abas originais — hideTabs suprime o header/tabs interno */}
+      {OLD_TABS.includes(tab) && <FinancasModule key={tab} hideTabs={true} initialTab={tab} />}
 
+      {/* Conteúdo das abas novas v4 */}
       {tab === 'fluxo_prev'   && <FluxoCaixaPrevistoReal fin={fin} />}
       {tab === 'contas_pagar' && <ContasPagarV4 />}
       {tab === 'contas_banco' && <ContasCartoes fin={fin} />}
