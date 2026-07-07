@@ -669,28 +669,91 @@ function ClientesModule({ focusOwnerName, clearFocus, openPatient }) {
   if (profile) {
     const pets = petsOf(profile);
     const ats = (() => { const d = window.VtStore && window.VtStore.getData(); return (d && d.atendimentos) || []; })();
-    const petIds = pets.map((p) => p.id);
-    const petNames = pets.map((p) => p.name);
-    const visits = ats.filter((a) => petIds.includes(a.patientId) || petNames.includes(a.patient)).sort((a, b) => (b.id || '').localeCompare(a.id || ''));
+    const allPetIds = pets.map((p) => p.id);
+    const allPetNames = pets.map((p) => p.name);
+    const visits = ats.filter((a) => allPetIds.includes(a.patientId) || allPetNames.includes(a.patient)).sort((a, b) => (b.id || '').localeCompare(a.id || ''));
     const money = (n) => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const valOf = (a) => (Number(a.valorTotal) || Number(a.total) || 0) + ((a.procedimentos || []).reduce((x, pr) => x + (Number(pr.valor) || Number(pr.price) || 0), 0));
     const totalGasto = visits.reduce((sum, a) => sum + valOf(a), 0);
+    const ticketMedio = visits.length ? totalGasto / visits.length : 0;
+    const ultimaVisita = visits.length ? visits[0].date : null;
     const petName = (a) => { const pp = pets.find((x) => x.id === a.patientId || x.name === a.patient); return pp ? pp.name : (a.patient || '—'); };
     const whatsNum = (profile.whats && profile.whats !== '—') ? profile.whats : '';
     const telNum = (profile.phone && profile.phone !== '—') ? profile.phone : '';
     const outroNum = (profile.phone2 && profile.phone2 !== '—') ? profile.phone2 : '';
+
+    // Transações financeiras pendentes vinculadas a este tutor
+    const finData = (() => { const d = window.VtStore && window.VtStore.getData(); return (d && d.fin) || {}; })();
+    const allTx = finData.tx || [];
+    const clientTx = allTx.filter((t) => allPetIds.includes(t.patientId) || allPetNames.includes(t.patient) || t.owner === profile.name || t.clientId === profile.id);
+    const pendente = clientTx.filter((t) => !t.pago && (t.tipo === 'receita' || !t.tipo)).reduce((s, t) => s + (Number(t.valor) || 0), 0);
+    const totalPago = clientTx.filter((t) => t.pago).reduce((s, t) => s + (Number(t.valor) || 0), 0);
+    const txPendentes = clientTx.filter((t) => !t.pago && (t.tipo === 'receita' || !t.tipo));
+
+    // Status financeiro
+    const statusFin = pendente === 0 ? 'em-dia' : pendente > 500 ? 'inadimplente' : 'pendente';
+    const statusFinLabel = { 'em-dia': 'Em dia ✓', pendente: 'Pendente', inadimplente: 'Inadimplente' }[statusFin];
+    const statusFinColor = { 'em-dia': 'var(--green)', pendente: 'var(--amber)', inadimplente: 'var(--red)' }[statusFin];
+    const statusFinBg = { 'em-dia': '#f0fdf4', pendente: '#fffbeb', inadimplente: '#fef2f2' }[statusFin];
+
+    // Classificação de lealdade
+    const parseDate = (str) => { try { const p = (str || '').split('/'); return new Date(p[2], p[1] - 1, p[0]); } catch(e) { return null; } };
+    const diasSemVisita = ultimaVisita ? Math.round((Date.now() - (parseDate(ultimaVisita) || new Date()).getTime()) / 86400000) : 999;
+    const visitasUltimo12m = visits.filter((v) => { const d = parseDate(v.date); return d && (Date.now() - d.getTime()) < 365 * 86400000; }).length;
+    const classificacao = (diasSemVisita > 180 && visits.length > 0) ? 'Inativo' :
+      (totalGasto > 2000 || pets.length >= 3) ? 'VIP' :
+      visitasUltimo12m >= 3 ? 'Frequente' :
+      visits.length === 0 ? 'Novo' : 'Regular';
+    const classStyle = { VIP: ['#7c3aed', '#f5f3ff', '👑'], Frequente: ['var(--teal-d)', 'var(--teal-t)', '⭐'], Regular: ['var(--green)', '#f0fdf4', '✓'], Novo: ['var(--amber)', '#fffbeb', '🐾'], Inativo: ['#6b7280', '#f3f4f6', '💤'] };
+    const [clColor, clBg, clIcon] = classStyle[classificacao] || ['#6b7280', '#f3f4f6', ''];
+
+    // Gastos mensais últimos 6 meses (sparkbar)
+    const now6 = new Date();
+    const monthlySpend = Array.from({ length: 6 }, (_, i) => {
+      const mo = new Date(now6.getFullYear(), now6.getMonth() - (5 - i), 1);
+      const label = mo.toLocaleDateString('pt-BR', { month: 'short' });
+      const val = visits.filter((v) => { const d = parseDate(v.date); return d && d.getFullYear() === mo.getFullYear() && d.getMonth() === mo.getMonth(); }).reduce((s, v) => s + valOf(v), 0);
+      return { label, val };
+    });
+    const maxM = Math.max(...monthlySpend.map((m) => m.val), 1);
+
     return (
       <div>
         <button className="vt-back" onClick={() => setProfile(null)}><VtIcon name="chevron" size={16} /> Responsáveis</button>
         <div className="vt-page-head vt-head-row">
-          <div className="vt-cell-name" style={{ gap: 14 }}><span className="vt-pet-avatar" style={{ width: 52, height: 52, fontSize: 20, flex: 'none', background: profile.type === 'PJ' ? '#16395f' : '#14a8a0' }}>{profile.name[0]}</span>
-            <div><h1 style={{ margin: 0, lineHeight: 1.15 }}>{profile.name}</h1><p style={{ margin: '4px 0 0' }}>{profile.type === 'PJ' ? 'Pessoa jurídica' : 'Tutor'} · <b className="vt-cli-code inline">{window.vtClienteCode(profile)}</b></p></div>
+          <div className="vt-cell-name" style={{ gap: 14 }}>
+            <span className="vt-pet-avatar" style={{ width: 52, height: 52, fontSize: 20, flex: 'none', background: profile.type === 'PJ' ? '#16395f' : '#14a8a0' }}>{profile.name[0]}</span>
+            <div>
+              <h1 style={{ margin: 0, lineHeight: 1.15 }}>{profile.name}</h1>
+              <p style={{ margin: '4px 0 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                {profile.type === 'PJ' ? 'Pessoa jurídica' : 'Tutor'} · <b className="vt-cli-code inline">{window.vtClienteCode(profile)}</b>
+                <span style={{ background: clBg, color: clColor, fontWeight: 700, fontSize: 12, padding: '2px 10px', borderRadius: 20, border: '1.5px solid ' + clColor }}>{clIcon} {classificacao}</span>
+                <span style={{ background: statusFinBg, color: statusFinColor, fontWeight: 700, fontSize: 12, padding: '2px 10px', borderRadius: 20, border: '1.5px solid ' + statusFinColor }}>{statusFinLabel}</span>
+              </p>
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="vt-btn-ghost" onClick={() => edit(profile)}><VtIcon name="plus" size={15} /> Editar</button>
             {window.vtIsAdmin() && <button className="vt-btn-ghost" style={{ color: 'var(--red)' }} onClick={() => del(profile)}>Excluir</button>}
           </div>
         </div>
+
+        {/* KPI financeiros */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+          {[
+            { label: 'Total gasto', value: money(totalGasto), color: 'var(--teal-d)', icon: '💰' },
+            { label: 'Ticket médio / visita', value: money(ticketMedio), color: 'var(--navy)', icon: '📊' },
+            { label: 'Saldo pendente', value: money(pendente), color: pendente > 0 ? statusFinColor : 'var(--green)', icon: pendente > 0 ? '⚠️' : '✓' },
+            { label: 'Última visita', value: ultimaVisita || '—', color: diasSemVisita > 180 ? 'var(--red)' : 'var(--ink)', icon: '📅' },
+          ].map((k) => (
+            <div key={k.label} className="vt-card" style={{ padding: '14px 18px', borderTop: '3px solid ' + k.color }}>
+              <div style={{ fontSize: 22, marginBottom: 4 }}>{k.icon}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: k.color, lineHeight: 1.1 }}>{k.value}</div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>{k.label}</div>
+            </div>
+          ))}
+        </div>
+
         <div className="vt-grid" style={{ gridTemplateColumns: '1fr 1.4fr', alignItems: 'start' }}>
           <div className="vt-card vt-sec">
             <h3 className="vt-sec-title">Dados do cliente</h3>
@@ -699,19 +762,36 @@ function ClientesModule({ focusOwnerName, clearFocus, openPatient }) {
               <div className="vt-clin-row"><span>CPF / CNPJ</span><b>{profile.cpf}</b></div>
               <div className="vt-clin-row"><span>WhatsApp</span><b>{whatsNum || '—'}</b></div>
               <div className="vt-clin-row"><span>Telefone</span><b>{telNum || '—'}</b></div>
-              <div className="vt-clin-row"><span>Outro telefone</span><b>{outroNum || '—'}</b></div>
+              {outroNum && <div className="vt-clin-row"><span>Outro telefone</span><b>{outroNum}</b></div>}
               <div className="vt-clin-row"><span>Email</span><b>{profile.email}</b></div>
               {profile.birth && <div className="vt-clin-row"><span>Nascimento</span><b>{profile.birth}</b></div>}
               <div className="vt-clin-row"><span>Cidade</span><b>{profile.city}</b></div>
-              {profile.address && profile.address.cep && <div className="vt-clin-row"><span>CEP</span><b>{profile.address.cep}</b></div>}
-              {profile.address && (profile.address.street || profile.address.cep) && <div className="vt-clin-row"><span>Endereço</span><b>{[profile.address.street, profile.address.num, profile.address.complement, profile.address.district, profile.address.city, profile.address.state].filter(Boolean).join(', ')}{profile.address.cep ? ' · CEP ' + profile.address.cep : ''}</b></div>}
-              <div className="vt-clin-row"><span>Total gasto</span><b style={{ color: 'var(--teal-d)' }}>{money(totalGasto)}</b></div>
+              {profile.address && (profile.address.street || profile.address.cep) && <div className="vt-clin-row"><span>Endereço</span><b style={{ fontSize: 12 }}>{[profile.address.street, profile.address.num, profile.address.complement, profile.address.district, profile.address.city, profile.address.state].filter(Boolean).join(', ')}{profile.address.cep ? ' · CEP ' + profile.address.cep : ''}</b></div>}
+              <div className="vt-clin-row"><span>Visitas (12 meses)</span><b style={{ color: 'var(--teal-d)' }}>{visitasUltimo12m} visitas</b></div>
+              <div className="vt-clin-row"><span>Classificação</span><b><span style={{ background: clBg, color: clColor, fontWeight: 700, fontSize: 12, padding: '1px 10px', borderRadius: 20 }}>{clIcon} {classificacao}</span></b></div>
+              <div className="vt-clin-row"><span>Status financeiro</span><b><span style={{ background: statusFinBg, color: statusFinColor, fontWeight: 700, fontSize: 12, padding: '1px 10px', borderRadius: 20 }}>{statusFinLabel}</span></b></div>
               {profile.obs && <div className="vt-clin-row"><span>Observações</span><b style={{ fontWeight: 500 }}>{profile.obs}</b></div>}
             </div>
+
+            {/* Gastos por mês - sparkbars */}
+            <div style={{ marginTop: 16, borderTop: '1px solid #eef1f5', paddingTop: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Gastos — últimos 6 meses</div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 60 }}>
+                {monthlySpend.map((m, i) => (
+                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                    <div style={{ width: '100%', background: m.val > 0 ? 'var(--teal)' : '#e5e7eb', borderRadius: '4px 4px 0 0', height: Math.max(4, Math.round((m.val / maxM) * 44)) + 'px', transition: 'height 0.4s' }} title={'R$ ' + m.val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} />
+                    <span style={{ fontSize: 10, color: '#9ca3af' }}>{m.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
+
           <div className="vt-card vt-sec">
-            <div className="vt-head-row" style={{ marginBottom: 8 }}><h3 className="vt-sec-title" style={{ margin: 0 }}>Animais vinculados <span className="vt-count-badge">{pets.length}</span></h3>
-              <button className="vt-btn-ghost" onClick={() => setAddAnimal(profile.name)}><VtIcon name="plus" size={15} /> Novo animal</button></div>
+            <div className="vt-head-row" style={{ marginBottom: 8 }}>
+              <h3 className="vt-sec-title" style={{ margin: 0 }}>Animais vinculados <span className="vt-count-badge">{pets.length}</span></h3>
+              <button className="vt-btn-ghost" onClick={() => setAddAnimal(profile.name)}><VtIcon name="plus" size={15} /> Novo animal</button>
+            </div>
             {pets.length === 0 ? <p className="vt-muted" style={{ fontSize: 13 }}>Nenhum animal cadastrado para este cliente.</p> : (
               <div className="vt-table" style={{ '--cols': 1 }}>
                 {pets.map((p) => (
@@ -725,8 +805,29 @@ function ClientesModule({ focusOwnerName, clearFocus, openPatient }) {
                 ))}
               </div>
             )}
+
+            {/* Pendências financeiras */}
+            {txPendentes.length > 0 && (
+              <div style={{ marginTop: 16, borderTop: '1px solid #eef1f5', paddingTop: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--amber)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>⚠️ Pendências financeiras</div>
+                <div className="vt-clin-rows">
+                  {txPendentes.slice(0, 5).map((t, i) => (
+                    <div key={t.id || i} className="vt-clin-row" style={{ background: '#fffbeb', borderRadius: 8, padding: '6px 10px' }}>
+                      <span style={{ fontSize: 13 }}>{t.desc || t.description || 'Cobrança'}{t.date ? ' · ' + t.date : ''}</span>
+                      <b style={{ color: 'var(--amber)' }}>{money(Number(t.valor) || 0)}</b>
+                    </div>
+                  ))}
+                  {txPendentes.length > 5 && <div className="vt-muted" style={{ fontSize: 12, textAlign: 'center', paddingTop: 4 }}>+ {txPendentes.length - 5} pendências</div>}
+                </div>
+                <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fef2f2', borderRadius: 8, padding: '8px 12px' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--red)' }}>Total pendente</span>
+                  <b style={{ color: 'var(--red)', fontSize: 15 }}>{money(pendente)}</b>
+                </div>
+              </div>
+            )}
           </div>
         </div>
+
         <div className="vt-card vt-sec" style={{ marginTop: 16 }}>
           <h3 className="vt-sec-title">Histórico de visitas <span className="vt-count-badge">{visits.length}</span></h3>
           {visits.length === 0 ? <p className="vt-muted" style={{ fontSize: 13 }}>Nenhuma visita registrada para os animais deste responsável.</p> : (
