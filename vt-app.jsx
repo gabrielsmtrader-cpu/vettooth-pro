@@ -562,8 +562,8 @@ function App() {
           {active === 'agenda' && <AgendaModule key={'ag-'+dataVer} focusNewPatient={focusAgenda} clearAgendaFocus={() => setFocusAgenda(null)} onIniciarAtendimento={iniciarAtendimentoFromAgenda} />}
           {active === 'odontograma' && <Odontograma patientId={odontoPatient} />}
           {active === 'atendimentos' && <AtendimentosModule key={'at-'+dataVer} openPatient={openPatient} openOdonto={openOdonto} focus={focusAtend} clearFocus={() => setFocusAtend(null)} />}
-          {active === 'insumos' && <EstoqueModule key={'est-'+dataVer} />}
-          {active === 'financas' && <FinancasModule key={'fin-'+dataVer} />}
+          {active === 'insumos' && <EstoqueModule3 key={'est-'+dataVer} />}
+          {active === 'financas' && <FinancasModuleV4 key={'fin-'+dataVer} />}
           {active === 'relatorios' && <RelatoriosModule />}
           {active === 'config' && <ConfigModule />}
           {active === 'ia' && <IAModule key={'ia-'+(focusIA?.patientId||'x')+'-'+dataVer} initialPrompt={focusIA?.prompt} contextPatientId={focusIA?.patientId} />}
