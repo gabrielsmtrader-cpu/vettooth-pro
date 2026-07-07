@@ -30,7 +30,7 @@ window.vtSavePayCfg = function (c) { if (window.VtStore) window.VtStore.setData(
 window.vtPayMethod = function (id) { return window.vtPayCfg().methods.find((m) => m.id === id); };
 
 const finToday = () => new Date().toISOString().slice(0, 10);
-const finBRL = (n) => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const finBRL = (n) => window.vtMoney(n);
 function finUID() { return 'T' + Date.now().toString(36) + Math.floor(Math.random() * 1000); }
 function finDaysAgo(n) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); }
 function finParseMoney(v) { return Number((v || '').toString().replace(/[^\d,]/g, '').replace(',', '.')) || 0; }

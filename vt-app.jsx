@@ -404,7 +404,7 @@ function LineChart() {
   const pt = (arr, i) => [xAt(i), H - pad - (arr[i] / max) * (H - pad * 2)];
   const line = (arr) => arr.map((_, i) => `${i ? 'L' : 'M'}${pt(arr, i).join(' ')}`).join(' ');
   const area = (arr) => `${line(arr)} L${pt(arr, arr.length - 1)[0]} ${H} L${pad} ${H} Z`;
-  const money = (n) => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const money = (n) => window.vtMoney(n, 0);
   if (empty) return <p className="vt-muted" style={{ fontSize: 13, padding: '24px 0', textAlign: 'center' }}>Sem movimentações financeiras nos últimos 30 dias. Finalize atendimentos para ver o gráfico.</p>;
   const onMove = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -447,7 +447,7 @@ function Dashboard({ setActive }) {
   const inv = d.inventory || [];
   const today = new Date().toISOString().slice(0, 10);
   const appts = d.agendaAppts || [];
-  const money = (n) => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const money = (n) => window.vtMoney(n, 0);
   const mPrefix = today.slice(0, 7);
   const brToYM = (br) => { const m = (br || '').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? `${m[3]}-${m[2]}` : (br || '').slice(0, 7); };
 

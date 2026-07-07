@@ -7,7 +7,7 @@ const { useState: pUse, useRef: pRef, useEffect: pEff, useMemo: pMemo } = React;
 
 /* ---------- Dados / catálogos compartilhados ---------- */
 window.PR = (function () {
-  const money = (n) => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (n) => window.vtMoney(n);
   const parseMoney = (s) => Number(String(s || '').replace(/[^\d,]/g, '').replace(',', '.')) || 0;
   const todayBR = () => new Date().toLocaleDateString('pt-BR');
   const nowHM = () => new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });

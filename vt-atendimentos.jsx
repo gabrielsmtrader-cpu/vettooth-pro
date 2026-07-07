@@ -60,7 +60,7 @@ const VT_MED_SUGEST = ['Meloxicam 0,2%', 'Amoxicilina + Clavulanato', 'Dipirona'
 
 function FinalizarConsultaModal({ at, patient, defaultWhats, onClose, onConfirm }) {
   const vets = window.vtVets();
-  const money = (n) => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (n) => window.vtMoney(n);
   const parseMoney = (s) => Number(String(s == null ? '' : s).replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
   const [data, setData] = vtUseState(at.date || (window.PR ? window.PR.todayBR() : ''));
   const [hora, setHora] = vtUseState(at.time || (window.PR && window.PR.nowHM ? window.PR.nowHM() : '09:00'));
@@ -429,7 +429,7 @@ function AtendimentosModule({ openPatient, openOdonto, focus, clearFocus }) {
         if (info) {
           // vem do PrFinalizar — salva financeiro (status pendente, sem forma/data ainda) e fecha
           commit(at);
-          const money = (n) => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const money = (n) => window.vtMoney(n);
           const d = (store && store.getData()) || {}; const fin = d.fin || { tx: [] };
           const today = new Date().toISOString().slice(0, 10);
           const catMap = { 'Consulta': 'Consulta', 'Procedimento': 'Procedimento', 'Medicamento': 'Procedimento', 'Cirurgia': 'Cirurgia', 'Internação': 'Procedimento', 'Exame': 'Exame', 'Vacina aplicada': 'Procedimento' };
@@ -509,7 +509,7 @@ function AtendimentosModule({ openPatient, openOdonto, focus, clearFocus }) {
   // BLOCO 4 — finaliza um atendimento agendado (fechamento clínico completo)
   const finalizarConsulta = (info) => {
     const a = darBaixa; if (!a) return;
-    const money = (n) => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const money = (n) => window.vtMoney(n);
     const vetObj = window.vtVets().find((v) => v.name === info.prof) || {};
     const procList = [];
     if (info.consulta.on) procList.push({ nome: 'Consulta', valor: info.consulta.valor, custo: 0, tempo: '' });

@@ -53,7 +53,7 @@ function iaContext() {
   }
 }
 
-function iaBRL(n) { return 'R$ ' + (Number(n)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function iaBRL(n) { return window.vtMoney(n); }
 
 /* ───── SYSTEM PROMPT ───── */
 function buildSystemPrompt(role, contextPatientId) {

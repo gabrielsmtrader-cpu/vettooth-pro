@@ -298,6 +298,35 @@ window.vtFormatDate = function(dateStr) {
 };
 window.vtSysCfg = function () { const d = window.VtStore && window.VtStore.getData(); return Object.assign({ idioma: 'pt-BR', moeda: 'BRL', dataFmt: 'dd/mm/yyyy', docStyle: 'classico' }, (d && d.sysCfg) || {}); };
 window.vtSaveSysCfg = function (c) { if (window.VtStore) window.VtStore.setData({ sysCfg: c }); };
+/* ---- Formatação global de moeda e data ---- */
+window.vtMoney = function(n, decimals) {
+  const cfg = window.vtSysCfg ? window.vtSysCfg() : {};
+  const code = cfg.moeda || 'BRL';
+  const cur = (window.VT_CURRENCIES && window.VT_CURRENCIES[code]) || { loc: 'pt-BR', sym: 'R$' };
+  const num = Number(n) || 0;
+  const dec = decimals !== undefined ? decimals : 2;
+  try {
+    return num.toLocaleString(cur.loc, { style: 'currency', currency: code, minimumFractionDigits: dec, maximumFractionDigits: dec });
+  } catch(e) {
+    return cur.sym + ' ' + num.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  }
+};
+window.vtMoney0 = function(n) { return window.vtMoney(n, 0); };
+window.vtMoneyFmt = function(n) {
+  const cfg = window.vtSysCfg ? window.vtSysCfg() : {};
+  const code = cfg.moeda || 'BRL';
+  const cur = (window.VT_CURRENCIES && window.VT_CURRENCIES[code]) || { loc: 'pt-BR' };
+  return (Number(n) || 0).toLocaleString(cur.loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+window.vtDate = function(dateStr) {
+  if (!dateStr) return '';
+  const s = String(dateStr).trim();
+  const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) return window.vtFormatDate(s);
+  const brMatch = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (brMatch) return window.vtFormatDate(`${brMatch[3]}-${brMatch[2]}-${brMatch[1]}`);
+  return s;
+};
 /* ---- Configuração de integrações reais (Google Agenda iCal + WhatsApp) ---- */
 window.VT_WA_DEFAULTS = {
   waTplConfirm: 'Olá {tutor}! ✅ Confirmamos o agendamento de {paciente} para {data} às {hora} na {clinica}. Qualquer dúvida, estamos à disposição!',
@@ -711,7 +740,7 @@ function ClientesModule({ focusOwnerName, clearFocus, openPatient }) {
     const allPetIds = pets.map((p) => p.id);
     const allPetNames = pets.map((p) => p.name);
     const visits = ats.filter((a) => allPetIds.includes(a.patientId) || allPetNames.includes(a.patient)).sort((a, b) => (b.id || '').localeCompare(a.id || ''));
-    const money = (n) => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const money = (n) => window.vtMoney(n);
     const valOf = (a) => (Number(a.valorTotal) || Number(a.total) || 0) + ((a.procedimentos || []).reduce((x, pr) => x + (Number(pr.valor) || Number(pr.price) || 0), 0));
     const totalGasto = visits.reduce((sum, a) => sum + valOf(a), 0);
     const ticketMedio = visits.length ? totalGasto / visits.length : 0;
@@ -818,7 +847,7 @@ function ClientesModule({ focusOwnerName, clearFocus, openPatient }) {
               <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 60 }}>
                 {monthlySpend.map((m, i) => (
                   <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                    <div style={{ width: '100%', background: m.val > 0 ? 'var(--teal)' : '#e5e7eb', borderRadius: '4px 4px 0 0', height: Math.max(4, Math.round((m.val / maxM) * 44)) + 'px', transition: 'height 0.4s' }} title={'R$ ' + m.val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} />
+                    <div style={{ width: '100%', background: m.val > 0 ? 'var(--teal)' : '#e5e7eb', borderRadius: '4px 4px 0 0', height: Math.max(4, Math.round((m.val / maxM) * 44)) + 'px', transition: 'height 0.4s' }} title={window.vtMoney(m.val)} />
                     <span style={{ fontSize: 10, color: '#9ca3af' }}>{m.label}</span>
                   </div>
                 ))}
@@ -1788,8 +1817,8 @@ function RelatoriosModule() {
   const txAll = fin.tx || [];
 
   // helpers
-  const money = (n) => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const money0 = (n) => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0 });
+  const money = (n) => window.vtMoney(n);
+  const money0 = (n) => window.vtMoney(n, 0);
   const vtISO = (t) => { const s = t.date || ''; const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : s.slice(0,10); };
   const isRec = (t) => t.kind === 'receita' || t.type === 'entrada';
   const isCus = (t) => t.kind === 'custo'   || t.type === 'saida';
@@ -1878,7 +1907,7 @@ function RelatoriosModule() {
       const totVal = rows.reduce((s,a)=>s+Number((a.value||'').replace(/[^\d,]/g,'').replace(',','.'))||0, 0);
       const html = `<table><thead><tr><th>Data</th><th>Paciente</th><th>Tipo</th><th>Procedimento</th><th>Veterinário</th><th>Valor</th></tr></thead><tbody>
         ${rows.map(a=>`<tr><td>${a.date||''}</td><td>${a.patientName||''}</td><td>${a.type||''}</td><td>${a.procedure||'—'}</td><td>${(a.vet||'').replace('M.V.','').trim()}</td><td>${a.value||'—'}</td></tr>`).join('')}
-        <tr class="tot"><td colspan="5">Total</td><td>R$ ${totVal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>
+        <tr class="tot"><td colspan="5">Total</td><td>${window.vtMoney(totVal)}</td></tr>
       </tbody></table>`;
       return (
         <div>
@@ -1907,7 +1936,7 @@ function RelatoriosModule() {
                   ))}
                   <tr style={{background:'var(--bg)',fontWeight:700}}>
                     <td colSpan="5">Total ({rows.length} registros)</td>
-                    <td style={{color:'var(--teal)'}}>R$ {totVal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                    <td style={{color:'var(--teal)'}}>{window.vtMoney(totVal)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -1930,8 +1959,8 @@ function RelatoriosModule() {
       const titulo = isRel ? 'Relatório de Receitas' : 'Relatório de Custos';
       const cor = isRel ? 'var(--teal)' : 'var(--red)';
       const html = `<table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pagamento</th><th>Status</th><th>Valor</th></tr></thead><tbody>
-        ${rows.map(t=>`<tr><td>${t.date||''}</td><td>${t.desc||t.description||''}</td><td>${t.cat||t.category||''}</td><td>${t.pay||''}</td><td>${t.status||''}</td><td>R$ ${val(t).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`).join('')}
-        <tr class="tot"><td colspan="5">Total</td><td>R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>
+        ${rows.map(t=>`<tr><td>${t.date||''}</td><td>${t.desc||t.description||''}</td><td>${t.cat||t.category||''}</td><td>${t.pay||''}</td><td>${t.status||''}</td><td>${window.vtMoney(val(t))}</td></tr>`).join('')}
+        <tr class="tot"><td colspan="5">Total</td><td>${window.vtMoney(total)}</td></tr>
       </tbody></table>`;
       return (
         <div>
@@ -2034,7 +2063,7 @@ function RelatoriosModule() {
         !buscaL || (i.name||'').toLowerCase().includes(buscaL) || (i.cat||i.category||'').toLowerCase().includes(buscaL)
       );
       const html = `<table><thead><tr><th>Item</th><th>Categoria</th><th>Quantidade</th><th>Mínimo</th><th>Unidade</th><th>Preço</th><th>Fornecedor</th><th>Status</th></tr></thead><tbody>
-        ${rows.map(i=>{const q=Number(i.qty!=null?i.qty:i.stock);const st=q===0?'ZERADO':q<=Number(i.min||0)?'BAIXO':'OK';return`<tr><td>${i.name||''}</td><td>${i.cat||''}</td><td>${q}</td><td>${i.min||0}</td><td>${i.unit||''}</td><td>R$ ${Number(i.price||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td><td>${i.supplier||''}</td><td class="${st==='OK'?'verde':st==='BAIXO'?'amarelo':'vermelho'} badge">${st}</td></tr>`}).join('')}
+        ${rows.map(i=>{const q=Number(i.qty!=null?i.qty:i.stock);const st=q===0?'ZERADO':q<=Number(i.min||0)?'BAIXO':'OK';return`<tr><td>${i.name||''}</td><td>${i.cat||''}</td><td>${q}</td><td>${i.min||0}</td><td>${i.unit||''}</td><td>${window.vtMoney(Number(i.price||0))}</td><td>${i.supplier||''}</td><td class="${st==='OK'?'verde':st==='BAIXO'?'amarelo':'vermelho'} badge">${st}</td></tr>`}).join('')}
       </tbody></table>`;
       return (
         <div>
@@ -2062,7 +2091,7 @@ function RelatoriosModule() {
                       <td style={{textAlign:'center',fontWeight:700,color:stColor}}>{q}</td>
                       <td style={{textAlign:'center',color:'var(--muted)',fontSize:12}}>{min}</td>
                       <td style={{fontSize:12}}>{item.unit||'—'}</td>
-                      <td style={{fontSize:12}}>R$ {Number(item.price||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                      <td style={{fontSize:12}}>{window.vtMoney(Number(item.price||0))}</td>
                       <td style={{fontSize:12}}>{item.supplier||'—'}</td>
                       <td><span style={{fontSize:11,fontWeight:600,color:stColor,background:stColor+'18',borderRadius:4,padding:'2px 7px'}}>{st}</span></td>
                     </tr>
@@ -2090,7 +2119,7 @@ function RelatoriosModule() {
       const ranking = Object.entries(procMap).sort((a,b)=>b[1].n-a[1].n);
       const maxN = ranking[0] ? ranking[0][1].n : 1;
       const html = `<table><thead><tr><th>#</th><th>Procedimento</th><th>Realizações</th><th>Faturamento</th></tr></thead><tbody>
-        ${ranking.map(([proc,d],i)=>`<tr><td>${i+1}º</td><td>${proc}</td><td>${d.n}</td><td>R$ ${d.total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`).join('')}
+        ${ranking.map(([proc,d],i)=>`<tr><td>${i+1}º</td><td>${proc}</td><td>${d.n}</td><td>${window.vtMoney(d.total)}</td></tr>`).join('')}
       </tbody></table>`;
       return (
         <div>

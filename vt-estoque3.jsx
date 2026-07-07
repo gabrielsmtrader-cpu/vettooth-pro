@@ -5,7 +5,7 @@
    ============================================================ */
 
 /* ---------- helpers ---------- */
-const stqMoney = (n) => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const stqMoney = (n) => window.vtMoney(n);
 const stqToday = () => new Date().toISOString().slice(0, 10);
 const stqFmt = (iso) => { if (!iso) return '—'; const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}`; };
 function stqUID() { return 'S' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }

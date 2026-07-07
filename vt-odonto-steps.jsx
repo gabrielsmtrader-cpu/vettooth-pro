@@ -20,7 +20,7 @@ window.vtClinicInfo = function () {
 };
 const ogToast = (m, t) => { try { window.vtToast && window.vtToast(m, t || 'ok'); } catch (e) {} };
 const ogMoney = (v) => Number((v || '').toString().replace(/[^\d,.-]/g, '').replace('.', '').replace(',', '.')) || 0;
-const ogBRL = (n) => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const ogBRL = (n) => window.vtMoney(n);
 const ogPatient = (chart) => { const d = (window.VtStore && window.VtStore.getData()) || {}; return (d.patients || []).find((p) => p.name === chart.patientName) || {}; };
 const ogOwnerData = (name) => { const d = (window.VtStore && window.VtStore.getData()) || {}; return (d.owners || []).find((o) => o.name === name) || {}; };
 
