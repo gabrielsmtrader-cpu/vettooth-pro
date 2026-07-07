@@ -121,32 +121,65 @@ function AuthScreen({ onAuthed }) {
   /* ──────────────────── PAINEL ESQUERDO ──────────────────── */
   const ArtPanel = () => (
     <div className="vt-auth-art" style={{ position: 'relative', overflow: 'hidden' }}>
-      {/* decoração */}
-      <div style={{ position: 'absolute', top: -80, right: -80, width: 340, height: 340, borderRadius: '50%', background: 'rgba(0,201,167,.07)', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: -60, left: -60, width: 260, height: 260, borderRadius: '50%', background: 'rgba(0,201,167,.05)', pointerEvents: 'none' }} />
+      {/* padrão de pontos */}
+      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.07, pointerEvents: 'none' }} xmlns="http://www.w3.org/2000/svg">
+        <defs><pattern id="dots" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.5" fill="#14a8a0"/></pattern></defs>
+        <rect width="100%" height="100%" fill="url(#dots)"/>
+      </svg>
+      {/* glow blob top-right */}
+      <div style={{ position: 'absolute', top: -120, right: -120, width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(circle, rgba(20,168,160,.22) 0%, transparent 70%)', pointerEvents: 'none' }} />
+      {/* glow blob bottom-left */}
+      <div style={{ position: 'absolute', bottom: -80, left: -80, width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle, rgba(20,168,160,.14) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
+      {/* logo */}
       <div className="vt-auth-brand">
         <VtLogoMark />
         <div className="vt-logo-text" style={{ color: '#fff' }}>VETTOOTH <span style={{ color: 'var(--teal)' }}>PRO</span></div>
       </div>
 
-      <div style={{ margin: 'auto 0', paddingBottom: 24 }}>
-        <h2 className="vt-auth-tag" style={{ lineHeight: 1.25 }}>
+      {/* headline + lista */}
+      <div style={{ margin: 'auto 0', paddingBottom: 8, position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'inline-block', background: 'rgba(20,168,160,.18)', border: '1px solid rgba(20,168,160,.35)', borderRadius: 99, padding: '5px 14px', fontSize: 12.5, fontWeight: 700, color: '#5df0e8', letterSpacing: .5, marginBottom: 18, textTransform: 'uppercase' }}>
+          Dentalis Vet · Sistema Oficial
+        </div>
+        <h2 className="vt-auth-tag" style={{ lineHeight: 1.15, marginBottom: 16 }}>
           O copiloto que a odontologia veterinária merecia.
         </h2>
-        <p style={{ color: '#94adbf', fontSize: 15, lineHeight: 1.65, margin: '0 0 32px' }}>
+        <p style={{ color: '#94adbf', fontSize: 15, lineHeight: 1.7, margin: '0 0 28px', maxWidth: 380 }}>
           Do odontograma ao financeiro, da IA clínica ao WhatsApp com tutores — tudo num só sistema.
         </p>
+
         <ul className="vt-auth-list">
-          <li><span>🦷</span> Odontograma equino, canino e felino</li>
-          <li><span>🤖</span> VetIA Pro — diagnóstico, documentos e secretaria</li>
-          <li><span>📋</span> Prontuário, agenda, estoque e financeiro</li>
-          <li><span>📱</span> WhatsApp com tutores integrado</li>
-          <li><span>🔒</span> Dados salvos e protegidos no seu navegador</li>
+          {[
+            { icon: '🦷', text: 'Odontograma equino, canino e felino' },
+            { icon: '🤖', text: 'VetIA Pro — diagnóstico, documentos e secretaria' },
+            { icon: '📋', text: 'Prontuário, agenda, estoque e financeiro' },
+            { icon: '📱', text: 'WhatsApp com tutores integrado' },
+            { icon: '🔒', text: 'Dados salvos e sincronizados na nuvem' },
+          ].map((item) => (
+            <li key={item.text}>
+              <span style={{ width: 32, height: 32, background: 'rgba(20,168,160,.15)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
+              <span>{item.text}</span>
+            </li>
+          ))}
         </ul>
+
+        {/* stats flutuantes */}
+        <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
+          {[
+            { n: '3', label: 'espécies' },
+            { n: '16', label: 'módulos' },
+            { n: '100%', label: 'offline-first' },
+          ].map((s) => (
+            <div key={s.label} style={{ flex: 1, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 14, padding: '14px 12px', textAlign: 'center' }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{s.n}</div>
+              <div style={{ fontSize: 11.5, color: '#7ea3bc', marginTop: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: .5 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="vt-auth-foot" style={{ color: '#4a6a82' }}>Dentalis Vet · VetTooth Pro · 2026</div>
+      <div className="vt-auth-foot" style={{ color: '#3d5f78', position: 'relative', zIndex: 1 }}>Dentalis Vet · VetTooth Pro · 2026</div>
     </div>
   );
 
@@ -156,6 +189,13 @@ function AuthScreen({ onAuthed }) {
       <ArtPanel />
       <div className="vt-auth-form-wrap">
         <div className="vt-auth-card">
+
+          {/* logo no topo do card */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24, justifyContent: 'center' }}>
+            <VtLogoMark size={28} />
+            <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--navy)', letterSpacing: .5 }}>VETTOOTH <span style={{ color: 'var(--teal)' }}>PRO</span></span>
+          </div>
+
           <div className="vt-auth-tabs">
             <button className="active">Entrar</button>
             <button onClick={() => { setMode('signup'); setErr(''); setStep(1); }}>Criar conta</button>
@@ -164,34 +204,52 @@ function AuthScreen({ onAuthed }) {
           <h1 className="vt-auth-title">Bem-vindo de volta 👋</h1>
           <p className="vt-auth-sub">Acesse o painel da sua clínica.</p>
 
-          <AF label="Email profissional" type="email" value={f.email || ''} onChange={s('email')} placeholder="seu@email.com" required />
-
-          <label className="vtf" style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 4 }}>
-            <span className="vtf-label" style={{ fontSize: 13, fontWeight: 700 }}>Senha<i className="vtf-req" style={{ color: 'var(--teal)', marginLeft: 2, fontStyle: 'normal' }}>*</i></span>
-            <span className="vtf-inputwrap" style={{ position: 'relative', display: 'flex' }}>
-              <input className="vtf-input" type={showPw ? 'text' : 'password'} value={f.password || ''}
-                placeholder="••••••••" onChange={(e) => s('password')(e.target.value)} onKeyDown={onKey}
-                style={{ flex: 1, padding: '11px 46px 11px 14px', borderRadius: 10, border: '1.5px solid var(--line)', fontSize: 14, fontFamily: 'inherit' }}
+          {/* Campo email com ícone */}
+          <label className="vtf vt-auth-field" style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 14 }}>
+            <span className="vtf-label" style={{ fontSize: 13, fontWeight: 700 }}>Email profissional <i style={{ color: 'var(--teal)', fontStyle: 'normal' }}>*</i></span>
+            <span style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <span style={{ position: 'absolute', left: 13, fontSize: 15, color: 'var(--muted)', pointerEvents: 'none' }}>✉️</span>
+              <input className="vtf-input" type="email" value={f.email || ''} onChange={(e) => s('email')(e.target.value)} placeholder="seu@email.com"
+                style={{ flex: 1, padding: '12px 14px 12px 40px', borderRadius: 11, border: '1.5px solid var(--line)', fontSize: 14, fontFamily: 'inherit', transition: 'border .15s, box-shadow .15s' }}
+                onFocus={(e) => { e.target.style.borderColor = 'var(--teal)'; e.target.style.boxShadow = '0 0 0 3px rgba(20,168,160,.12)'; }}
+                onBlur={(e) => { e.target.style.borderColor = 'var(--line)'; e.target.style.boxShadow = 'none'; }}
               />
-              <button type="button" className="vtf-eye" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', fontSize: 16, cursor: 'pointer' }}>{showPw ? '🙈' : '👁️'}</button>
             </span>
           </label>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '8px 0 16px' }}>
+          {/* Campo senha com ícone */}
+          <label className="vtf vt-auth-field" style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 4 }}>
+            <span className="vtf-label" style={{ fontSize: 13, fontWeight: 700 }}>Senha <i style={{ color: 'var(--teal)', fontStyle: 'normal' }}>*</i></span>
+            <span style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <span style={{ position: 'absolute', left: 13, fontSize: 15, color: 'var(--muted)', pointerEvents: 'none' }}>🔒</span>
+              <input className="vtf-input" type={showPw ? 'text' : 'password'} value={f.password || ''}
+                placeholder="••••••••" onChange={(e) => s('password')(e.target.value)} onKeyDown={onKey}
+                style={{ flex: 1, padding: '12px 46px 12px 40px', borderRadius: 11, border: '1.5px solid var(--line)', fontSize: 14, fontFamily: 'inherit', transition: 'border .15s, box-shadow .15s' }}
+                onFocus={(e) => { e.target.style.borderColor = 'var(--teal)'; e.target.style.boxShadow = '0 0 0 3px rgba(20,168,160,.12)'; }}
+                onBlur={(e) => { e.target.style.borderColor = 'var(--line)'; e.target.style.boxShadow = 'none'; }}
+              />
+              <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 12, border: 'none', background: 'none', fontSize: 16, cursor: 'pointer', color: 'var(--muted)', padding: 4 }}>{showPw ? '🙈' : '👁️'}</button>
+            </span>
+          </label>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '10px 0 18px' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: 'var(--muted)', cursor: 'pointer' }}>
-              <input type="checkbox" checked={!!f.remember} onChange={(e) => s('remember')(e.target.checked)} style={{ accentColor: 'var(--teal)' }} />
+              <input type="checkbox" checked={!!f.remember} onChange={(e) => s('remember')(e.target.checked)} style={{ accentColor: 'var(--teal)', width: 15, height: 15 }} />
               Lembrar-me
             </label>
             <button type="button" className="vt-auth-forgot" onClick={() => { setMode('reset'); setRS({ email: f.email || '' }); setErr(''); }}>Esqueci a senha</button>
           </div>
 
-          {err && <div className="vt-auth-err" style={{ marginBottom: 12 }}>{err}</div>}
+          {err && <div className="vt-auth-err" style={{ marginBottom: 14 }}>{err}</div>}
 
-          <button className="vt-auth-submit" onClick={doLogin} disabled={loading} style={{ position: 'relative' }}>
-            {loading ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span className="vt-spin" />Entrando...</span> : 'Entrar no painel →'}
+          <button className="vt-auth-submit" onClick={doLogin} disabled={loading}>
+            {loading
+              ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span className="vt-spin" />Entrando...</span>
+              : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>Entrar no painel <span style={{ fontSize: 17 }}>→</span></span>
+            }
           </button>
 
-          <div className="vt-auth-switch" style={{ marginTop: 20 }}>
+          <div className="vt-auth-switch" style={{ marginTop: 22 }}>
             <span>Novo aqui? <button onClick={() => { setMode('signup'); setErr(''); setStep(1); }}>Crie sua conta grátis</button></span>
           </div>
         </div>

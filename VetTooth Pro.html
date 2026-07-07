@@ -974,33 +974,40 @@ select.vtf-input { appearance: none; cursor: pointer; }
 .vt-ia-acard-btn:disabled { background: var(--muted); cursor: default; }
 
 /* ============ Auth (login / cadastro) ============ */
-.vt-auth { display: grid; grid-template-columns: 1.05fr 1fr; height: 100%; }
-.vt-auth-art { background: linear-gradient(160deg, #0e2c4d 0%, #0a2440 60%, #0c3a44 100%); color: #fff; padding: 54px 56px; display: flex; flex-direction: column; }
-.vt-auth-brand { display: flex; align-items: center; gap: 12px; }
-.vt-auth-tag { font-size: 36px; font-weight: 800; line-height: 1.12; letter-spacing: -.01em; margin: auto 0 26px; }
-.vt-auth-list { list-style: none; padding: 0; margin: 0 0 30px; display: flex; flex-direction: column; gap: 14px; }
-.vt-auth-list li { display: flex; align-items: center; gap: 12px; font-size: 15px; color: #c7d6e6; }
-.vt-auth-list li span { font-size: 19px; }
-.vt-auth-foot { font-size: 12.5px; color: #6f8298; }
-.vt-auth-form-wrap { display: grid; place-items: center; padding: 30px; background: var(--bg); }
-.vt-auth-card { width: 100%; max-width: 392px; background: #fff; border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 32px; }
-.vt-auth-tabs { display: flex; background: var(--bg); border-radius: 11px; padding: 4px; gap: 3px; margin-bottom: 22px; }
-.vt-auth-tabs button { flex: 1; padding: 9px; border-radius: 8px; font-weight: 700; font-size: 14px; color: var(--muted); }
-.vt-auth-tabs button.active { background: #fff; color: var(--teal-d); box-shadow: var(--shadow-sm); }
-.vt-auth-title { font-size: 23px; font-weight: 800; margin: 0 0 4px; }
-.vt-auth-sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+.vt-auth { display: grid; grid-template-columns: 1.1fr 1fr; height: 100%; }
+.vt-auth-art { background: linear-gradient(145deg, #091e35 0%, #0d2a42 35%, #0b3540 65%, #0a2e38 100%); color: #fff; padding: 52px 56px; display: flex; flex-direction: column; }
+.vt-auth-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 0; }
+.vt-auth-tag { font-size: 38px; font-weight: 800; line-height: 1.1; letter-spacing: -.02em; margin: 0 0 16px; }
+.vt-auth-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 13px; }
+.vt-auth-list li { display: flex; align-items: center; gap: 13px; font-size: 14.5px; color: #b8cfdf; font-weight: 500; }
+.vt-auth-foot { font-size: 12.5px; }
+/* painel direito */
+.vt-auth-form-wrap { display: grid; place-items: center; padding: 30px; background: #f3f6fb; }
+.vt-auth-card { width: 100%; max-width: 400px; background: #fff; border: 1px solid #e4eaf3; border-radius: 22px; box-shadow: 0 4px 6px rgba(14,44,77,.04), 0 16px 48px rgba(14,44,77,.1); padding: 36px; }
+/* tabs */
+.vt-auth-tabs { display: flex; background: #f0f4f9; border-radius: 12px; padding: 4px; gap: 3px; margin-bottom: 24px; }
+.vt-auth-tabs button { flex: 1; padding: 10px; border-radius: 9px; font-weight: 700; font-size: 14px; color: var(--muted); transition: all .15s; }
+.vt-auth-tabs button.active { background: #fff; color: var(--navy); box-shadow: 0 1px 3px rgba(14,44,77,.12), 0 4px 12px rgba(14,44,77,.06); }
+/* título */
+.vt-auth-title { font-size: 24px; font-weight: 800; margin: 0 0 5px; color: var(--navy); letter-spacing: -.01em; }
+.vt-auth-sub { color: var(--muted); font-size: 14px; margin: 0 0 22px; }
 .vt-auth-card .vtf { margin-bottom: 13px; }
 .vtf-eye { position: absolute; right: 9px; background: none; font-size: 15px; padding: 4px; }
-.vt-auth-err { background: var(--red-t); color: #b23a28; border: 1px solid #f3d2cb; border-radius: 9px; padding: 9px 12px; font-size: 13px; font-weight: 600; margin: 4px 0 12px; }
-.vt-auth-submit { width: 100%; background: var(--teal); color: #fff; font-weight: 700; font-size: 15px; padding: 12px; border-radius: 11px; margin-top: 6px; transition: filter .12s; }
-.vt-auth-submit:hover { filter: brightness(1.06); }
+/* mensagem de erro */
+.vt-auth-err { background: #fff0ee; color: #b23a28; border: 1px solid #fcd4ce; border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 600; margin: 4px 0 12px; display: flex; align-items: center; gap: 8px; }
+.vt-auth-err::before { content: '⚠️'; font-size: 15px; }
+/* botão principal com gradiente */
+.vt-auth-submit { width: 100%; background: linear-gradient(135deg, #16bdb4 0%, #0f8f88 100%); color: #fff; font-weight: 800; font-size: 15px; padding: 14px; border-radius: 12px; margin-top: 4px; transition: transform .12s, box-shadow .12s; box-shadow: 0 4px 14px rgba(15,143,136,.35); letter-spacing: .01em; }
+.vt-auth-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(15,143,136,.45); }
+.vt-auth-submit:active:not(:disabled) { transform: translateY(0); }
+.vt-auth-submit:disabled { opacity: .6; cursor: not-allowed; box-shadow: none; }
+/* links */
 .vt-auth-switch { text-align: center; font-size: 13.5px; color: var(--muted); margin-top: 16px; }
-.vt-auth-switch button { color: var(--teal-d); font-weight: 700; }
+.vt-auth-switch button { color: var(--teal-d); font-weight: 800; }
 .vt-auth-demo { text-align: center; font-size: 12px; color: var(--faint); margin-top: 12px; }
-.vt-auth-forgot { display: block; margin: 0; font-size: 12.5px; font-weight: 700; color: var(--teal-d); background: none; border: none; cursor: pointer; padding: 0; }
+.vt-auth-forgot { font-size: 12.5px; font-weight: 700; color: var(--teal-d); background: none; border: none; cursor: pointer; padding: 0; }
 .vt-auth-codebox { background: var(--teal-t); border: 1px dashed var(--teal); border-radius: 9px; padding: 10px 12px; font-size: 13px; color: var(--teal-d); margin-bottom: 12px; }
 .vt-auth-codebox b { font-size: 16px; letter-spacing: 2px; }
-.vt-auth-submit:disabled { opacity: .65; cursor: not-allowed; filter: none; }
 @keyframes vt-spin-a { to { transform: rotate(360deg); } }
 .vt-spin { display: inline-block; width: 14px; height: 14px; border: 2.5px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: vt-spin-a .7s linear infinite; vertical-align: middle; }
 @media (max-width: 860px) { .vt-auth { grid-template-columns: 1fr; } .vt-auth-art { display: none; } }
@@ -1742,7 +1749,7 @@ body.vt-dark .vt-search input { background: transparent; color: #e2eaf3; }
 <script type="text/babel" src="vt-data.jsx?v=3"></script>
 <script type="text/babel" src="vt-db.jsx"></script>
 <script type="text/babel" src="vt-auth.jsx"></script>
-<script type="text/babel" src="vt-login.jsx?v=3"></script>
+<script type="text/babel" src="vt-login.jsx?v=4"></script>
 <script type="text/babel" src="vt-atendimentos.jsx?v=7"></script>
 <script type="text/babel" src="vt-pacientes.jsx?v=7"></script>
 <script type="text/babel" src="vt-racas.jsx"></script>
