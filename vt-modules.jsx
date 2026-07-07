@@ -2757,32 +2757,108 @@ function ServiceCatalogTab() {
 }
 
 function ConfigModule() {
-  const [tab, setTab] = vtUseState('clinica');
-  const tabs = [['clinica', 'Clínica'], ['equipe', 'Veterinários'], ['seguranca', 'Segurança'], ['notificacoes', 'Notificações'], ['sedacao', 'Sedação'], ['sistema', 'Sistema'], ['conta', 'Conta & backup'], ['parceiras', 'Clínicas parceiras'], ['consultas', 'Tipos de consulta'], ['especialidades', 'Especialidades'], ['roteiros', 'Modelos de consulta'], ['prescricoes', 'Prescrições'], ['exames', 'Exames'], ['modelos', 'Modelos & PDF'], ['integracoes', 'Integrações'], ['lgpd', 'Termos & LGPD'], ['protocolos', 'Protocolos'], ['catalogo', 'Catálogo de Serviços']];
+  const [tab, setTab] = vtUseState(null);
+
+  const groups = [
+    { title: 'Clínica', items: [
+      { id: 'clinica',       icon: 'tooth',        label: 'Clínica',               desc: 'Dados cadastrais, logo e endereço' },
+      { id: 'equipe',        icon: 'users',         label: 'Veterinários',          desc: 'Equipe, colaboradores e assinaturas' },
+    ]},
+    { title: 'Atendimento', items: [
+      { id: 'consultas',     icon: 'receipt',       label: 'Tipos de consulta',     desc: 'Categorias e formas de atendimento' },
+      { id: 'especialidades',icon: 'spark',         label: 'Especialidades',        desc: 'Áreas de atuação da clínica' },
+      { id: 'catalogo',      icon: 'box',           label: 'Catálogo de Serviços',  desc: 'Procedimentos e tabela de preços' },
+      { id: 'sedacao',       icon: 'syringe',       label: 'Sedação',               desc: 'Protocolos anestésicos padrão' },
+      { id: 'protocolos',    icon: 'list',          label: 'Protocolos',            desc: 'Fluxos e checklists clínicos' },
+    ]},
+    { title: 'Documentos & Modelos', items: [
+      { id: 'roteiros',      icon: 'pen',           label: 'Modelos de consulta',   desc: 'Roteiros, anamneses e campos personalizados' },
+      { id: 'prescricoes',   icon: 'receipt',       label: 'Prescrições',           desc: 'Modelos de receituário médico' },
+      { id: 'exames',        icon: 'search',        label: 'Exames',                desc: 'Solicitações padrão de exame complementar' },
+      { id: 'modelos',       icon: 'file',          label: 'Modelos & PDF',         desc: 'Documentos, termos e layouts de impressão' },
+    ]},
+    { title: 'Sistema', items: [
+      { id: 'sistema',       icon: 'gear',          label: 'Sistema',               desc: 'Idioma, moeda, cores e tipo de operação' },
+      { id: 'notificacoes',  icon: 'bell',          label: 'Notificações',          desc: 'Alertas, lembretes e comunicação automática' },
+      { id: 'integracoes',   icon: 'link',          label: 'Integrações',           desc: 'Conectar agendas, pagamentos e serviços externos' },
+      { id: 'parceiras',     icon: 'pin',           label: 'Clínicas parceiras',    desc: 'Rede de referência e encaminhamentos' },
+    ]},
+    { title: 'Conta & Segurança', items: [
+      { id: 'conta',         icon: 'user',          label: 'Conta & backup',        desc: 'Perfil profissional e exportação de dados' },
+      { id: 'seguranca',     icon: 'shield',        label: 'Segurança',             desc: 'Senha, PIN e controle de acesso' },
+      { id: 'lgpd',          icon: 'check',         label: 'Termos & LGPD',         desc: 'Consentimentos, privacidade e conformidade' },
+    ]},
+  ];
+
+  const allItems = groups.flatMap((g) => g.items);
+  const current = tab ? allItems.find((i) => i.id === tab) : null;
+
+  const cardStyle = {
+    display: 'flex', alignItems: 'center', gap: 14, width: '100%',
+    background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12,
+    padding: '14px 16px', cursor: 'pointer', textAlign: 'left', transition: 'border-color .15s, box-shadow .15s',
+  };
+  const iconWrap = {
+    width: 42, height: 42, borderRadius: 10, background: 'var(--teal-t)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--teal)',
+  };
+
+  if (tab) {
+    return (
+      <div>
+        <div className="vt-page-head" style={{ marginBottom: 20 }}>
+          <button className="vt-back" onClick={() => setTab(null)} style={{ marginBottom: 6 }}>
+            <VtIcon name="chevron" size={16} style={{ transform: 'rotate(90deg)' }} /> Configurações
+          </button>
+          <h1 style={{ marginTop: 0 }}>{current?.label}</h1>
+          {current?.desc && <p style={{ margin: 0, color: 'var(--muted)', fontSize: 13 }}>{current.desc}</p>}
+        </div>
+        {tab === 'clinica'        && <ClinicaTab />}
+        {tab === 'equipe'         && <EquipeTab />}
+        {tab === 'seguranca'      && <SegurancaTab />}
+        {tab === 'notificacoes'   && <NotificacoesTab />}
+        {tab === 'sedacao'        && <SedacaoTab />}
+        {tab === 'sistema'        && <SistemaTab />}
+        {tab === 'conta'          && <ContaTab />}
+        {tab === 'parceiras'      && <ParceirasTab />}
+        {tab === 'consultas'      && <ConsultasTab />}
+        {tab === 'especialidades' && <EspecialidadesTab />}
+        {tab === 'roteiros'       && <RoteirosTab />}
+        {tab === 'prescricoes'    && <RxPresetsTab />}
+        {tab === 'exames'         && <ExamPresetsTab />}
+        {tab === 'modelos'        && <ModelosTab />}
+        {tab === 'integracoes'    && <IntegracoesTab />}
+        {tab === 'lgpd'           && <LgpdTab />}
+        {tab === 'protocolos'     && <ProtocolosTab />}
+        {tab === 'catalogo'       && <ServiceCatalogTab />}
+      </div>
+    );
+  }
+
   return (
     <div>
-      <div className="vt-page-head"><h1>Configurações</h1><p>Clínica, equipe, segurança, notificações, modelos, integrações e LGPD</p></div>
-      <div className="vt-segmented wide" style={{ marginBottom: 18 }}>
-        {tabs.map(([id, l]) => <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{l}</button>)}
-      </div>
-      {tab === 'clinica' && <ClinicaTab />}
-      {tab === 'equipe' && <EquipeTab />}
-      {tab === 'seguranca' && <SegurancaTab />}
-      {tab === 'notificacoes' && <NotificacoesTab />}
-      {tab === 'sedacao' && <SedacaoTab />}
-      {tab === 'sistema' && <SistemaTab />}
-      {tab === 'conta' && <ContaTab />}
-      {tab === 'parceiras' && <ParceirasTab />}
-      {tab === 'consultas' && <ConsultasTab />}
-      {tab === 'especialidades' && <EspecialidadesTab />}
-      {tab === 'roteiros' && <RoteirosTab />}
-      {tab === 'prescricoes' && <RxPresetsTab />}
-      {tab === 'exames' && <ExamPresetsTab />}
-      {tab === 'modelos' && <ModelosTab />}
-      {tab === 'integracoes' && <IntegracoesTab />}
-      {tab === 'lgpd' && <LgpdTab />}
-      {tab === 'protocolos' && <ProtocolosTab />}
-      {tab === 'catalogo' && <ServiceCatalogTab />}
+      <div className="vt-page-head"><h1>Configurações</h1><p>Personalize sua clínica, equipe e sistema</p></div>
+      {groups.map((g) => (
+        <div key={g.title} style={{ marginBottom: 28 }}>
+          <h3 className="vt-sec-title" style={{ marginBottom: 12, fontSize: 11.5, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted)' }}>{g.title}</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+            {g.items.map((item) => (
+              <button key={item.id} style={cardStyle} onClick={() => setTab(item.id)}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--teal)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(20,168,160,.12)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; }}>
+                <div style={iconWrap}><VtIcon name={item.icon} size={20} /></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 2 }}>{item.label}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>{item.desc}</div>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <path d="M9 6l6 6-6 6" />
+                </svg>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
