@@ -72,7 +72,12 @@ window.VtStore = (function () {
     };
   }
 
-  async function remoteCreateUser(u) {
+  function isDuplicateUserError(error) {
+    const msg = (error && (error.message || error.details || String(error))) || '';
+    return error && (error.code === '23505' || /duplicate key value|usuarios_app_pkey/i.test(msg));
+  }
+
+  async function remoteCreateUser(u, opts) {
     if (!hasRemoteDB()) return;
     const { error } = await window.vtDB.from('usuarios_app').upsert({
       email: u.email,
@@ -87,6 +92,7 @@ window.VtStore = (function () {
       specialty: u.specialty || '',
       updated_at: new Date().toISOString(),
     }, { onConflict: 'email' });
+    if (error && opts && opts.ignoreDuplicate && isDuplicateUserError(error)) return;
     if (error) throw error;
   }
 
@@ -177,7 +183,7 @@ window.VtStore = (function () {
             saveDB(db);
           }
         } else if (u) {
-          await remoteCreateUser(u);
+          await remoteCreateUser(u, { ignoreDuplicate: true });
         }
       } catch (e) {
         return { ok: false, error: 'Login local encontrado, mas falhou ao preparar usuário no Supabase: ' + e.message };
