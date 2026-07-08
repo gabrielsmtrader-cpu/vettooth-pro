@@ -74,7 +74,7 @@ window.VtStore = (function () {
 
   async function remoteCreateUser(u) {
     if (!hasRemoteDB()) return;
-    const { error } = await window.vtDB.from('usuarios_app').insert({
+    const { error } = await window.vtDB.from('usuarios_app').upsert({
       email: u.email,
       name: u.name,
       clinic: u.clinic || '',
@@ -85,7 +85,8 @@ window.VtStore = (function () {
       crmv_uf: u.crmvUF || '',
       phone: u.phone || '',
       specialty: u.specialty || '',
-    });
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'email' });
     if (error) throw error;
   }
 
