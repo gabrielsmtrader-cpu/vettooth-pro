@@ -114,7 +114,6 @@ window.VtStore = (function () {
     if (!name || !email || !password) return { ok: false, error: 'Preencha todos os campos.' };
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(key)) return { ok: false, error: 'Email inválido.' };
     if (password.length < 6) return { ok: false, error: 'A senha deve ter ao menos 6 caracteres.' };
-    if (db.users[key]) return { ok: false, error: 'Este email já possui cadastro.' };
     await waitRemoteDB();
     try {
       const remote = await remoteGetUser(key);
@@ -122,6 +121,7 @@ window.VtStore = (function () {
     } catch (e) {
       return { ok: false, error: 'Não foi possível verificar o cadastro no Supabase: ' + e.message };
     }
+    if (db.users[key]) return { ok: false, error: 'Este email já possui cadastro neste navegador. Tente entrar ou redefinir a senha.' };
     db.users[key] = { name, clinic: clinic || '', email: key, pass: hash(password), perms: ['Administrador'], createdAt: Date.now() };
     db.data[key] = demo ? seedData() : emptyData();
     saveDB(db);
@@ -163,17 +163,27 @@ window.VtStore = (function () {
         return { ok: false, error: 'Falha ao consultar login no Supabase: ' + e.message };
       }
     }
-    if (!u) return { ok: false, error: 'Usuário não encontrado.' };
-    if (u.pass !== hash(password)) return { ok: false, error: 'Senha incorreta.' };
     await waitRemoteDB();
     if (hasRemoteDB()) {
       try {
         const remote = await remoteGetUser(key);
-        if (!remote) await remoteCreateUser(u);
+        if (remote) {
+          const remoteUser = remoteToLocalUser(remote);
+          if (remoteUser.pass === hash(password)) {
+            u = remoteUser;
+            db.users[key] = u;
+            if (!db.data[key]) db.data[key] = emptyData();
+            saveDB(db);
+          }
+        } else if (u) {
+          await remoteCreateUser(u);
+        }
       } catch (e) {
         return { ok: false, error: 'Login local encontrado, mas falhou ao preparar usuário no Supabase: ' + e.message };
       }
     }
+    if (!u) return { ok: false, error: 'Usuário não encontrado.' };
+    if (u.pass !== hash(password)) return { ok: false, error: 'Senha incorreta.' };
     setSession(key);
     return { ok: true, user: publicUser(u) };
   }
