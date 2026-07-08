@@ -115,7 +115,7 @@ window.VtStore = (function () {
     if (error) throw error;
   }
 
-  async function register({ name, clinic, email, password, demo }) {
+  async function register({ name, clinic, email, password }) {
     const db = loadDB();
     const key = norm(email);
     if (!name || !email || !password) return { ok: false, error: 'Preencha todos os campos.' };
@@ -130,7 +130,7 @@ window.VtStore = (function () {
     }
     if (db.users[key]) return { ok: false, error: 'Este email já possui cadastro neste navegador. Tente entrar ou redefinir a senha.' };
     db.users[key] = { name, clinic: clinic || '', email: key, pass: hash(password), perms: ['Administrador'], createdAt: Date.now() };
-    db.data[key] = demo ? seedData() : emptyData();
+    db.data[key] = emptyData();
     saveDB(db);
     setSession(key);
     try {
@@ -197,7 +197,7 @@ window.VtStore = (function () {
 
   function publicUser(u) { return { name: u.name, clinic: u.clinic, email: u.email, perms: u.perms || ['Administrador'], avatar: u.avatar || '', crmv: u.crmv || '', crmvUF: u.crmvUF || '' }; }
 
-  // workspace vazio — começa só com os dados do próprio usuário (sem demo)
+  // workspace vazio — começa só com os dados reais do próprio usuário
   function emptyData() {
     return {
       patients: [], owners: [], charts: {}, atendimentos: [],
@@ -293,21 +293,6 @@ window.VtStore = (function () {
     const db = loadDB();
     db.data[key] = { ...(db.data[key] || emptyData()), ...patch };
     saveDB(db);
-  }
-
-  // dados de demonstração — usados apenas quando a opção demo é marcada no cadastro
-  function seedData() {
-    const base = window.VtData || {};
-    return {
-      patients: JSON.parse(JSON.stringify(base.patients || [])),
-      owners: JSON.parse(JSON.stringify(base.owners || [])),
-      charts: {}, // odontogramas por paciente
-      atendimentos: [
-        { id: 'A1', patientId: 'P-0003', patientName: 'Bella', date: '18/01/2026', type: 'Avaliação odontológica', vet: 'M.V. Sofia Silva', vetColor: '#2f6fed', weight: '420,0 kg', procedure: 'Exame odontológico completo', notes: 'Pontas de esmalte em arcadas superiores.', value: 'R$ 250,00' },
-        { id: 'A2', patientId: 'P-0001', patientName: 'Thor', date: '02/06/2026', type: 'Exodontia', vet: 'M.V. Marcos Dias', vetColor: '#e0533c', weight: '4,8 kg', procedure: 'Extração do elemento 108', notes: 'Pós-operatório sem intercorrências.', value: 'R$ 620,00' },
-        { id: 'A3', patientId: 'P-0002', patientName: 'Luna', date: '28/05/2026', type: 'Profilaxia odontológica', vet: 'M.V. Sofia Silva', vetColor: '#2f6fed', weight: '28,4 kg', procedure: 'Limpeza da arcada completa', notes: '', value: 'R$ 350,00' },
-      ],
-    };
   }
 
   // ---- migração segura: nunca apaga dados existentes em atualizações ----

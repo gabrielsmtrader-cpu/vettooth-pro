@@ -85,7 +85,7 @@ function AuthScreen({ onAuthed }) {
     setTimeout(async () => {
       const r = await window.VtStore.register({
         name: f.name, clinic: f.clinic, email: f.email,
-        password: f.password, demo: !!f.demo,
+        password: f.password,
       });
       if (!r.ok) { setLoad(false); return setErr(r.error); }
       /* salvar campos extras no perfil */
@@ -218,7 +218,7 @@ function AuthScreen({ onAuthed }) {
           ) : (
             <>
               <div className="vt-auth-codebox" style={{ marginBottom: 16 }}>
-                Código (simulado para este demo): <b style={{ fontSize: 20, letterSpacing: 4 }}>{resetState.sentCode}</b>
+                Código de redefinição: <b style={{ fontSize: 20, letterSpacing: 4 }}>{resetState.sentCode}</b>
               </div>
               <AF label="Código recebido" value={f.resetCode || ''} onChange={s('resetCode')} placeholder="000000" required />
               <label className="vtf" style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
@@ -322,13 +322,6 @@ function AuthScreen({ onAuthed }) {
                   </label>
                 </div>
               </div>
-
-              <label className="vt-check-inline" style={{ margin: '0 0 12px', display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer' }}>
-                <input type="checkbox" checked={!!f.demo} onChange={(e) => s('demo')(e.target.checked)} style={{ accentColor: 'var(--teal)', marginTop: 2, flexShrink: 0 }} />
-                <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>
-                  Iniciar com <b style={{ color: 'var(--ink)' }}>dados de demonstração</b> (pacientes, agenda e financeiro de exemplo para explorar o sistema)
-                </span>
-              </label>
 
               <label className="vt-check-inline" style={{ margin: '0 0 16px', display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer' }}>
                 <input type="checkbox" checked={!!f.acceptTerms} onChange={(e) => s('acceptTerms')(e.target.checked)} style={{ accentColor: 'var(--teal)', marginTop: 2, flexShrink: 0 }} />
