@@ -284,18 +284,18 @@ window.VtStore = (function () {
     const key = localStorage.getItem(SESSION_KEY);
     if (!key) return null;
     const db = loadDB();
-    if (!db.data[key]) { db.data[key] = seedData(); saveDB(db); }
+    if (!db.data[key]) { db.data[key] = emptyData(); saveDB(db); }
     return db.data[key];
   }
   function setData(patch) {
     const key = localStorage.getItem(SESSION_KEY);
     if (!key) return;
     const db = loadDB();
-    db.data[key] = { ...(db.data[key] || seedData()), ...patch };
+    db.data[key] = { ...(db.data[key] || emptyData()), ...patch };
     saveDB(db);
   }
 
-  // dados iniciais (copiados do mock) p/ novo usuário
+  // dados de demonstração — usados apenas quando a opção demo é marcada no cadastro
   function seedData() {
     const base = window.VtData || {};
     return {
