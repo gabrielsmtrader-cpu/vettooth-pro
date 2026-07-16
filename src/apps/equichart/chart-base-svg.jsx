@@ -48,7 +48,7 @@
 
   function BaseSvgChart({ marksByTooth, selectedId, onToothClick }) {
     return e('div', { className: 'anat-stage' },
-      e('img', { className: 'anat-base', src: 'odontograma-base.svg', alt: 'Odontograma equino', draggable: false }),
+      e('img', { className: 'anat-base', src: 'assets/odontograma-base.svg', alt: 'Odontograma equino', draggable: false }),
       e('svg', { className: 'anat-hit', viewBox: '0 0 976 393', preserveAspectRatio: 'xMidYMid meet' },
         Z.map((z) => e(ToothZone, {
           key: z.tooth.id, z,
