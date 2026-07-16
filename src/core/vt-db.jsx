@@ -68,7 +68,9 @@
     document.dispatchEvent(new CustomEvent('vtSyncStatus', { detail: { status: 'syncing' } }));
 
     // Remove fotos (base64 pesado) antes de enviar
-    const raw = db.data[email];
+    const raw = window.VtStore._normalizeData
+      ? window.VtStore._normalizeData(db.data[email])
+      : db.data[email];
     const payload = JSON.parse(JSON.stringify(raw));
     if (payload.patients) {
       payload.patients = payload.patients.map((p) => {
@@ -119,15 +121,29 @@
         setTimeout(_push, 500);
         return false;
       }
+      const remotePayload = window.VtStore && window.VtStore._normalizeData
+        ? window.VtStore._normalizeData(data.payload)
+        : data.payload;
       // Mescla: Supabase como base, dados locais têm prioridade (usuário pode ter algo mais novo)
       if (window.VtStore && window.VtStore._loadDB && window.VtStore.setData) {
         const localDb = window.VtStore._loadDB();
-        const local = (localDb.data && localDb.data[email]) || {};
+        const localRaw = (localDb.data && localDb.data[email]) || {};
+        const local = window.VtStore._normalizeData
+          ? window.VtStore._normalizeData(localRaw)
+          : localRaw;
+        // Corrige automaticamente backups antigos que ficaram duplamente
+        // serializados como texto dentro do JSONB.
+        if (typeof data.payload === 'string') {
+          window.VtStore._setDataRaw(email, remotePayload);
+          setTimeout(_push, 500);
+          console.log('[vtSync] Formato legado do workspace corrigido ✓');
+          return true;
+        }
         // Se o local não tem pacientes mas o Supabase tem → usa Supabase
-        const sbPats = (data.payload.patients || []).length;
+        const sbPats = (remotePayload.patients || []).length;
         const localPats = (local.patients || []).length;
         if (sbPats > localPats) {
-          window.VtStore._setDataRaw(email, data.payload);
+          window.VtStore._setDataRaw(email, remotePayload);
           console.log('[vtSync] Dados restaurados do Supabase ✓', sbPats, 'pacientes');
           return true;
         }
@@ -148,7 +164,13 @@
       window.VtStore._setDataRaw = function (email, payload) {
         try {
           const db = window.VtStore._loadDB();
-          db.data[email] = { ...(db.data[email] || {}), ...payload };
+          const current = window.VtStore._normalizeData
+            ? window.VtStore._normalizeData(db.data[email])
+            : (db.data[email] || {});
+          const incoming = window.VtStore._normalizeData
+            ? window.VtStore._normalizeData(payload)
+            : payload;
+          db.data[email] = { ...current, ...incoming };
           localStorage.setItem('vettooth:db:v1', JSON.stringify(db));
         } catch (e) { console.warn('[vtSync] _setDataRaw error:', e.message); }
       };

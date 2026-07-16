@@ -13,6 +13,17 @@ window.VtStore = (function () {
   }
   function saveDB(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
 
+  // Versões antigas da sincronização podiam salvar o workspace como uma
+  // string JSON dentro do JSONB. Decodifica sem descartar campos do usuário.
+  function normalizeData(value) {
+    let data = value;
+    for (let i = 0; i < 2 && typeof data === 'string'; i++) {
+      try { data = JSON.parse(data); }
+      catch (e) { return emptyData(); }
+    }
+    return data && typeof data === 'object' && !Array.isArray(data) ? data : emptyData();
+  }
+
   // hash simples (não-criptográfico, suficiente p/ protótipo)
   function hash(str) {
     let h = 0x811c9dc5;
@@ -285,13 +296,15 @@ window.VtStore = (function () {
     if (!key) return null;
     const db = loadDB();
     if (!db.data[key]) { db.data[key] = emptyData(); saveDB(db); }
-    return db.data[key];
+    const normalized = normalizeData(db.data[key]);
+    if (normalized !== db.data[key]) { db.data[key] = normalized; saveDB(db); }
+    return normalized;
   }
   function setData(patch) {
     const key = localStorage.getItem(SESSION_KEY);
     if (!key) return;
     const db = loadDB();
-    db.data[key] = { ...(db.data[key] || emptyData()), ...patch };
+    db.data[key] = { ...normalizeData(db.data[key]), ...patch };
     saveDB(db);
   }
 
@@ -301,7 +314,9 @@ window.VtStore = (function () {
     if (!key) return;
     const db = loadDB();
     if (!db.data[key]) return;
-    const d = db.data[key];
+    const d = normalizeData(db.data[key]);
+    const wasNormalized = d !== db.data[key];
+    if (wasNormalized) db.data[key] = d;
     // garante que chaves novas existam sem sobrescrever as do usuário
     const defaults = {
       patients: [], owners: [], charts: {}, atendimentos: [],
@@ -309,7 +324,7 @@ window.VtStore = (function () {
       propriedades: [], parceiras: [],
       fin: { caixa: { open: false, abertura: 0, saldo: 0 }, tx: [] },
     };
-    let changed = false;
+    let changed = wasNormalized;
     Object.keys(defaults).forEach((k) => { if (d[k] === undefined) { d[k] = defaults[k]; changed = true; } });
     if (changed) saveDB(db);
   }
@@ -328,5 +343,5 @@ window.VtStore = (function () {
     return { ok: true };
   }
 
-  return { register, login, logout: clearSession, currentUser, getData, setData, exportData, importData, changePassword, updateProfile, requestReset, confirmReset, migrate, _loadDB: loadDB };
+  return { register, login, logout: clearSession, currentUser, getData, setData, exportData, importData, changePassword, updateProfile, requestReset, confirmReset, migrate, _loadDB: loadDB, _normalizeData: normalizeData };
 })();

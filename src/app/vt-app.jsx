@@ -528,7 +528,7 @@ function Dashboard({ setActive }) {
   })();
 
   // atendimentos
-  const procMes = ats.filter((a) => brToYM(a.date || a.dataISO || '') === mPrefix && !vtIsCancel(a.status)).length;
+  const procMes = ats.filter((a) => brToYM(a.date || a.dataISO || '') === mPrefix && a.status !== 'arquivado' && a.status !== 'cancelado').length;
   const comRetorno = patients.filter((p) => ats.filter((a) => a.patientId === p.id).length > 1).length;
   const taxaRetorno = patients.length ? Math.round(comRetorno / patients.length * 100) : 0;
   const recent = ats.slice().sort((a, b) => { const da = (b.date || '').split('/').reverse().join('-'); const db = (a.date || '').split('/').reverse().join('-'); return da.localeCompare(db) || (b.id || '').localeCompare(a.id || ''); }).slice(0, 5);
@@ -779,4 +779,28 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+class VtAppErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, info) { console.error('[VetTooth] Falha ao montar o sistema:', error, info); }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, background: '#eef1f5', fontFamily: "'Hanken Grotesk', system-ui, sans-serif" }}>
+        <div style={{ width: 'min(520px, 100%)', background: '#fff', border: '1px solid #dce3ea', borderRadius: 18, padding: 28, boxShadow: '0 18px 50px rgba(14,44,77,.10)' }}>
+          <div style={{ color: '#0e2c4d', fontSize: 21, fontWeight: 800, marginBottom: 8 }}>Não foi possível abrir o painel</div>
+          <p style={{ color: '#657489', lineHeight: 1.55, margin: '0 0 20px' }}>Seus dados continuam salvos. Recarregue o sistema para concluir a atualização do formato da conta.</p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button onClick={() => window.location.reload()} style={{ border: 0, borderRadius: 10, padding: '11px 17px', background: '#0e8f88', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Recarregar sistema</button>
+            <button onClick={() => { window.VtStore && window.VtStore.logout(); window.location.reload(); }} style={{ border: '1px solid #d5dde5', borderRadius: 10, padding: '11px 17px', background: '#fff', color: '#34465a', fontWeight: 700, cursor: 'pointer' }}>Voltar ao login</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<VtAppErrorBoundary><App /></VtAppErrorBoundary>);
