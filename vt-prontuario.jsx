@@ -200,11 +200,23 @@ function PrHeader({ at, patient, saving, onBack, onAction, go, tab }) {
   const idChips = [p.species, p.breed, p.sex + (p.neutered ? ' · castrado' : '')].filter(Boolean);
   const pesoAtual = at.weight || p.weight || '';
 
+  // Dados do responsável
+  const ownerData = (() => {
+    const d = window.VtStore && window.VtStore.getData();
+    return ((d && d.owners) || []).find((o) => o.name === p.owner) || {};
+  })();
+  const ownerPhone = ownerData.phone && ownerData.phone !== '—' ? ownerData.phone : (ownerData.whats || '');
+  const ownerCpf = ownerData.doc || ownerData.cpf || '';
+  const ownerAddr = [ownerData.address || ownerData.logradouro, ownerData.city, ownerData.state].filter(Boolean).join(', ');
+
   const meta = [
     ['Espécie', p.species], ['Raça', p.breed], ['Sexo', p.sex + (p.neutered ? ' · castrado' : '')],
     ['Idade', ageFrom(p.birth)], ['Nascimento', p.birth || '—'], ['Peso atual', at.weight || p.weight || '—'],
     ['Tutor', p.owner], (p.property && p.property.name ? ['Propriedade', p.property.name] : ['Convênio', p.plan || '—']),
     ['Veterinário', at.vet.replace('M.V. ', '')], ['Data', at.date + ' · ' + at.time],
+    ...(ownerPhone ? [['Tel. responsável', ownerPhone]] : []),
+    ...(ownerCpf   ? [['CPF/CNPJ', ownerCpf]]         : []),
+    ...(ownerAddr  ? [['Endereço', ownerAddr]]          : []),
   ];
   const statusCls = at.status === 'finalizado' ? 'finalizado' : at.status === 'arquivado' ? 'arquivado' : 'andamento';
   const statusLbl = at.status === 'finalizado' ? 'Finalizado' : at.status === 'arquivado' ? 'Arquivado' : 'Em andamento';

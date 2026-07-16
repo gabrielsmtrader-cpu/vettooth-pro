@@ -718,8 +718,18 @@ function AtendimentosModule({ openPatient, openOdonto, focus, clearFocus }) {
                     <div><span>Profissional</span><b style={{ color: a.vetColor }}>{(a.vet || '—').replace('M.V. ', '')}</b></div>
                   </div>
                   <div className="vt-at-card-actions">
-                    {a.status !== 'confirmado' && <button className="vt-at-cbtn confirm" onClick={() => confirmarAt(a)}><VtIcon name="check" size={13} /> Confirmar</button>}
-                    <button className="vt-at-cbtn finish" onClick={() => setDarBaixa(a._fromAgenda ? mirrorAgenda(a) : a)}><VtIcon name="check" size={14} /> Dar baixa</button>
+                    {a.status === 'em_andamento' ? (
+                      <>
+                        <button className="vt-at-cbtn finish" onClick={() => setFinalizar(a._fromAgenda ? mirrorAgenda(a) : a)}><VtIcon name="check" size={14} /> Finalizar</button>
+                        <button className="vt-at-cbtn primary" onClick={() => setDarBaixa(a._fromAgenda ? mirrorAgenda(a) : a)}><VtIcon name="stethoscope" size={13} /> Baixa completa</button>
+                      </>
+                    ) : (
+                      <>
+                        {a.status !== 'confirmado' && <button className="vt-at-cbtn confirm" onClick={() => confirmarAt(a)}><VtIcon name="check" size={13} /> Confirmar</button>}
+                        <button className="vt-at-cbtn" style={{ background: 'var(--primary)', color: '#fff', borderColor: 'var(--primary)' }} onClick={() => iniciarAt(a._fromAgenda ? mirrorAgenda(a) : a)}>▶ Iniciar</button>
+                        <button className="vt-at-cbtn finish" onClick={() => setDarBaixa(a._fromAgenda ? mirrorAgenda(a) : a)}><VtIcon name="check" size={14} /> Dar baixa</button>
+                      </>
+                    )}
                     <button className="vt-at-cbtn" onClick={() => setEditAt(a._fromAgenda ? mirrorAgenda(a) : a)}><VtIcon name="pen" size={13} /> Editar</button>
                     <button className="vt-at-cbtn danger" onClick={() => setCancelar(a._fromAgenda ? mirrorAgenda(a) : a)}>✗ Cancelar</button>
                     <button className="vt-at-cbtn danger" onClick={() => a._fromAgenda ? removeAgendaAppt(a._agId) : removeAt(a.id)}>🗑 Excluir</button>

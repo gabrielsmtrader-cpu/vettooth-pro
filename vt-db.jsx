@@ -29,6 +29,24 @@
 
   let _pushTimer = null;
   let _syncing = false;
+  let _pendingPush = false;  // marcado quando offline impede o push
+
+  /* ── Estado online/offline ──────────────────────────────────── */
+  function _setOnlineStatus(online) {
+    document.dispatchEvent(new CustomEvent('vtOnlineStatus', { detail: { online } }));
+    if (online) {
+      console.log('[vtSync] Online detectado — sincronizando dados pendentes…');
+      _flushPending();
+    }
+  }
+  window.addEventListener('online',  () => _setOnlineStatus(true));
+  window.addEventListener('offline', () => _setOnlineStatus(false));
+
+  // Registra push pendente no localStorage para sobreviver recargas
+  const PENDING_KEY = 'vettooth:sync:pending';
+  function _markPending()  { try { localStorage.setItem(PENDING_KEY, '1'); } catch {} }
+  function _clearPending() { try { localStorage.removeItem(PENDING_KEY); } catch {} }
+  function _hasPending()   { try { return !!localStorage.getItem(PENDING_KEY); } catch { return false; } }
 
   function _getEmail() {
     try { return localStorage.getItem('vettooth:session') || null; } catch { return null; }
@@ -39,6 +57,15 @@
     if (!email || !window.vtDB || !window.VtStore) return;
     const db = window.VtStore._loadDB ? window.VtStore._loadDB() : null;
     if (!db || !db.data || !db.data[email]) return;
+
+    if (!navigator.onLine) {
+      _markPending();
+      document.dispatchEvent(new CustomEvent('vtSyncStatus', { detail: { status: 'offline' } }));
+      console.log('[vtSync] Offline — push enfileirado');
+      return;
+    }
+
+    document.dispatchEvent(new CustomEvent('vtSyncStatus', { detail: { status: 'syncing' } }));
 
     // Remove fotos (base64 pesado) antes de enviar
     const raw = db.data[email];
@@ -54,9 +81,26 @@
     try {
       const { error } = await window.vtDB.from('dados_clinica')
         .upsert({ email, payload, updated_at: new Date().toISOString() });
-      if (error) console.warn('[vtSync] push error:', error.message);
-      else console.log('[vtSync] Dados salvos no Supabase ✓');
-    } catch (e) { console.warn('[vtSync] push falhou:', e.message); }
+      if (error) {
+        console.warn('[vtSync] push error:', error.message);
+        _markPending();
+        document.dispatchEvent(new CustomEvent('vtSyncStatus', { detail: { status: 'error' } }));
+      } else {
+        _clearPending();
+        console.log('[vtSync] Dados salvos no Supabase ✓');
+        document.dispatchEvent(new CustomEvent('vtSyncStatus', { detail: { status: 'ok' } }));
+      }
+    } catch (e) {
+      console.warn('[vtSync] push falhou:', e.message);
+      _markPending();
+      document.dispatchEvent(new CustomEvent('vtSyncStatus', { detail: { status: 'offline' } }));
+    }
+  }
+
+  // Descarrega push pendente quando online
+  async function _flushPending() {
+    if (!_hasPending()) return;
+    await _push();
   }
 
   function _schedulePush() {
@@ -137,7 +181,14 @@
       };
     }
 
-    // Se já está logado: tenta pull imediato
+    // Ouve mensagens do Service Worker (push solicitado pelo SW)
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('message', (e) => {
+        if (e.data && e.data.type === 'VT_DO_PUSH') _push();
+      });
+    }
+
+    // Se já está logado: tenta pull imediato e descarrega pending
     const email = _getEmail();
     if (email) {
       _pull(email).then((restored) => {
@@ -145,6 +196,8 @@
           document.dispatchEvent(new CustomEvent('vtDataRestored'));
           if (window.vtForceRefresh) window.vtForceRefresh();
         }
+        // Se havia push pendente (feito offline), sobe agora
+        if (_hasPending() && navigator.onLine) _push();
       });
     }
   }

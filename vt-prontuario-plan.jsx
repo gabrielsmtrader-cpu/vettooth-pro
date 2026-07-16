@@ -75,7 +75,7 @@ function PrOdonto({ at, patch, patient, chartOpen, setChartOpen }) {
                 <button className="vt-btn-ghost" onClick={() => setChartOpen(false)}>Fechar ✕</button>
               </div>
             </div>
-            <iframe src={`EquiChart.html?patient=${encodeURIComponent(patient.name || '')}&owner=${encodeURIComponent(patient.owner || '')}`} title="Odontograma" style={{ flex: 1, border: 'none', width: '100%' }} />
+            {(() => { const OApp = window.OdontoApp; return OApp ? <div style={{ flex: 1, position: 'relative' }} className="od-embed"><OApp initPatient={patient.name || ''} initOwner={patient.owner || ''} initSpecies={patient.species || ''} /></div> : <iframe src={`EquiChart.html?patient=${encodeURIComponent(patient.name || '')}&owner=${encodeURIComponent(patient.owner || '')}`} title="Odontograma" style={{ flex: 1, border: 'none', width: '100%' }} />; })()}
           </div>
         </div>
       )}

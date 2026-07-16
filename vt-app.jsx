@@ -154,7 +154,45 @@ function GlobalSearch({ nav }) {
   );
 }
 
-function TopBar({ user, onLogout, onAvatar, nav }) {
+function SyncIndicator() {
+  const [online, setOnline] = useState(navigator.onLine);
+  const [status, setStatus] = useState('ok'); // 'ok' | 'syncing' | 'offline' | 'error'
+
+  React.useEffect(() => {
+    const onOnline  = () => setOnline(true);
+    const onOffline = () => { setOnline(false); setStatus('offline'); };
+    const onSync    = (e) => setStatus(e.detail.status);
+    window.addEventListener('online',  onOnline);
+    window.addEventListener('offline', onOffline);
+    document.addEventListener('vtSyncStatus', onSync);
+    return () => {
+      window.removeEventListener('online',  onOnline);
+      window.removeEventListener('offline', onOffline);
+      document.removeEventListener('vtSyncStatus', onSync);
+    };
+  }, []);
+
+  if (online && status === 'ok') return null; // não mostra nada quando tudo OK
+
+  const cfg = online
+    ? status === 'syncing'
+      ? { color: '#2563eb', bg: 'rgba(37,99,235,.08)', icon: '↑', label: 'Sincronizando…' }
+      : status === 'error'
+      ? { color: '#dc2626', bg: 'rgba(220,38,38,.08)', icon: '⚠', label: 'Erro ao sincronizar' }
+      : { color: '#14a8a0', bg: 'rgba(20,168,160,.08)', icon: '✓', label: 'Online' }
+    : { color: '#d97706', bg: 'rgba(217,119,6,.10)', icon: '⚡', label: 'Offline — dados salvos localmente' };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 99,
+      background: cfg.bg, color: cfg.color, fontSize: 12, fontWeight: 600, marginRight: 8,
+      border: `1px solid ${cfg.color}22`, whiteSpace: 'nowrap' }}>
+      <span>{cfg.icon}</span>
+      <span>{cfg.label}</span>
+    </div>
+  );
+}
+
+function TopBar({ user, onLogout, onAvatar, onProfileUpdate, nav }) {
   const [menu, setMenu] = useState(false);
   const [modal, setModal] = useState(null); // 'perfil' | 'atalhos' | 'novidades' | 'ajuda'
   const [dark, setDark] = useState(() => document.body.classList.contains('vt-dark'));
@@ -168,10 +206,19 @@ function TopBar({ user, onLogout, onAvatar, nav }) {
     if (window.VtStore) window.VtStore.setData({ darkMode: next });
   };
 
-  const openModal = (m) => { setMenu(false); if (m === 'perfil') setPf({ name: user && user.name || '', email: user && user.email || '', phone: user && user.phone || '', cargo: user && user.cargo || '', especialidade: user && user.especialidade || '' }); setModal(m); };
+  const openModal = (m) => { setMenu(false); if (m === 'perfil') setPf({ name: user && user.name || '', email: user && user.email || '', phone: user && user.phone || '', cargo: user && user.cargo || '', especialidade: user && user.especialidade || '', crmv: user && user.crmv || '', crmvUF: user && user.crmvUF || '', newPass: '', confPass: '' }); setModal(m); };
 
   const savePerfil = () => {
-    if (window.VtStore && window.VtStore.updateProfile) window.VtStore.updateProfile(pf);
+    const { newPass, confPass, curPass, ...profileFields } = pf;
+    if (newPass || confPass) {
+      if (newPass !== confPass) { window.vtToast && window.vtToast('As senhas não coincidem.', 'error'); return; }
+      if (newPass.length < 6) { window.vtToast && window.vtToast('Nova senha precisa de 6+ caracteres.', 'error'); return; }
+      if (!curPass) { window.vtToast && window.vtToast('Informe a senha atual para alterá-la.', 'error'); return; }
+      const r = window.VtStore && window.VtStore.changePassword && window.VtStore.changePassword(curPass, newPass);
+      if (r && !r.ok) { window.vtToast && window.vtToast(r.error, 'error'); return; }
+    }
+    if (window.VtStore && window.VtStore.updateProfile) window.VtStore.updateProfile(profileFields);
+    if (onProfileUpdate) onProfileUpdate(profileFields);
     window.vtToast && window.vtToast('Perfil atualizado com sucesso!', 'ok');
     setModal(null);
   };
@@ -213,6 +260,7 @@ function TopBar({ user, onLogout, onAvatar, nav }) {
       <GlobalSearch nav={nav} />
       <div className="vt-topbar-spacer" />
       <div className="vt-topbar-actions">
+        <SyncIndicator />
         <button className="vt-bell" onClick={() => window.vtToast && window.vtToast('Sem notificações novas.', 'ok')}><VtIcon name="bell" size={20} /><span className="dot" /></button>
         <div className="vt-user" style={{ position: 'relative' }} onClick={() => setMenu(!menu)}>
           {user && user.avatar ? <img className="vt-avatar" src={user.avatar} alt="" style={{ objectFit: 'cover' }} /> : <div className="vt-avatar">{initials}</div>}
@@ -273,11 +321,17 @@ function TopBar({ user, onLogout, onAvatar, nav }) {
               <VtField label="Cargo / Função" value={pf.cargo} onChange={(v) => setPf({ ...pf, cargo: v })} placeholder="Ex: Médico-veterinário" width="48%" />
               <VtField label="Especialidade" value={pf.especialidade} onChange={(v) => setPf({ ...pf, especialidade: v })} placeholder="Ex: Odontologia veterinária" width="48%" />
             </div>
+            <div className="vt-form-row">
+              <VtField label="CRMV" value={pf.crmv} onChange={(v) => setPf({ ...pf, crmv: v })} placeholder="Ex: 12345" width="35%" />
+              <VtField label="UF do CRMV" value={pf.crmvUF} onChange={(v) => setPf({ ...pf, crmvUF: v })} placeholder="Ex: SP" width="20%" />
+              <div style={{ flex: 1 }} />
+            </div>
             <div style={{ borderTop: '1px solid var(--line-2)', paddingTop: 16, marginTop: 8 }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)', marginBottom: 10 }}>ALTERAR SENHA</p>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)', marginBottom: 10 }}>ALTERAR SENHA <span style={{ fontWeight: 400 }}>(deixe em branco para manter a atual)</span></p>
               <div className="vt-form-row">
-                <VtField label="Nova senha" value={pf.newPass} onChange={(v) => setPf({ ...pf, newPass: v })} type="password" width="48%" />
-                <VtField label="Confirmar nova senha" value={pf.confPass} onChange={(v) => setPf({ ...pf, confPass: v })} type="password" width="48%" />
+                <VtField label="Senha atual" value={pf.curPass} onChange={(v) => setPf({ ...pf, curPass: v })} type="password" width="31%" />
+                <VtField label="Nova senha" value={pf.newPass} onChange={(v) => setPf({ ...pf, newPass: v })} type="password" width="31%" />
+                <VtField label="Confirmar nova senha" value={pf.confPass} onChange={(v) => setPf({ ...pf, confPass: v })} type="password" width="31%" />
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
@@ -359,23 +413,6 @@ function TopBar({ user, onLogout, onAvatar, nav }) {
 }
 
 /* ----------------------- Dashboard ----------------------- */
-const KPIS = [
-  { icon: 'calendar', label: 'Atendimentos hoje', value: '12', delta: '+2%', dir: 'up' },
-  { icon: 'tooth', label: 'Procedimentos', value: '28', delta: '+5%', dir: 'up' },
-  { icon: 'dollar', label: 'Receita', value: 'R$ 8.500', delta: '+10%', dir: 'up' },
-  { icon: 'chart', label: 'Custos', value: 'R$ 2.100', delta: '+1%', dir: 'down' },
-];
-const NEXT = [
-  { name: 'Luna', meta: '(Cão, Limpeza)', time: '09:00' },
-  { name: 'Thor', meta: '(Gato, Extração)', time: '10:15' },
-  { name: 'Bella', meta: '(Cavalo, Exame)', time: '11:30' },
-  { name: 'Max', meta: '(Cão, Retorno)', time: '14:00' },
-];
-const ALERTS = [
-  { k: 'Estoque baixo:', v: 'Broca Odontológica', c: 'var(--red)' },
-  { k: 'Retorno:', v: 'Fred (Gato) em 2 dias', c: 'var(--amber)' },
-  { k: 'Vacina:', v: 'Rex (Cão) vencendo', c: 'var(--teal)' },
-];
 
 function vtTxISO(t) {
   // suporta DD/MM/YYYY e YYYY-MM-DD
@@ -387,6 +424,7 @@ function vtIsReceita(t) { return t.kind === 'receita' || t.type === 'entrada'; }
 function vtIsCusto(t)   { return t.kind === 'custo'   || t.type === 'saida'; }
 function vtTxVal(t)     { return Number(t.value || t.val || 0); }
 function vtStockQty(i)  { return Number(i.qty != null ? i.qty : i.stock); }
+function vtIsCancel(s)  { return s === 'arquivado' || s === 'cancelado'; }
 
 function LineChart() {
   const [hover, setHover] = useState(null);
@@ -646,22 +684,17 @@ function Dashboard({ setActive }) {
   );
 }
 
-/* ----------------------- Odontograma (módulo) ----------------------- */
+/* ----------------------- Odontograma (módulo nativo OdontogramaModule) ----------------------- */
 function Odontograma({ patientId }) {
-  const src = (() => {
-    if (!patientId) return 'EquiChart.html';
-    const d = (window.VtStore && window.VtStore.getData()) || {};
-    const p = (d.patients || []).find((x) => x.id === patientId);
-    if (!p) return 'EquiChart.html';
-    const qs = new URLSearchParams();
-    qs.set('patient', p.name);
-    if (p.owner) qs.set('owner', p.owner);
-    if (p.species) qs.set('species', p.species);
-    return 'EquiChart.html?' + qs.toString();
-  })();
+  if (!window.OdontogramaModule) return (
+    <div className="vt-frame-wrap" style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12, color:'var(--muted)' }}>
+      <div style={{ width:32, height:32, border:'3px solid var(--line)', borderTopColor:'var(--primary)', borderRadius:'50%', animation:'vtspin .7s linear infinite' }} />
+      Carregando odontograma…
+    </div>
+  );
   return (
-    <div className="vt-frame-wrap">
-      <iframe key={src} className="vt-frame" src={src} title="Odontograma" />
+    <div className="vt-frame-wrap od-embed">
+      <window.OdontogramaModule initialPatientId={patientId || ''} />
     </div>
   );
 }
@@ -727,7 +760,7 @@ function App() {
     <div className="vt-app">
       <Sidebar active={active} setActive={setActive} />
       <div className="vt-main">
-        <TopBar user={user} onLogout={logout} onAvatar={(a) => setUser((u) => ({ ...u, avatar: a }))} nav={navSearch} />
+        <TopBar user={user} onLogout={logout} onAvatar={(a) => setUser((u) => ({ ...u, avatar: a }))} onProfileUpdate={(p) => setUser((u) => ({ ...u, ...p }))} nav={navSearch} />
         <main className={`vt-content${flush ? ' flush' : ''}`}>
           {active === 'dashboard' && <Dashboard key={'dash-'+dataVer} setActive={setActive} user={user} />}
           {active === 'pacientes' && <PacientesModule key={'pac-'+dataVer} openOdonto={openOdonto} goAgenda={() => setActive('agenda')} openAgendaNew={openAgendaNew} openAtendimento={openAtendimento} focusPatientId={focusPatient} clearFocus={() => setFocusPatient(null)} />}

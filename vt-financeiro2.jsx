@@ -171,7 +171,7 @@ function ReceitaModal({ data, onClose, onSave }) {
         </div>
         <div className="vt-form-row">
           <VtField label="Valor" value={f.value} onChange={(v) => s('value')(window.maskMoney(v))} placeholder="R$ 0,00" width="32%" />
-          <label className="vtf" style={{ width: '32%' }}><span className="vtf-label">Forma de pagamento</span><span className="vtf-inputwrap"><select className="vtf-input" value={f.method} onChange={(e) => s('method')(e.target.value)}>{FIN_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></span></label>
+          <label className="vtf" style={{ width: '32%' }}><span className="vtf-label">Forma de pagamento</span><span className="vtf-inputwrap"><select className="vtf-input" value={f.method} onChange={(e) => s('method')(e.target.value)}>{(window.vtActiveFINMethods ? window.vtActiveFINMethods() : FIN_METHODS).map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></span></label>
           <label className="vtf" style={{ width: '30%' }}><span className="vtf-label">Status</span><span className="vtf-inputwrap"><select className="vtf-input" value={f.status} onChange={(e) => s('status')(e.target.value)}><option value="pago">Pago</option><option value="pendente">Pendente</option><option value="cancelado">Cancelado</option></select></span></label>
         </div>
         <div className="fin-modal-actions" style={{ marginTop: 14 }}>

@@ -1113,22 +1113,8 @@ function AgendaModule({ focusNewPatient, clearAgendaFocus, onIniciarAtendimento 
     if (!isEdit && vcfg.syncGoogleAgenda && rec.patient) {
       try { window.open(agGCalUrl(rec), '_blank', 'noopener'); } catch (e) {}
     }
-    // WhatsApp — confirmação de agendamento ao tutor (modelo 1, Configurações › Integrações)
-    if (!isEdit && rec.patient) {
-      try {
-        const d2 = (window.VtStore && window.VtStore.getData()) || {};
-        const pac = (d2.patients || []).find((p) => p.name === rec.patient) || {};
-        const ow = (d2.owners || []).find((o) => o.name === pac.owner) || {};
-        const tutorNum = pac.whats || ow.whats || (ow.phone && ow.phone !== '—' ? ow.phone : '') || pac.phone || '';
-        if (tutorNum && vcfg.waTplConfirm) {
-          const dt = rec.date ? new Date(rec.date + 'T00:00:00') : null;
-          const dataBR = dt ? `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}` : (rec.date || '');
-          const vars = { paciente: rec.patient, tutor: pac.owner || '', data: dataBR, hora: (typeof fmtH === 'function' ? fmtH(rec.start) : rec.start) || '', clinica: (window.vtClinic && window.vtClinic().name) || 'nossa clínica', total: '' };
-          const link = window.vtWaLink(tutorNum, window.vtFillTemplate(vcfg.waTplConfirm, vars));
-          if (link) window.open(link, '_blank', 'noopener');
-        }
-      } catch (e) {}
-    }
+    // WhatsApp — confirmação disponível manualmente no painel de detalhes do agendamento
+    // (não abre automaticamente; tutor escolhe quando enviar)
     // sincroniza com o Google Calendar quando conectado (cria ou atualiza)
     if (gcalOn && window.VtGCal && rec.patient && !rec._gcal) {
       const op = rec.gcalId ? window.VtGCal.updateEvent(rec) : window.VtGCal.createEvent(rec);
@@ -1151,7 +1137,16 @@ function AgendaModule({ focusNewPatient, clearAgendaFocus, onIniciarAtendimento 
     }
   };
   const setStatus = (id, status) => { const next = appts.map((a) => a.id === id ? { ...a, status } : a); persist(next); setSel((s) => s && s.id === id ? { ...s, status } : s); };
-  const blank = (date, start) => ({ patient: '', kind: CT[0].label, vet: 'M.V. ' + window.vtVets()[0].name, date: agISO(date), start, dur: 1, color: '', local: 'Clínica própria', endereco: '', alerta: '1 dia', status: 'Pendente', obs: '' });
+  const agCfg = window.vtAgendaCfg ? window.vtAgendaCfg() : (window.VT_AGENDA_CFG_DEFAULT || {});
+  const agSlotHours = Math.max(0.25, (agCfg.slotMin || 30) / 60);
+  const agStartH = parseInt((agCfg.startTime || '08:00').split(':')[0], 10);
+  const agEndH   = parseInt((agCfg.endTime   || '18:00').split(':')[0], 10);
+  const agHolidays = agCfg.holidays || [];
+  const agDays = agCfg.days || { seg: true, ter: true, qua: true, qui: true, sex: true, sab: false, dom: false };
+  const isHoliday = (iso) => agHolidays.includes(iso);
+  const isWorkday = (iso) => { const d = new Date(iso + 'T12:00:00'); const keys = ['dom','seg','ter','qua','qui','sex','sab']; return agDays[keys[d.getDay()]] !== false && !isHoliday(iso); };
+
+  const blank = (date, start) => ({ patient: '', kind: CT[0].label, vet: 'M.V. ' + window.vtVets()[0].name, date: agISO(date), start, dur: agSlotHours, color: '', local: 'Clínica própria', endereco: '', alerta: '1 dia', status: 'Pendente', obs: '' });
 
   const vets = window.vtVets();
   const anyEsp = Object.values(fEsp).some(Boolean), anyVet = Object.values(fVet).some(Boolean), anySt = Object.values(fSt).some(Boolean);
@@ -1167,7 +1162,7 @@ function AgendaModule({ focusNewPatient, clearAgendaFocus, onIniciarAtendimento 
     return [...local, ...gc].sort((a, b) => a.start - b.start);
   };
 
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const hours = Array.from({ length: agEndH - agStartH }, (_, i) => i + agStartH);
   const goToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); setCursor(d); };
   const rotaDia = () => { setRouteOpen(true); };
   /* ---- Google Calendar ---- */
@@ -1266,7 +1261,7 @@ function AgendaModule({ focusNewPatient, clearAgendaFocus, onIniciarAtendimento 
           </div>
         </div>
         {view === 'mes'
-          ? <AgendaMonth cursor={cursor} appts={appts} onDay={onDay} openNew={(d) => setModal(blank(d, 9))} openEv={setSel} onPickDay={(d) => { setCursor(d); setView('dia'); }} />
+          ? <AgendaMonth cursor={cursor} appts={appts} onDay={onDay} openNew={(d) => setModal(blank(d, 9))} openEv={setSel} onPickDay={(d) => { setCursor(d); setView('dia'); }} isWorkday={isWorkday} />
           : <AgendaGrid days={view === 'dia' ? [cursor] : Array.from({ length: 7 }, (_, i) => agAddDays(agStartOfWeek(cursor), i))} hours={hours} onDay={onDay} openNew={(d, h) => setModal(blank(d, h))} openEv={setSel} selId={sel && sel.id} />}
       </div>
 
@@ -1380,7 +1375,22 @@ function AgendaDetail({ ev, onEdit, onStatus, onClose, onIniciarAtendimento }) {
         <button className="vt-btn-ghost" onClick={() => { onStatus(ev.id, 'Realizado'); window.vtToast('Agendamento marcado como realizado.', 'ok'); }} style={{ color: 'var(--green)', borderColor: 'color-mix(in srgb, var(--green) 35%, transparent)' }}><VtIcon name="check" size={16} /> Concluído</button>
         <button className="vt-btn-ghost" onClick={onEdit}><VtIcon name="calendar" size={15} /> Reagendar</button>
         {onIniciarAtendimento && <button className="vt-btn-primary" style={{ background: 'var(--blue)', borderColor: 'var(--blue)' }} onClick={() => onIniciarAtendimento(ev)}><VtIcon name="stethoscope" size={15} /> Iniciar Atendimento</button>}
-        <button className="ag-msg-btn" onClick={() => window.vtToast(`Mensagem enviada ao tutor ${pat.owner || ''} via WhatsApp.`, 'ok')}>💬 Enviar mensagem</button>
+        {(() => {
+          const tutorNum = pat.whats || ow.whats || (ow.phone && ow.phone !== '—' ? ow.phone : '') || pat.phone || '';
+          const vcfg = window.vtConfig ? window.vtConfig() : {};
+          const buildWaLink = () => {
+            if (!tutorNum) return null;
+            const dt2 = ev.date ? new Date(ev.date + 'T00:00:00') : null;
+            const dataBR = dt2 ? `${String(dt2.getDate()).padStart(2,'0')}/${String(dt2.getMonth()+1).padStart(2,'0')}/${dt2.getFullYear()}` : (ev.date||'');
+            const vars = { paciente: ev.patient, tutor: pat.owner||'', data: dataBR, hora: fmtH(ev.start)||'', clinica: (window.vtClinic&&window.vtClinic().name)||'nossa clínica', total: '' };
+            const msg = vcfg.waTplConfirm ? window.vtFillTemplate(vcfg.waTplConfirm, vars) : `Olá ${pat.owner||''}! Confirmamos o agendamento de ${ev.patient} para ${dataBR} às ${fmtH(ev.start)} em ${(window.vtClinic&&window.vtClinic().name)||'nossa clínica'}.`;
+            return window.vtWaLink(tutorNum, msg);
+          };
+          const link = buildWaLink();
+          return link
+            ? <button className="ag-msg-btn" onClick={() => window.open(link, '_blank', 'noopener')}>💬 Enviar WhatsApp</button>
+            : <button className="ag-msg-btn" style={{ opacity: 0.5, cursor: 'not-allowed' }} title="Tutor sem número de WhatsApp cadastrado" onClick={() => window.vtToast('Tutor sem número de WhatsApp cadastrado.', 'err')}>💬 Sem número</button>;
+        })()}
       </div>
     </div>
   );
@@ -1435,7 +1445,8 @@ function AgendaGrid({ days, hours, onDay, openNew, openEv, selId }) {
   );
 }
 
-function AgendaMonth({ cursor, onDay, openNew, openEv, onPickDay }) {
+function AgendaMonth({ cursor, onDay, openNew, openEv, onPickDay, isWorkday }) {
+  if (!isWorkday) isWorkday = () => true;
   const todayISO = agISO(new Date());
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const start = agStartOfWeek(first);
@@ -1445,9 +1456,9 @@ function AgendaMonth({ cursor, onDay, openNew, openEv, onPickDay }) {
       <div className="ag-month-head">{AG_DOW.map((d) => <div key={d}>{d}</div>)}</div>
       <div className="ag-month-grid">
         {cells.map((d) => {
-          const iso = agISO(d); const evs = onDay(iso); const outside = d.getMonth() !== cursor.getMonth();
+          const iso = agISO(d); const evs = onDay(iso); const outside = d.getMonth() !== cursor.getMonth(); const closed = !isWorkday(iso);
           return (
-            <div key={iso} className={`ag-mcell${outside ? ' out' : ''}${iso === todayISO ? ' today' : ''}`} onClick={() => openNew(d, 9)}>
+            <div key={iso} className={`ag-mcell${outside ? ' out' : ''}${iso === todayISO ? ' today' : ''}${closed && !outside ? ' ag-closed' : ''}`} onClick={() => !closed && openNew(d, agStartH)}>
               <span className="ag-mnum" onClick={(e) => { e.stopPropagation(); onPickDay(d); }}>{d.getDate()}</span>
               <div className="ag-mevs">
                 {evs.slice(0, 3).map((a) => (
@@ -1615,9 +1626,13 @@ function EstoqueModule() {
   const [moveModal, setMoveModal] = vtUseState(null);
   const [tab, setTab] = vtUseState('produtos');
   const [filtro, setFiltro] = vtUseState('Todos');
-  const cats = ['Todos', 'Insumo', 'Medicamento', 'Vacina'];
+  const ekCfg = window.vtEstoqueCfg ? window.vtEstoqueCfg() : window.VT_ESTOQUE_CFG_DEFAULT || {};
+  const cats = ['Todos', ...(ekCfg.categorias || ['Insumo', 'Medicamento', 'Vacina'])];
+  const ekUnits = ekCfg.unidades || ['fr', 'cx', 'amp', 'un', 'kg', 'L'];
+  const ekMinDefault = ekCfg.alertThreshold || 0;
+  const ekFornecedores = ekCfg.fornecedores || [];
   const persist = (next) => { setInv(next); if (window.VtStore) window.VtStore.setData({ inventory: next }); };
-  const blank = { categoria: 'Medicamento', name: '', lot: '', exp: '', supplier: '', qty: 0, min: 0, unit: 'fr', conteudo: '', unidConteudo: 'mL', cost: 'R$ 0,00' };
+  const blank = { categoria: (ekCfg.categorias || ['Medicamento'])[0] || 'Medicamento', name: '', lot: '', exp: '', supplier: '', qty: 0, min: ekMinDefault, unit: ekUnits[0] || 'fr', conteudo: '', unidConteudo: 'mL', cost: 'R$ 0,00' };
   const save = (f) => {
     if (!f.name || !f.name.trim()) { window.vtToast('Informe o nome do item.', 'err'); return; }
     const item = { ...f, name: f.name.trim(), qty: Number(f.qty) || 0, min: Number(f.min) || 0 };
@@ -1774,18 +1789,18 @@ function InsumoModal({ data, onClose, onSave, subCost }) {
       <div className="fin-modal" style={{ width: 520, maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
         <h3>{data.id ? 'Editar item' : 'Cadastrar item'}</h3>
         <div className="vt-form-row">
-          <label className="vtf" style={{ width: '42%' }}><span className="vtf-label">Categoria</span><span className="vtf-inputwrap"><select className="vtf-input" value={f.categoria} onChange={(e) => s('categoria')(e.target.value)}>{['Insumo', 'Medicamento', 'Vacina'].map((c) => <option key={c}>{c}</option>)}</select></span></label>
+          <label className="vtf" style={{ width: '42%' }}><span className="vtf-label">Categoria</span><span className="vtf-inputwrap"><select className="vtf-input" value={f.categoria} onChange={(e) => s('categoria')(e.target.value)}>{((window.vtEstoqueCfg ? window.vtEstoqueCfg().categorias : null) || ['Insumo', 'Medicamento', 'Vacina']).map((c) => <option key={c}>{c}</option>)}</select></span></label>
           <VtField label="Nome do item" value={f.name} onChange={s('name')} width="54%" />
         </div>
         <div className="vt-form-row">
           <VtField label="Lote" value={f.lot} onChange={s('lot')} width="32%" />
           <VtField label="Validade" value={f.exp} onChange={s('exp')} placeholder="MM/AAAA" width="30%" />
-          <VtField label="Fornecedor" value={f.supplier} onChange={s('supplier')} width="34%" />
+          {(() => { const forns = window.vtEstoqueCfg ? (window.vtEstoqueCfg().fornecedores || []) : []; return forns.length > 0 ? (<label className="vtf" style={{ width: '34%' }}><span className="vtf-label">Fornecedor</span><span className="vtf-inputwrap"><input className="vtf-input" list="vt-forn-list" value={f.supplier} onChange={(e) => s('supplier')(e.target.value)} placeholder="Selecionar ou digitar..." /><datalist id="vt-forn-list">{forns.map((fn) => <option key={fn.nome} value={fn.nome} />)}</datalist></span></label>) : (<VtField label="Fornecedor" value={f.supplier} onChange={s('supplier')} width="34%" />); })()}
         </div>
         <div className="vt-form-sec" style={{ marginTop: 8 }}>Conteúdo & custo</div>
         <div className="vt-form-row">
           <VtField label="Custo por unidade (frasco/caixa)" value={f.cost} onChange={(v) => s('cost')(window.maskMoney(v))} width="48%" />
-          <label className="vtf" style={{ width: '24%' }}><span className="vtf-label">Unidade</span><span className="vtf-inputwrap"><select className="vtf-input" value={f.unit} onChange={(e) => s('unit')(e.target.value)}>{['fr', 'cx', 'amp', 'un', 'kg', 'L'].map((u) => <option key={u}>{u}</option>)}</select></span></label>
+          <label className="vtf" style={{ width: '24%' }}><span className="vtf-label">Unidade</span><span className="vtf-inputwrap"><select className="vtf-input" value={f.unit} onChange={(e) => s('unit')(e.target.value)}>{((window.vtEstoqueCfg ? window.vtEstoqueCfg().unidades : null) || ['fr', 'cx', 'amp', 'un', 'kg', 'L']).map((u) => <option key={u}>{u}</option>)}</select></span></label>
           <VtField label="Conteúdo/un." value={f.conteudo} onChange={s('conteudo')} placeholder="20" width="14%" />
           <label className="vtf" style={{ width: '14%' }}><span className="vtf-label">Em</span><span className="vtf-inputwrap"><select className="vtf-input" value={f.unidConteudo} onChange={(e) => s('unidConteudo')(e.target.value)}>{['mL', 'mg', 'comp', 'dose', 'g', 'un'].map((u) => <option key={u}>{u}</option>)}</select></span></label>
         </div>
@@ -2323,9 +2338,51 @@ window.SED_PROTO_DEFAULT = [
 ];
 window.vtSedProtocols = function () { const d = window.VtStore && window.VtStore.getData(); return (d && d.sedProtocols) || window.SED_PROTO_DEFAULT; };
 window.vtSaveSedProtocols = function (l) { if (window.VtStore) window.VtStore.setData({ sedProtocols: l }); };
-window.VT_NOTIF_DEFAULT = { waAgenda: true, waLembrete: true, waCobranca: true, emAgenda: true, emLembrete: false, emCobranca: true };
+window.VT_NOTIF_DEFAULT = { waAgenda: true, waLembrete: true, waCobranca: true, waPosConsulta: false, emAgenda: true, emLembrete: false, emCobranca: true, emPosConsulta: false };
 window.vtNotifCfg = function () { const d = window.VtStore && window.VtStore.getData(); return Object.assign({}, window.VT_NOTIF_DEFAULT, (d && d.notifCfg) || {}); };
 window.vtSaveNotifCfg = function (c) { if (window.VtStore) window.VtStore.setData({ notifCfg: c }); };
+
+// ── ODONTOGRAMA CFG ──────────────────────────────────────────────────────────
+window.VT_ODONTO_CFG_DEFAULT = {
+  conds: null, notation: 'triadan',
+  mobilityLabels: ['Sem mobilidade detectável (M0)', 'Mobilidade ≤ 0,5 mm (M1)', 'Mobilidade 0,5–1 mm (M2)', 'Mobilidade > 1 mm ou depressão (M3)'],
+  furcationLabels: ['Sem envolvimento (F0)', 'Sonda entra ≤ 1/3 da furca (F1)', 'Sonda entra > 1/3 mas não atravessa (F2)', 'Sonda atravessa a furca (F3)'],
+  perioStages: [
+    { stage: 'I',   label: 'Estágio I – Gingivite',               pocketMax: 3,  desc: 'Inflamação gengival sem perda de inserção' },
+    { stage: 'II',  label: 'Estágio II – Periodontite inicial',   pocketMax: 5,  desc: '< 25 % de perda de inserção' },
+    { stage: 'III', label: 'Estágio III – Periodontite moderada', pocketMax: 7,  desc: '25–50 % de perda de inserção' },
+    { stage: 'IV',  label: 'Estágio IV – Periodontite avançada',  pocketMax: 99, desc: '> 50 % de perda de inserção' },
+  ],
+};
+window.vtOdontoCfg = function () { const d = window.VtStore && window.VtStore.getData(); return Object.assign({}, window.VT_ODONTO_CFG_DEFAULT, (d && d.odontoCfg) || {}); };
+window.vtSaveOdontoCfg = function (c) { if (window.VtStore) window.VtStore.setData({ odontoCfg: c }); if (c.conds && c.conds.length) window.OD_CONDS = c.conds; window.dispatchEvent(new CustomEvent('vtCfgChanged')); };
+
+// ── AGENDA CFG ───────────────────────────────────────────────────────────────
+window.VT_AGENDA_CFG_DEFAULT = {
+  days: { seg: true, ter: true, qua: true, qui: true, sex: true, sab: false, dom: false },
+  startTime: '08:00', endTime: '18:00', lunchStart: '12:00', lunchEnd: '13:00', useLunch: true,
+  slotMin: 30, advanceDays: 60, holidays: [],
+};
+window.vtAgendaCfg = function () { const d = window.VtStore && window.VtStore.getData(); return Object.assign({}, window.VT_AGENDA_CFG_DEFAULT, (d && d.agendaCfg) || {}); };
+window.vtSaveAgendaCfg = function (c) { if (window.VtStore) window.VtStore.setData({ agendaCfg: c }); window.dispatchEvent(new CustomEvent('vtCfgChanged')); };
+
+// ── ESTOQUE CFG ──────────────────────────────────────────────────────────────
+window.VT_ESTOQUE_CFG_DEFAULT = {
+  categorias: ['Medicamentos', 'Materiais cirúrgicos', 'Descartáveis', 'Equipamentos', 'Limpeza', 'Outros'],
+  unidades: ['un', 'cx', 'fr', 'amp', 'ml', 'g', 'kg', 'par', 'rolo'],
+  alertThreshold: 5, fornecedores: [],
+};
+window.vtEstoqueCfg = function () { const d = window.VtStore && window.VtStore.getData(); return Object.assign({}, window.VT_ESTOQUE_CFG_DEFAULT, (d && d.estoqueCfg) || {}); };
+window.vtSaveEstoqueCfg = function (c) { if (window.VtStore) window.VtStore.setData({ estoqueCfg: c }); window.dispatchEvent(new CustomEvent('vtCfgChanged')); };
+
+// ── FINANCEIRO CFG ───────────────────────────────────────────────────────────
+window.VT_FINANCEIRO_CFG_DEFAULT = {
+  pagamentos: { dinheiro: true, credito: true, debito: true, pix: true, boleto: false, transferencia: false, convenio: false },
+  pixTipo: 'celular', pixChave: '', creditoMaxParcelas: 12,
+  iss: 5, prazoRecb: 0, multaMes: 2, nfInicio: 1, prefixoNF: '',
+};
+window.vtFinanceiroCfg = function () { const d = window.VtStore && window.VtStore.getData(); return Object.assign({}, window.VT_FINANCEIRO_CFG_DEFAULT, (d && d.financeiroCfg) || {}); };
+window.vtSaveFinanceiroCfg = function (c) { if (window.VtStore) window.VtStore.setData({ financeiroCfg: c }); window.dispatchEvent(new CustomEvent('vtCfgChanged')); };
 
 function SedacaoTab() {
   const [list, setList] = vtUseState(() => window.vtSedProtocols().map((p) => ({ ...p })));
@@ -2376,6 +2433,7 @@ function NotificacoesTab() {
         <Row title="Confirmação de agendamento" sub="Enviada quando uma consulta é marcada" wa="waAgenda" em="emAgenda" />
         <Row title="Lembrete 24h antes" sub="Lembra o tutor da consulta no dia anterior" wa="waLembrete" em="emLembrete" />
         <Row title="Cobrança" sub="Aviso de fatura/cobrança pendente" wa="waCobranca" em="emCobranca" />
+        <Row title="Pós-consulta / resumo" sub="Enviada após o encerramento do atendimento" wa="waPosConsulta" em="emPosConsulta" />
       </div>
     </div>
   );
@@ -2770,12 +2828,18 @@ function ConfigModule() {
       { id: 'catalogo',      icon: 'box',           label: 'Catálogo de Serviços',  desc: 'Procedimentos e tabela de preços' },
       { id: 'sedacao',       icon: 'syringe',       label: 'Sedação',               desc: 'Protocolos anestésicos padrão' },
       { id: 'protocolos',    icon: 'list',          label: 'Protocolos',            desc: 'Fluxos e checklists clínicos' },
+      { id: 'odontograma',   icon: 'tooth',         label: 'Odontograma',           desc: 'Condições, escalas clínicas e notação' },
     ]},
     { title: 'Documentos & Modelos', items: [
       { id: 'roteiros',      icon: 'pen',           label: 'Modelos de consulta',   desc: 'Roteiros, anamneses e campos personalizados' },
       { id: 'prescricoes',   icon: 'receipt',       label: 'Prescrições',           desc: 'Modelos de receituário médico' },
       { id: 'exames',        icon: 'search',        label: 'Exames',                desc: 'Solicitações padrão de exame complementar' },
       { id: 'modelos',       icon: 'file',          label: 'Modelos & PDF',         desc: 'Documentos, termos e layouts de impressão' },
+    ]},
+    { title: 'Operacional', items: [
+      { id: 'agenda',        icon: 'bell',          label: 'Agenda',                desc: 'Horários, slots, feriados e disponibilidade' },
+      { id: 'estoque',       icon: 'box',           label: 'Estoque',               desc: 'Categorias, unidades, fornecedores e alertas' },
+      { id: 'financeiro',    icon: 'receipt',       label: 'Financeiro',            desc: 'Formas de pagamento, ISS e regras de cobrança' },
     ]},
     { title: 'Sistema', items: [
       { id: 'sistema',       icon: 'gear',          label: 'Sistema',               desc: 'Idioma, moeda, cores e tipo de operação' },
@@ -2831,6 +2895,10 @@ function ConfigModule() {
         {tab === 'lgpd'           && <LgpdTab />}
         {tab === 'protocolos'     && <ProtocolosTab />}
         {tab === 'catalogo'       && <ServiceCatalogTab />}
+        {tab === 'odontograma'    && <OdontogramaTab />}
+        {tab === 'agenda'         && <AgendaConfigTab />}
+        {tab === 'estoque'        && <EstoqueConfigTab />}
+        {tab === 'financeiro'     && <FinanceiroConfigTab />}
       </div>
     );
   }
@@ -2865,7 +2933,11 @@ function ConfigModule() {
 function ContaTab() {
   const u = (window.VtStore.currentUser && window.VtStore.currentUser()) || {};
   const fileRef = React.useRef(null);
+  const pfxRef = React.useRef(null);
   const [pw, setPw] = vtUseState({ atual: '', nova: '' });
+  const [icpSession, setIcpSession] = vtUseState(() => window.vtIcpA1Session || null);
+  const [pfxPw, setPfxPw] = vtUseState('');
+  const [pfxLoading, setPfxLoading] = vtUseState(false);
   // membro de equipe do usuário logado (admin + veterinário)
   const meIdx = (() => { const t = window.vtTeam(); const i = t.findIndex((m) => m.vet); return i >= 0 ? i : 0; })();
   const [me, setMe] = vtUseState(() => { const t = window.vtTeam(); return { ...(t[meIdx] || { name: u.name || '', vet: true }) }; });
@@ -2902,6 +2974,50 @@ function ContaTab() {
     const res = window.VtStore.changePassword(pw.atual, pw.nova);
     if (res.ok) { window.vtToast('Senha alterada.', 'ok'); setPw({ atual: '', nova: '' }); }
     else window.vtToast(res.error, 'err');
+  };
+  const loadA1 = (file) => {
+    if (!file) return;
+    setPfxLoading(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const forge = window.forge;
+        if (!forge) { window.vtToast('Biblioteca de certificados ainda carregando. Aguarde e tente novamente.', 'err'); setPfxLoading(false); return; }
+        const byteArr = new Uint8Array(reader.result);
+        let binary = '';
+        byteArr.forEach((b) => { binary += String.fromCharCode(b); });
+        const p12Der = forge.util.binary.raw.decode(binary);
+        const p12Asn1 = forge.asn1.fromDer(p12Der);
+        let p12;
+        try { p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, false, pfxPw); }
+        catch (e) { window.vtToast('Senha incorreta ou arquivo inválido.', 'err'); setPfxLoading(false); return; }
+        const certBags = p12.getBags({ bagType: forge.pki.oids.certBag });
+        const keyBags = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
+        const certList = (certBags[forge.pki.oids.certBag] || []).filter((b) => b.cert);
+        const keyList = keyBags[forge.pki.oids.pkcs8ShroudedKeyBag] || [];
+        if (!certList.length) { window.vtToast('Nenhum certificado encontrado no arquivo.', 'err'); setPfxLoading(false); return; }
+        if (!keyList.length) { window.vtToast('Chave privada não encontrada no arquivo .pfx.', 'err'); setPfxLoading(false); return; }
+        const cert = certList[0].cert;
+        const privateKey = keyList[0].key;
+        const getCN = (name) => { try { return name.getField('CN').value; } catch (e) { return ''; } };
+        const cn = getCN(cert.subject);
+        const issuerCN = getCN(cert.issuer);
+        const validTo = cert.validity.notAfter;
+        const validFrom = cert.validity.notBefore;
+        const serial = cert.serialNumber;
+        const isValid = new Date() < validTo;
+        const cpf = (() => { const m = cn.match(/\d{11}/); return m ? m[0].replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : ''; })();
+        const mmyyyy = `${String(validTo.getMonth() + 1).padStart(2, '0')}/${validTo.getFullYear()}`;
+        const session = { cert, privateKey, certPem: forge.pki.certificateToPem(cert), cn, cpf, issuerCN, validTo, validFrom, serial, isValid };
+        window.vtIcpA1Session = session;
+        setIcpSession(session);
+        setMe((p) => ({ ...p, icpTipo: 'A1', icpTitular: cn || p.icpTitular, icpCpf: cpf || p.icpCpf, icpAC: issuerCN || p.icpAC, icpValidade: mmyyyy, icpSerial: serial || p.icpSerial }));
+        window.vtToast(isValid ? '✅ Certificado A1 carregado com sucesso!' : '⚠️ Certificado carregado, mas está vencido.', isValid ? 'ok' : 'err');
+        setPfxPw('');
+      } catch (e) { window.vtToast('Erro ao processar certificado: ' + (e.message || e), 'err'); }
+      finally { setPfxLoading(false); }
+    };
+    reader.readAsArrayBuffer(file);
   };
   return (
     <div>
@@ -2944,10 +3060,6 @@ function ContaTab() {
 
       <div className="vt-card vt-sec vt-form" style={{ marginBottom: 16 }}>
         <div className="vt-form-sec">🔏 Certificado Digital ICP-Brasil</div>
-        <p className="vt-muted" style={{ fontSize: 13, marginTop: 0 }}>
-          Dados do seu certificado ICP-Brasil para inclusão no carimbo de autenticidade das receitas digitais.
-          O certificado físico (token A3) ou arquivo A1 continua sendo usado fora do sistema para assinar o PDF final.
-        </p>
         <div style={{ marginBottom: 12, padding: '10px 14px', background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 8, fontSize: 12.5, color: '#1e40af' }}>
           <b>Tipo de assinatura por receituário:</b><br />
           • <b>Simples / Antimicrobiano:</b> Assinatura Avançada — Gov.br prata/ouro (Lei 14.063/2020)<br />
@@ -2970,19 +3082,66 @@ function ContaTab() {
           <VtField label="Autoridade Certificadora (AC)" value={me.icpAC || ''} onChange={setMeK('icpAC')} placeholder="Ex.: Certisign, Serpro, Valid" width="36%" />
           <VtField label="Validade do certificado" value={me.icpValidade || ''} onChange={setMeK('icpValidade')} placeholder="MM/AAAA" width="28%" />
         </div>
-        <VtField label="Número de série do certificado (opcional)" value={me.icpSerial || ''} onChange={setMeK('icpSerial')} placeholder="Ex.: 12:AB:CD:EF:..." />
-        <div style={{ marginTop: 14, padding: '10px 14px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, fontSize: 12.5, color: '#166534' }}>
-          <b>Como assinar digitalmente o PDF gerado:</b><br />
-          1. Clique em <b>Emitir PDF</b> na prescrição e salve o arquivo<br />
-          2. Acesse <b>assinador.iti.br</b> (gratuito, oficial ICP-Brasil) → faça upload do PDF → assine com seu token/A1/nuvem<br />
-          3. Baixe o PDF assinado e envie ao tutor / farmácia<br />
-          <span style={{ marginTop: 6, display: 'block' }}>Alternativas: <b>Lacuna Web PKI</b> (extensão de navegador), <b>VidaaS</b> (cloud A3), <b>SafeSign</b> (token físico)</span>
-        </div>
+        <VtField label="Número de série (opcional)" value={me.icpSerial || ''} onChange={setMeK('icpSerial')} placeholder="Ex.: 12:AB:CD:EF:..." />
+
+        {/* ---- A1: carregar .pfx em memória ---- */}
+        {(!me.icpTipo || me.icpTipo === 'A1') && (
+          <div style={{ marginTop: 16, padding: '14px 16px', background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--line)' }}>
+            {icpSession ? (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                  <span style={{ fontSize: 28 }}>✅</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--green)' }}>Certificado A1 carregado nesta sessão</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>{icpSession.cn}</div>
+                  </div>
+                  <button className="vt-btn-ghost" style={{ fontSize: 12, color: 'var(--red)', borderColor: 'var(--red)', flex: 'none' }} onClick={() => { delete window.vtIcpA1Session; setIcpSession(null); window.vtToast('Certificado removido da sessão.', 'ok'); }}>Remover</button>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.8, background: 'var(--card)', borderRadius: 8, padding: '8px 12px' }}>
+                  <b>AC:</b> {icpSession.issuerCN}<br />
+                  <b>Série:</b> {icpSession.serial}<br />
+                  <b>Válido:</b> {icpSession.validFrom.toLocaleDateString('pt-BR')} → {icpSession.validTo.toLocaleDateString('pt-BR')}
+                  {!icpSession.isValid && <span style={{ color: 'var(--red)', fontWeight: 700 }}>&nbsp;⚠️ VENCIDO</span>}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>Carregar certificado A1 (.pfx) nesta sessão</div>
+                <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '0 0 12px' }}>O arquivo fica apenas em memória — nunca é salvo no servidor ou localStorage. Você precisará carregá-lo novamente a cada sessão.</p>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  <label className="vtf" style={{ flex: 'none' }}>
+                    <span className="vtf-label">Senha do .pfx</span>
+                    <span className="vtf-inputwrap"><input className="vtf-input" type="password" value={pfxPw} onChange={(e) => setPfxPw(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && pfxRef.current && pfxRef.current.click()} placeholder="Senha do arquivo" style={{ width: 210 }} /></span>
+                  </label>
+                  <button className="vt-btn-primary" disabled={pfxLoading} style={{ flex: 'none' }} onClick={() => pfxRef.current && pfxRef.current.click()}>
+                    {pfxLoading ? '⏳ Carregando...' : '🔐 Selecionar .pfx'}
+                  </button>
+                  <input ref={pfxRef} type="file" accept=".pfx,.p12" style={{ display: 'none' }} onChange={(e) => { if (e.target.files[0]) loadA1(e.target.files[0]); e.target.value = ''; }} />
+                </div>
+                {!window.forge && <p style={{ fontSize: 12, color: 'var(--amber)', marginTop: 8, margin: '8px 0 0' }}>⚠️ Biblioteca de certificados carregando, aguarde alguns segundos.</p>}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ---- A3: orientação ---- */}
+        {me.icpTipo === 'A3' && (
+          <div style={{ marginTop: 16, padding: '14px 16px', background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--line)', fontSize: 13, lineHeight: 1.7 }}>
+            <b>Token A3 (USB / smartcard):</b> instale a extensão <b>Lacuna Web PKI</b> no navegador. Após a instalação o sistema reconhece o token automaticamente ao emitir documentos.<br />
+            <a href="https://webpki.lacunasoftware.com/Home/Download" target="_blank" rel="noopener noreferrer" className="vt-link" style={{ marginTop: 4, display: 'inline-block' }}>Baixar Lacuna Web PKI →</a>
+          </div>
+        )}
+
+        {/* ---- Nuvem: orientação ---- */}
+        {me.icpTipo === 'nuvem' && (
+          <div style={{ marginTop: 16, padding: '14px 16px', background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--line)', fontSize: 13, lineHeight: 1.7 }}>
+            <b>Certificado em nuvem (VidaaS / SafeSign):</b> ao emitir um documento, você será redirecionado para autenticar na sua provedora e a assinatura será aplicada automaticamente.
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 10, marginTop: 14, alignItems: 'center' }}>
-          <button className="vt-btn-primary" onClick={saveMe}>Salvar certificado</button>
-          <a href="https://assinador.iti.br" target="_blank" rel="noopener noreferrer" className="vt-btn-ghost" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-            🔗 Abrir Assinador ITI
-          </a>
+          <button className="vt-btn-primary" onClick={saveMe}>Salvar dados do certificado</button>
+          <a href="https://assinador.iti.br" target="_blank" rel="noopener noreferrer" className="vt-btn-ghost" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>🔗 Assinador ITI (backup)</a>
         </div>
       </div>
 
@@ -3689,7 +3848,7 @@ function ModelosTab() {
             <p>Editor de documento. As variáveis são preenchidas ao gerar o PDF.</p>
             <textarea className="vtf-input" style={{ minHeight: 280, fontFamily: 'ui-monospace, monospace', fontSize: 13, lineHeight: 1.5 }} value={text} onChange={(e) => setText(e.target.value)} />
             <div className="fin-modal-actions" style={{ marginTop: 12 }}>
-              <button className="vt-btn-ghost" onClick={() => window.print()}>Gerar PDF</button>
+              <button className="vt-btn-ghost" onClick={() => { const w = window.open('', '_blank'); w.document.write('<html><head><title>' + edit + '</title><style>body{font-family:serif;padding:40px;white-space:pre-wrap;font-size:14px;line-height:1.7}</style></head><body>' + text.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</body></html>'); w.document.close(); setTimeout(() => w.print(), 300); }}>Imprimir / PDF</button>
               <button className="vt-btn-ghost" onClick={() => setEdit(null)}>Cancelar</button>
               <button className="vt-btn-primary" onClick={save}>Salvar modelo</button>
             </div>
@@ -3933,6 +4092,427 @@ function EspecialidadesTab() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── ODONTOGRAMA CONFIG TAB ───────────────────────────────────────────────────
+function OdontogramaTab() {
+  const getDefConds = () => (window.OD_CONDS || []).map((c) => ({ ...c }));
+  const [cfg, setCfg] = vtUseState(() => window.vtOdontoCfg());
+  const [conds, setConds] = vtUseState(() => { const c = window.vtOdontoCfg(); return c.conds && c.conds.length ? c.conds.map((x) => ({ ...x })) : getDefConds(); });
+  const [editIdx, setEditIdx] = vtUseState(null);
+  const [editRow, setEditRow] = vtUseState(null);
+  const [newMode, setNewMode] = vtUseState(false);
+  const OD_DEFAULT_IDS = ['normal','ausente','fratura','reabsorcao','carie','abrasao','atricao','gengivite','periodontite','massa'];
+
+  const saveCfg = (patch) => { const next = { ...cfg, ...patch }; setCfg(next); window.vtSaveOdontoCfg(next); window.vtToast('Configurações de odontograma salvas.', 'ok'); };
+  const saveConds = (list) => { setConds(list); const next = { ...cfg, conds: list }; setCfg(next); window.vtSaveOdontoCfg(next); window.vtToast('Condições salvas.', 'ok'); };
+  const cancelEdit = () => { setEditIdx(null); setEditRow(null); setNewMode(false); };
+  const openEdit = (idx) => { setEditIdx(idx); setEditRow({ ...conds[idx] }); setNewMode(false); };
+  const openNew = () => { setEditIdx(-1); setEditRow({ id: '', label: '', short: '', color: '#6366f1' }); setNewMode(true); };
+  const saveRow = () => {
+    if (!editRow.label.trim()) { window.vtToast('Informe o nome da condição.', 'err'); return; }
+    const row = { ...editRow };
+    if (!row.id.trim()) row.id = row.label.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'') + '_' + Date.now().toString(36).slice(-4);
+    saveConds(newMode ? [...conds, row] : conds.map((c, i) => (i === editIdx ? row : c)));
+    cancelEdit();
+  };
+  const deleteRow = (idx) => {
+    if (OD_DEFAULT_IDS.includes(conds[idx].id)) { window.vtToast('Condições padrão não podem ser removidas.', 'err'); return; }
+    if (!window.confirm('Remover esta condição?')) return;
+    saveConds(conds.filter((_, i) => i !== idx)); cancelEdit();
+  };
+  const resetConds = () => { if (!window.confirm('Restaurar condições padrão? Personalizações serão perdidas.')) return; const def = getDefConds(); setConds(def); saveCfg({ conds: def }); };
+
+  const labelStyle = { fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 };
+  const sec = { marginBottom: 28 };
+
+  return (
+    <div>
+      <div style={sec}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={labelStyle}>Condições dentárias</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="vt-btn-ghost" style={{ fontSize: 12, padding: '4px 10px', color: 'var(--amber)', borderColor: 'var(--amber)' }} onClick={resetConds}>Restaurar padrão</button>
+            <button className="vt-btn-primary" style={{ fontSize: 12, padding: '4px 12px' }} onClick={openNew}>+ Adicionar</button>
+          </div>
+        </div>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+          {conds.map((c, idx) => (
+            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderBottom: idx < conds.length - 1 ? '1px solid var(--border)' : 'none', cursor: 'pointer', background: editIdx === idx ? 'var(--teal-t)' : '' }} onClick={() => openEdit(idx)}>
+              <div style={{ width: 18, height: 18, borderRadius: 4, background: c.color, flexShrink: 0 }} />
+              <div style={{ flex: 1, fontWeight: 500, fontSize: 14 }}>{c.label}</div>
+              {c.short && <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px' }}>{c.short}</div>}
+              {!OD_DEFAULT_IDS.includes(c.id) && <div style={{ fontSize: 11, color: 'var(--teal)' }}>personalizado</div>}
+            </div>
+          ))}
+        </div>
+        {editIdx !== null && editRow && (
+          <div style={{ background: 'var(--card)', border: '1px solid var(--teal)', borderRadius: 10, padding: 16, marginTop: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div><div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Nome *</div><input className="vt-input" value={editRow.label} onChange={(e) => setEditRow({ ...editRow, label: e.target.value })} placeholder="Ex: Hipoplasia de esmalte" /></div>
+              <div><div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Código curto (máx 3)</div><input className="vt-input" value={editRow.short} maxLength={3} onChange={(e) => setEditRow({ ...editRow, short: e.target.value.toUpperCase() })} placeholder="Ex: HE" /></div>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Cor de destaque</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input type="color" value={editRow.color} onChange={(e) => setEditRow({ ...editRow, color: e.target.value })} style={{ width: 42, height: 32, border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', padding: 2 }} />
+                <span style={{ fontSize: 13, color: 'var(--muted)' }}>{editRow.color}</span>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: editRow.color, border: '1px solid var(--border)' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="vt-btn-primary" onClick={saveRow}>Salvar</button>
+              <button className="vt-btn-ghost" onClick={cancelEdit}>Cancelar</button>
+              {!newMode && !OD_DEFAULT_IDS.includes(conds[editIdx]?.id) && <button className="vt-btn-ghost" onClick={() => deleteRow(editIdx)} style={{ color: 'var(--red)', borderColor: 'var(--red)', marginLeft: 'auto' }}>Remover</button>}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={sec}>
+        <div style={labelStyle}>Notação preferida</div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {[['triadan','Triadan modificada (padrão veterinário)'],['avdc','AVDC (nomenclatura americana)']].map(([v, lbl]) => (
+            <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: 'var(--card)', border: '1px solid ' + (cfg.notation === v ? 'var(--teal)' : 'var(--border)'), borderRadius: 8, padding: '10px 14px', flex: 1 }}>
+              <input type="radio" name="notation" value={v} checked={cfg.notation === v} onChange={() => saveCfg({ notation: v })} style={{ accentColor: 'var(--teal)' }} />
+              <span style={{ fontSize: 14 }}>{lbl}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div style={sec}>
+        <div style={labelStyle}>Graus de mobilidade (M0–M3)</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {(cfg.mobilityLabels || window.VT_ODONTO_CFG_DEFAULT.mobilityLabels).map((lbl, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--teal)', width: 28, flexShrink: 0 }}>M{i}</div>
+              <input className="vt-input" value={lbl} style={{ flex: 1 }} onChange={(e) => { const next = [...(cfg.mobilityLabels || window.VT_ODONTO_CFG_DEFAULT.mobilityLabels)]; next[i] = e.target.value; setCfg({ ...cfg, mobilityLabels: next }); }} onBlur={() => { window.vtSaveOdontoCfg(cfg); }} />
+            </div>
+          ))}
+        </div>
+        <button className="vt-btn-ghost" style={{ marginTop: 8, fontSize: 12, padding: '4px 10px' }} onClick={() => saveCfg({ mobilityLabels: cfg.mobilityLabels })}>Salvar graus de mobilidade</button>
+      </div>
+
+      <div style={sec}>
+        <div style={labelStyle}>Graus de furcação (F0–F3)</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {(cfg.furcationLabels || window.VT_ODONTO_CFG_DEFAULT.furcationLabels).map((lbl, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--teal)', width: 28, flexShrink: 0 }}>F{i}</div>
+              <input className="vt-input" value={lbl} style={{ flex: 1 }} onChange={(e) => { const next = [...(cfg.furcationLabels || window.VT_ODONTO_CFG_DEFAULT.furcationLabels)]; next[i] = e.target.value; setCfg({ ...cfg, furcationLabels: next }); }} onBlur={() => { window.vtSaveOdontoCfg(cfg); }} />
+            </div>
+          ))}
+        </div>
+        <button className="vt-btn-ghost" style={{ marginTop: 8, fontSize: 12, padding: '4px 10px' }} onClick={() => saveCfg({ furcationLabels: cfg.furcationLabels })}>Salvar graus de furcação</button>
+      </div>
+
+      <div style={sec}>
+        <div style={labelStyle}>Estadiamento periodontal (AVDC/WSAVA) — profundidade de bolsa (mm)</div>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+          {(cfg.perioStages || window.VT_ODONTO_CFG_DEFAULT.perioStages).map((st, i) => (
+            <div key={st.stage} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', borderBottom: i < 3 ? '1px solid var(--border)' : 'none' }}>
+              <div style={{ fontWeight: 800, fontSize: 15, color: ['#14a8a0','#eab308','#f97316','#ef4444'][i], width: 28, flexShrink: 0 }}>{st.stage}</div>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <input className="vt-input" value={st.label} onChange={(e) => { const next = (cfg.perioStages || window.VT_ODONTO_CFG_DEFAULT.perioStages).map((s, j) => j === i ? { ...s, label: e.target.value } : s); setCfg({ ...cfg, perioStages: next }); }} onBlur={() => saveCfg({ perioStages: cfg.perioStages })} />
+                <input className="vt-input" value={st.desc} placeholder="Descrição clínica" onChange={(e) => { const next = (cfg.perioStages || window.VT_ODONTO_CFG_DEFAULT.perioStages).map((s, j) => j === i ? { ...s, desc: e.target.value } : s); setCfg({ ...cfg, perioStages: next }); }} onBlur={() => saveCfg({ perioStages: cfg.perioStages })} />
+              </div>
+              {i < 3 ? (
+                <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>até</span>
+                  <input type="number" className="vt-input" value={st.pocketMax} min={1} max={30} style={{ width: 64, textAlign: 'center' }} onChange={(e) => { const next = (cfg.perioStages || window.VT_ODONTO_CFG_DEFAULT.perioStages).map((s, j) => j === i ? { ...s, pocketMax: Number(e.target.value) } : s); setCfg({ ...cfg, perioStages: next }); }} onBlur={() => saveCfg({ perioStages: cfg.perioStages })} />
+                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>mm</span>
+                </div>
+              ) : (
+                <div style={{ flexShrink: 0, fontSize: 12, color: 'var(--muted)', width: 90, textAlign: 'right' }}>acima do anterior</div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── AGENDA CONFIG TAB ────────────────────────────────────────────────────────
+function AgendaConfigTab() {
+  const [cfg, setCfg] = vtUseState(() => { const c = window.vtAgendaCfg(); return { ...window.VT_AGENDA_CFG_DEFAULT, ...c, days: { ...window.VT_AGENDA_CFG_DEFAULT.days, ...(c.days || {}) } }; });
+  const [newHoliday, setNewHoliday] = vtUseState('');
+
+  const save = (patch) => { const next = { ...cfg, ...patch }; setCfg(next); window.vtSaveAgendaCfg(next); window.vtToast('Configurações de agenda salvas.', 'ok'); };
+
+  const labelStyle = { fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 };
+  const sec = { marginBottom: 28 };
+  const DAYS = [['seg','Seg'],['ter','Ter'],['qua','Qua'],['qui','Qui'],['sex','Sex'],['sab','Sáb'],['dom','Dom']];
+  const SLOTS = [15,20,30,45,60,90,120];
+  const ADVANCES = [7,14,30,60,90,180];
+
+  const addHoliday = () => {
+    if (!newHoliday) return;
+    const list = [...(cfg.holidays || [])];
+    if (!list.includes(newHoliday)) { list.push(newHoliday); list.sort(); save({ holidays: list }); }
+    setNewHoliday('');
+  };
+  const removeHoliday = (d) => save({ holidays: (cfg.holidays || []).filter((h) => h !== d) });
+
+  return (
+    <div>
+      <div style={sec}>
+        <div style={labelStyle}>Dias de funcionamento</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {DAYS.map(([k, lbl]) => (
+            <label key={k} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer', background: 'var(--card)', border: '1px solid ' + (cfg.days[k] ? 'var(--teal)' : 'var(--border)'), borderRadius: 8, padding: '10px 14px', minWidth: 54, transition: 'border-color .15s' }}>
+              <input type="checkbox" checked={!!cfg.days[k]} style={{ accentColor: 'var(--teal)' }} onChange={(e) => save({ days: { ...cfg.days, [k]: e.target.checked } })} />
+              <span style={{ fontSize: 13, fontWeight: cfg.days[k] ? 700 : 400 }}>{lbl}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div style={sec}>
+        <div style={labelStyle}>Horário de funcionamento</div>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <div><div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Abertura</div><input type="time" className="vt-input" value={cfg.startTime} style={{ width: 130 }} onChange={(e) => save({ startTime: e.target.value })} /></div>
+          <div><div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Encerramento</div><input type="time" className="vt-input" value={cfg.endTime} style={{ width: 130 }} onChange={(e) => save({ endTime: e.target.value })} /></div>
+        </div>
+      </div>
+
+      <div style={sec}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 10 }}>
+          <input type="checkbox" checked={!!cfg.useLunch} style={{ accentColor: 'var(--teal)' }} onChange={(e) => save({ useLunch: e.target.checked })} />
+          <span style={{ fontWeight: 600, fontSize: 14 }}>Bloquear intervalo de almoço</span>
+        </label>
+        {cfg.useLunch && (
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', paddingLeft: 24 }}>
+            <div><div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Início</div><input type="time" className="vt-input" value={cfg.lunchStart} style={{ width: 130 }} onChange={(e) => save({ lunchStart: e.target.value })} /></div>
+            <div><div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Fim</div><input type="time" className="vt-input" value={cfg.lunchEnd} style={{ width: 130 }} onChange={(e) => save({ lunchEnd: e.target.value })} /></div>
+          </div>
+        )}
+      </div>
+
+      <div style={sec}>
+        <div style={labelStyle}>Duração padrão do slot de agendamento</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {SLOTS.map((s) => <button key={s} className={cfg.slotMin === s ? 'vt-btn-primary' : 'vt-btn-ghost'} onClick={() => save({ slotMin: s })} style={{ minWidth: 60 }}>{s} min</button>)}
+        </div>
+      </div>
+
+      <div style={sec}>
+        <div style={labelStyle}>Antecedência máxima de agendamento</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {ADVANCES.map((d) => <button key={d} className={cfg.advanceDays === d ? 'vt-btn-primary' : 'vt-btn-ghost'} onClick={() => save({ advanceDays: d })} style={{ minWidth: 64 }}>{d} dias</button>)}
+        </div>
+      </div>
+
+      <div style={sec}>
+        <div style={labelStyle}>Feriados e dias sem atendimento</div>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+          <input type="date" className="vt-input" value={newHoliday} onChange={(e) => setNewHoliday(e.target.value)} style={{ flex: 1, maxWidth: 200 }} />
+          <button className="vt-btn-primary" onClick={addHoliday} disabled={!newHoliday}>+ Adicionar</button>
+        </div>
+        {!(cfg.holidays || []).length && <div style={{ fontSize: 13, color: 'var(--muted)' }}>Nenhum feriado cadastrado.</div>}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {(cfg.holidays || []).map((d) => (
+            <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', fontSize: 13 }}>
+              {d.split('-').reverse().join('/')}
+              <button onClick={() => removeHoliday(d)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 15, padding: 0, lineHeight: 1 }}>×</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── ESTOQUE CONFIG TAB ───────────────────────────────────────────────────────
+function EstoqueConfigTab() {
+  const [cfg, setCfg] = vtUseState(() => { const c = window.vtEstoqueCfg(); return { ...window.VT_ESTOQUE_CFG_DEFAULT, ...c }; });
+  const [newCat, setNewCat] = vtUseState('');
+  const [newUnit, setNewUnit] = vtUseState('');
+  const [fornForm, setFornForm] = vtUseState(null);
+
+  const save = (patch) => { const next = { ...cfg, ...patch }; setCfg(next); window.vtSaveEstoqueCfg(next); window.vtToast('Configurações de estoque salvas.', 'ok'); };
+
+  const labelStyle = { fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 };
+  const sec = { marginBottom: 28 };
+  const chip = { display: 'flex', alignItems: 'center', gap: 6, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', fontSize: 13 };
+
+  const addCat = () => { const v = newCat.trim(); if (!v || cfg.categorias.includes(v)) return; save({ categorias: [...cfg.categorias, v] }); setNewCat(''); };
+  const removeCat = (c) => save({ categorias: cfg.categorias.filter((x) => x !== c) });
+  const addUnit = () => { const v = newUnit.trim().toLowerCase(); if (!v || cfg.unidades.includes(v)) return; save({ unidades: [...cfg.unidades, v] }); setNewUnit(''); };
+  const removeUnit = (u) => save({ unidades: cfg.unidades.filter((x) => x !== u) });
+  const saveForn = () => {
+    if (!fornForm?.nome?.trim()) { window.vtToast('Informe o nome do fornecedor.', 'err'); return; }
+    const list = [...(cfg.fornecedores || [])];
+    const f = { nome: fornForm.nome.trim(), cnpj: fornForm.cnpj?.trim() || '', tel: fornForm.tel?.trim() || '', email: fornForm.email?.trim() || '' };
+    if (fornForm.idx != null) list[fornForm.idx] = f; else list.push(f);
+    save({ fornecedores: list }); setFornForm(null);
+  };
+  const deleteForn = (idx) => { if (!window.confirm('Remover fornecedor?')) return; save({ fornecedores: (cfg.fornecedores || []).filter((_, i) => i !== idx) }); setFornForm(null); };
+
+  return (
+    <div>
+      <div style={sec}>
+        <div style={labelStyle}>Categorias de produtos</div>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+          <input className="vt-input" value={newCat} placeholder="Nova categoria..." onChange={(e) => setNewCat(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addCat()} style={{ flex: 1, maxWidth: 280 }} />
+          <button className="vt-btn-primary" onClick={addCat} disabled={!newCat.trim()}>+ Adicionar</button>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {cfg.categorias.map((c) => <div key={c} style={chip}>{c}<button onClick={() => removeCat(c)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 15, padding: 0 }}>×</button></div>)}
+        </div>
+      </div>
+
+      <div style={sec}>
+        <div style={labelStyle}>Unidades de medida</div>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+          <input className="vt-input" value={newUnit} placeholder="Nova unidade (ex: ml)..." onChange={(e) => setNewUnit(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addUnit()} style={{ flex: 1, maxWidth: 200 }} />
+          <button className="vt-btn-primary" onClick={addUnit} disabled={!newUnit.trim()}>+ Adicionar</button>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {cfg.unidades.map((u) => <div key={u} style={chip}>{u}<button onClick={() => removeUnit(u)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 15, padding: 0 }}>×</button></div>)}
+        </div>
+      </div>
+
+      <div style={sec}>
+        <div style={labelStyle}>Limite global de alerta (estoque mínimo)</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <input type="number" className="vt-input" value={cfg.alertThreshold} min={0} max={9999} style={{ width: 90 }} onChange={(e) => setCfg({ ...cfg, alertThreshold: Number(e.target.value) })} onBlur={() => save({ alertThreshold: cfg.alertThreshold })} />
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>unidades — produtos abaixo deste valor recebem alerta</span>
+        </div>
+      </div>
+
+      <div style={sec}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={labelStyle}>Fornecedores</div>
+          <button className="vt-btn-primary" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => setFornForm({ nome: '', cnpj: '', tel: '', email: '', idx: null })}>+ Adicionar</button>
+        </div>
+        {!(cfg.fornecedores || []).length && !fornForm && <div style={{ fontSize: 13, color: 'var(--muted)' }}>Nenhum fornecedor cadastrado.</div>}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {(cfg.fornecedores || []).map((f, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', cursor: 'pointer' }} onClick={() => setFornForm({ ...f, idx: i })}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{f.nome}</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{[f.cnpj, f.tel, f.email].filter(Boolean).join('  ·  ') || 'Sem detalhes'}</div>
+              </div>
+              <VtIcon name="chevron" size={14} style={{ transform: 'rotate(-90deg)', color: 'var(--muted)' }} />
+            </div>
+          ))}
+        </div>
+        {fornForm && (
+          <div style={{ background: 'var(--card)', border: '1px solid var(--teal)', borderRadius: 10, padding: 16, marginTop: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div><div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Nome *</div><input className="vt-input" value={fornForm.nome} placeholder="Razão social ou nome fantasia" onChange={(e) => setFornForm({ ...fornForm, nome: e.target.value })} /></div>
+              <div><div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>CNPJ</div><input className="vt-input" value={fornForm.cnpj} placeholder="00.000.000/0000-00" onChange={(e) => setFornForm({ ...fornForm, cnpj: e.target.value })} /></div>
+              <div><div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Telefone / WhatsApp</div><input className="vt-input" value={fornForm.tel} placeholder="(11) 99999-9999" onChange={(e) => setFornForm({ ...fornForm, tel: e.target.value })} /></div>
+              <div><div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>E-mail</div><input className="vt-input" value={fornForm.email} placeholder="contato@fornecedor.com" onChange={(e) => setFornForm({ ...fornForm, email: e.target.value })} /></div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="vt-btn-primary" onClick={saveForn}>Salvar</button>
+              <button className="vt-btn-ghost" onClick={() => setFornForm(null)}>Cancelar</button>
+              {fornForm.idx != null && <button className="vt-btn-ghost" onClick={() => deleteForn(fornForm.idx)} style={{ color: 'var(--red)', borderColor: 'var(--red)', marginLeft: 'auto' }}>Remover</button>}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── FINANCEIRO CONFIG TAB ────────────────────────────────────────────────────
+function FinanceiroConfigTab() {
+  const [cfg, setCfg] = vtUseState(() => { const c = window.vtFinanceiroCfg(); return { ...window.VT_FINANCEIRO_CFG_DEFAULT, ...c, pagamentos: { ...window.VT_FINANCEIRO_CFG_DEFAULT.pagamentos, ...(c.pagamentos || {}) } }; });
+
+  const save = (patch) => { const next = { ...cfg, ...patch }; setCfg(next); window.vtSaveFinanceiroCfg(next); window.vtToast('Configurações financeiras salvas.', 'ok'); };
+
+  const labelStyle = { fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 };
+  const sec = { marginBottom: 28 };
+
+  const PAGS = [
+    { key: 'dinheiro',      label: 'Dinheiro / Espécie',       icon: '💵' },
+    { key: 'credito',       label: 'Cartão de crédito',         icon: '💳' },
+    { key: 'debito',        label: 'Cartão de débito',          icon: '💳' },
+    { key: 'pix',           label: 'PIX',                       icon: '📲' },
+    { key: 'boleto',        label: 'Boleto bancário',           icon: '🧾' },
+    { key: 'transferencia', label: 'Transferência bancária',    icon: '🏦' },
+    { key: 'convenio',      label: 'Convênio / Plano de saúde', icon: '📋' },
+  ];
+  const PIX_TIPOS = [['celular','Celular'],['cpf','CPF'],['cnpj','CNPJ'],['email','E-mail'],['aleatoria','Chave aleatória']];
+
+  return (
+    <div>
+      <div style={sec}>
+        <div style={labelStyle}>Formas de pagamento aceitas</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {PAGS.map(({ key, label, icon }) => (
+            <div key={key}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--card)', border: '1px solid ' + (cfg.pagamentos?.[key] ? 'var(--teal)' : 'var(--border)'), borderRadius: 10, padding: '12px 14px', cursor: 'pointer', transition: 'border-color .15s' }}>
+                <input type="checkbox" checked={!!(cfg.pagamentos?.[key])} style={{ accentColor: 'var(--teal)', width: 16, height: 16, flexShrink: 0 }} onChange={(e) => save({ pagamentos: { ...cfg.pagamentos, [key]: e.target.checked } })} />
+                <span style={{ fontSize: 18 }}>{icon}</span>
+                <span style={{ fontWeight: 500, fontSize: 14, flex: 1 }}>{label}</span>
+              </label>
+              {key === 'credito' && cfg.pagamentos?.credito && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, paddingLeft: 20 }}>
+                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>Parcelamento máximo:</span>
+                  <select className="vt-input" value={cfg.creditoMaxParcelas} style={{ width: 90 }} onChange={(e) => save({ creditoMaxParcelas: Number(e.target.value) })}>
+                    {[1,2,3,4,6,8,10,12].map((n) => <option key={n} value={n}>{n}x</option>)}
+                  </select>
+                </div>
+              )}
+              {key === 'pix' && cfg.pagamentos?.pix && (
+                <div style={{ display: 'flex', gap: 10, marginTop: 6, paddingLeft: 20, flexWrap: 'wrap' }}>
+                  <select className="vt-input" value={cfg.pixTipo} style={{ width: 160 }} onChange={(e) => save({ pixTipo: e.target.value })}>
+                    {PIX_TIPOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                  <input className="vt-input" value={cfg.pixChave} placeholder="Chave PIX" style={{ flex: 1, maxWidth: 280 }} onChange={(e) => setCfg({ ...cfg, pixChave: e.target.value })} onBlur={() => save({ pixChave: cfg.pixChave })} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={sec}>
+        <div style={labelStyle}>Fiscal e tributação</div>
+        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Alíquota ISS (%)</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input type="number" className="vt-input" value={cfg.iss} min={0} max={10} step={0.5} style={{ width: 90 }} onChange={(e) => setCfg({ ...cfg, iss: Number(e.target.value) })} onBlur={() => save({ iss: cfg.iss })} />
+              <span style={{ fontSize: 13, color: 'var(--muted)' }}>%</span>
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Prefixo NF (opcional)</div>
+            <input className="vt-input" value={cfg.prefixoNF} placeholder="Ex: NF-" style={{ width: 120 }} onChange={(e) => setCfg({ ...cfg, prefixoNF: e.target.value })} onBlur={() => save({ prefixoNF: cfg.prefixoNF })} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Numeração inicial</div>
+            <input type="number" className="vt-input" value={cfg.nfInicio} min={1} style={{ width: 110 }} onChange={(e) => setCfg({ ...cfg, nfInicio: Number(e.target.value) })} onBlur={() => save({ nfInicio: cfg.nfInicio })} />
+          </div>
+        </div>
+      </div>
+
+      <div style={sec}>
+        <div style={labelStyle}>Regras de cobrança</div>
+        <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Prazo de recebimento padrão</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[0,7,15,30,60].map((d) => <button key={d} className={cfg.prazoRecb === d ? 'vt-btn-primary' : 'vt-btn-ghost'} style={{ minWidth: 60 }} onClick={() => save({ prazoRecb: d })}>{d === 0 ? 'À vista' : d + ' dias'}</button>)}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Multa por atraso (% ao mês)</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input type="number" className="vt-input" value={cfg.multaMes} min={0} max={10} step={0.5} style={{ width: 90 }} onChange={(e) => setCfg({ ...cfg, multaMes: Number(e.target.value) })} onBlur={() => save({ multaMes: cfg.multaMes })} />
+              <span style={{ fontSize: 13, color: 'var(--muted)' }}>% a.m.</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

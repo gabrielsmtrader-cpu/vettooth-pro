@@ -9,6 +9,19 @@ const FIN_METHODS = [
   { id: 'pix', label: 'PIX', icon: '⚡', bg: 'var(--teal-t)' },
   { id: 'boleto', label: 'Boleto', icon: '🧾', bg: 'var(--amber-t)' },
 ];
+// Retorna só os métodos ativos conforme Configurações → Financeiro
+window.vtActiveFINMethods = function () {
+  const pags = window.vtFinanceiroCfg ? (window.vtFinanceiroCfg().pagamentos || {}) : {};
+  const hasCfg = Object.keys(pags).length > 0;
+  if (!hasCfg) return FIN_METHODS;
+  return FIN_METHODS.filter((m) => {
+    if (m.id === 'dinheiro')    return pags.dinheiro    !== false;
+    if (m.id === 'pix')         return pags.pix         !== false;
+    if (m.id === 'boleto')      return pags.boleto      !== false;
+    if (m.id === 'cartao')      return pags.credito !== false || pags.debito !== false;
+    return true;
+  });
+};
 const FIN_REV_CATS = ['Consulta', 'Procedimento', 'Exame', 'Odontograma', 'Venda', 'Cirurgia'];
 const FIN_COST_CATS = ['Insumos', 'Folha de pagamento', 'Aluguel', 'Luz', 'Água', 'Imposto', 'Manutenção', 'Outros'];
 const MES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -205,7 +218,7 @@ function ReceberTab({ fin, save }) {
             </label>
             <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--muted)' }}>Escolha a forma de pagamento recebida:</p>
             <div className="fin-method-pick">
-              {window.vtPayCfg().methods.map((m) => (
+              {window.vtActiveFINMethods().map((m) => (
                 <button key={m.id} className="fin-method-opt" onClick={() => darBaixa(modal.id, m.id)}>
                   <span style={{ fontSize: 20 }}>{m.icon}</span> {m.label}{m.fee > 0 ? <i style={{ fontStyle: 'normal', color: 'var(--faint)', fontSize: 11, display: 'block' }}>taxa {m.fee}%</i> : null}
                 </button>
@@ -238,7 +251,7 @@ function ReceitaTab({ fin, save }) {
       <div className="fin-addbar">
         <label className="vtf"><span className="vtf-label">Descrição</span><input className="vtf-input" value={form.desc || ''} placeholder="Ex.: Consulta — Luna" onChange={(e) => setForm({ ...form, desc: e.target.value })} /></label>
         <label className="vtf"><span className="vtf-label">Categoria</span><select className="vtf-input" value={form.cat} onChange={(e) => setForm({ ...form, cat: e.target.value })}>{FIN_REV_CATS.map((c) => <option key={c}>{c}</option>)}</select></label>
-        <label className="vtf"><span className="vtf-label">Forma</span><select className="vtf-input" value={form.method || 'dinheiro'} onChange={(e) => setForm({ ...form, method: e.target.value })}>{FIN_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
+        <label className="vtf"><span className="vtf-label">Forma</span><select className="vtf-input" value={form.method || 'dinheiro'} onChange={(e) => setForm({ ...form, method: e.target.value })}>{window.vtActiveFINMethods().map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
         <label className="vtf"><span className="vtf-label">Valor</span><input className="vtf-input" value={form.value || ''} placeholder="R$ 0,00" onChange={(e) => setForm({ ...form, value: window.maskMoney(e.target.value) })} /></label>
         <button className="fin-add-btn" onClick={add}>+ Entrada</button>
       </div>
@@ -282,7 +295,7 @@ function CustosTab({ fin, save }) {
       <div className="fin-addbar">
         <label className="vtf"><span className="vtf-label">Descrição</span><input className="vtf-input" value={form.desc || ''} placeholder="Ex.: Conta de luz" onChange={(e) => setForm({ ...form, desc: e.target.value })} /></label>
         <label className="vtf"><span className="vtf-label">Categoria</span><select className="vtf-input" value={form.cat} onChange={(e) => setForm({ ...form, cat: e.target.value })}>{FIN_COST_CATS.map((c) => <option key={c}>{c}</option>)}</select></label>
-        <label className="vtf"><span className="vtf-label">Forma</span><select className="vtf-input" value={form.method || 'boleto'} onChange={(e) => setForm({ ...form, method: e.target.value })}>{FIN_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
+        <label className="vtf"><span className="vtf-label">Forma</span><select className="vtf-input" value={form.method || 'boleto'} onChange={(e) => setForm({ ...form, method: e.target.value })}>{window.vtActiveFINMethods().map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
         <label className="vtf"><span className="vtf-label">Valor</span><input className="vtf-input" value={form.value || ''} placeholder="R$ 0,00" onChange={(e) => setForm({ ...form, value: window.maskMoney(e.target.value) })} /></label>
         <button className="fin-add-btn" onClick={add}>+ Custo</button>
       </div>

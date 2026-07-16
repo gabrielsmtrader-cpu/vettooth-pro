@@ -281,6 +281,9 @@ function DocEditor({ tipo, patient, at, initialBody, onClose, onSave }) {
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="vt-btn-ghost" onClick={() => window.vtToast('Documento enviado ao tutor para assinatura digital via WhatsApp.', 'ok')}>💬 Enviar p/ assinatura</button>
             <button className="vt-btn-ghost" onClick={doPrint}><VtIcon name="print" size={15} /> Imprimir / PDF</button>
+            {window.vtIcpHasSession && window.vtIcpHasSession() && (
+              <button className="vt-btn-primary" style={{ background: '#16395f', borderColor: '#16395f' }} onClick={() => window.vtIcpSignDoc('doc-printable', tipo)}>🔏 Assinar ICP-Brasil</button>
+            )}
             {!isStructured && <button className="vt-btn-primary" onClick={() => { onSave(body); window.vtToast('Documento salvo.', 'ok'); }}>Salvar</button>}
           </div>
         </div>

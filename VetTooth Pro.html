@@ -7,6 +7,22 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>VetTooth Pro</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="odonto.css" />
+<meta name="theme-color" content="#14a8a0" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="VetTooth Pro" />
+<script>
+  // Limpa todos os Service Workers antigos para evitar conflitos de cache
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(regs) {
+      regs.forEach(function(r) { r.unregister(); });
+      if (regs.length) console.log('[SW] ' + regs.length + ' SW(s) antigo(s) removido(s)');
+    });
+  }
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -222,7 +238,7 @@ img.vt-avatar { display: block; }
 .vt-chart-legend i { width: 16px; height: 3px; border-radius: 2px; display: inline-block; }
 
 /* Odontograma frame */
-.vt-frame-wrap { position: absolute; inset: 0; }
+.vt-frame-wrap { position: absolute; inset: 0; overflow-y: auto; }
 .vt-frame { width: 100%; height: 100%; border: none; display: block; }
 .vt-content.flush { padding: 0; position: relative; }
 
@@ -656,6 +672,8 @@ select.vtf-input { appearance: none; cursor: pointer; }
 .ag-mcell.out { background: #fafbfc; }
 .ag-mcell.out .ag-mnum { color: var(--faint); }
 .ag-mcell.today { background: var(--teal-t); }
+.ag-mcell.ag-closed { background: repeating-linear-gradient(135deg, transparent, transparent 5px, rgba(0,0,0,.03) 5px, rgba(0,0,0,.03) 10px); cursor: not-allowed; }
+.ag-mcell.ag-closed .ag-mnum { color: var(--faint); }
 .ag-mnum { display: inline-block; font-size: 13px; font-weight: 700; width: 24px; height: 24px; line-height: 24px; text-align: center; border-radius: 50%; }
 .ag-mcell.today .ag-mnum { background: var(--teal); color: #fff; }
 .ag-mevs { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
@@ -1199,6 +1217,7 @@ body.vt-dark .vt-search input { background: transparent; color: #e2eaf3; }
 .vt-toast.show { opacity: 1; transform: translateY(0); }
 .vt-toast.ok { background: #15793f; }
 .vt-toast.err { background: #c43a28; }
+.vt-toast.warn { background: #b45309; }
 </style>
 <style id="pr-styles">
 /* ============================================================
@@ -1747,14 +1766,15 @@ body.vt-dark .vt-search input { background: transparent; color: #e2eaf3; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script type="text/babel" src="vt-data.jsx?v=3"></script>
-<script type="text/babel" src="vt-db.jsx"></script>
+<script type="text/babel" src="vt-db.jsx?v=2"></script>
 <script type="text/babel" src="vt-auth.jsx"></script>
 <script type="text/babel" src="vt-login.jsx?v=5"></script>
-<script type="text/babel" src="vt-atendimentos.jsx?v=9"></script>
+<script type="text/babel" src="vt-atendimentos.jsx?v=10"></script>
 <script type="text/babel" src="vt-pacientes.jsx?v=9"></script>
 <script type="text/babel" src="vt-racas.jsx"></script>
 <script type="text/babel" src="vt-richtext.jsx"></script>
-<script type="text/babel" src="vt-modules.jsx?v=25"></script>
+<script type="text/babel" src="vt-modules.jsx?v=31"></script>
+<script type="text/babel" src="vt-sign.jsx?v=1"></script>
 <script type="text/babel" src="vt-odonto.jsx"></script>
 <script type="text/babel" src="vt-financeiro.jsx?v=6"></script>
 <script type="text/babel" src="vt-financeiro2.jsx?v=2"></script>
@@ -1764,19 +1784,19 @@ body.vt-dark .vt-search input { background: transparent; color: #e2eaf3; }
 <script type="text/babel" src="vt-ia.jsx?v=12"></script>
 <script type="text/babel" src="vt-scores.jsx"></script>
 <script type="text/babel" src="vt-ficha.jsx"></script>
-<script type="text/babel" src="vt-prontuario.jsx?v=22"></script>
+<script type="text/babel" src="vt-prontuario.jsx?v=23"></script>
 <script type="text/babel" src="vt-prontuario-exam.jsx?v=14"></script>
 <script type="text/babel" src="vt-prontuario-vacina.jsx?v=3"></script>
 <script type="text/babel" src="vt-prontuario-plan.jsx?v=13"></script>
 <script type="text/babel" src="vt-prontuario-extra.jsx?v=7"></script>
 <script type="text/babel" src="vt-rx.jsx?v=9"></script>
 <script type="text/babel" src="vt-asa.jsx"></script>
-<script type="text/babel" src="vt-docs.jsx?v=6"></script>
+<script type="text/babel" src="vt-docs.jsx?v=7"></script>
 <script type="text/babel" src="vt-integra.jsx"></script>
 <script type="text/babel" src="vt-anestesia.jsx?v=1"></script>
-<script type="text/babel" src="vt-estoque3.jsx?v=2"></script>
+<script type="text/babel" src="vt-estoque3.jsx?v=3"></script>
 <script type="text/babel" src="vt-financeiro4.jsx?v=4"></script>
-<script type="text/babel" src="vt-app.jsx?v=13"></script>
+<script type="text/babel" src="vt-app.jsx?v=18"></script>
 <style id="__om-edit-overrides"></style>
 </body>
 </html>

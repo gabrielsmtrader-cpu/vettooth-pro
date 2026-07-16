@@ -211,10 +211,12 @@ Object.assign(window, {
   window.vtToast = function (msg, kind) {
     const host = ensureHost();
     const el = document.createElement('div');
-    el.className = 'vt-toast ' + (kind || 'ok');
-    el.textContent = (kind === 'err' ? '✕  ' : '✓  ') + msg;
+    const isErr = kind === 'err' || kind === 'error';
+    const isWarn = kind === 'warn' || kind === 'warning';
+    el.className = 'vt-toast ' + (isErr ? 'err' : isWarn ? 'warn' : 'ok');
+    el.textContent = (isErr ? '✕  ' : isWarn ? '⚠  ' : '✓  ') + msg;
     host.appendChild(el);
     requestAnimationFrame(() => el.classList.add('show'));
-    setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 250); }, 2600);
+    setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 250); }, isErr ? 3800 : 2600);
   };
 })();

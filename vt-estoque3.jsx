@@ -552,23 +552,24 @@ function EstoqueModule3() {
     saveCompras([c, ...compras]);
     // dar entrada em estoque para cada item
     const novoInv = [...inv];
+    const novosMoves = [];
     f.itens.forEach(it => {
       if (!it.itemId || !Number(it.qty)) return;
       const idx = novoInv.findIndex(x => x.id === it.itemId);
       if (idx >= 0) {
         const novaQty = (Number(novoInv[idx].qty) || 0) + Number(it.qty);
         novoInv[idx] = { ...novoInv[idx], qty: novaQty };
-        const mv = {
+        novosMoves.push({
           id: stqUID(), ts: Date.now(), isoDate: stqToday(),
           date: new Date().toLocaleDateString('pt-BR'),
           itemId: it.itemId, itemName: novoInv[idx].name, unit: novoInv[idx].unit,
           tipo: 'Entrada', qty: Number(it.qty), delta: Number(it.qty),
-          responsavel: 'Compra NF ' + (f.nf || c.id), obs: `Compra registrada`,
-        };
-        saveMoves(prev => [mv, ...prev]);
+          responsavel: 'Compra NF ' + (f.nf || c.id), obs: 'Compra registrada',
+        });
       }
     });
     saveInv(novoInv);
+    saveMoves([...novosMoves, ...moves]);
     setCompraModal(false);
     window.vtToast && window.vtToast('Compra registrada e estoque atualizado.', 'ok');
   };
@@ -577,6 +578,7 @@ function EstoqueModule3() {
   const registrarInventario = ({ resp, contagens, data }) => {
     const novoInv = [...inv];
     const ajustes = [];
+    const novosMoves = [];
     contagens.forEach(c => {
       const fisico = Number(c.fisico);
       const idx = novoInv.findIndex(x => x.id === c.id);
@@ -585,16 +587,16 @@ function EstoqueModule3() {
       if (delta !== 0) {
         ajustes.push({ id: c.id, name: c.name, sist: novoInv[idx].qty, fisico, delta });
         novoInv[idx] = { ...novoInv[idx], qty: fisico };
-        const mv = {
+        novosMoves.push({
           id: stqUID(), ts: Date.now(), isoDate: data, date: stqFmt(data),
           itemId: c.id, itemName: c.name, unit: novoInv[idx].unit,
           tipo: 'Ajuste', qty: fisico, delta,
           responsavel: resp, obs: 'Inventário físico',
-        };
-        saveMoves(prev => [mv, ...prev]);
+        });
       }
     });
     saveInv(novoInv);
+    saveMoves([...novosMoves, ...moves]);
     const inv2 = { id: stqUID(), data, resp, total: contagens.length, correto: contagens.length - ajustes.length, corrigido: ajustes.length, ajustes };
     saveInventarios([inv2, ...inventarios]);
     setInvModal(false);
