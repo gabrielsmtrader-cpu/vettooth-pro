@@ -91,17 +91,22 @@ function DocClinicHeader({ c, accent, layout }) {
 /* ---- bloco de identificação do paciente ---- */
 function DocPatientInfo({ patient, at, accent }) {
   const idade = patient.idade || (window.ageFrom ? window.ageFrom(patient.birth) : '') || '—';
-  const tutorStr = patient.owner + (patient.cpf ? ' · CPF: ' + patient.cpf : '');
-  const fields = [
+  const examPeso = at && at.exam && at.exam.peso ? at.exam.peso + ' kg' : null;
+  const pairFields = [
     ['Paciente', patient.name], ['Espécie', patient.species], ['Raça', patient.breed || '—'],
-    ['Sexo', patient.sex || '—'], ['Peso', at.weight || patient.weight || '—'], ['Idade', idade],
-    ['Tutor(a)', tutorStr],
-    patient.phone ? ['Fone', patient.phone] : null,
-    patient.chip ? ['Microchip', patient.chip] : null,
-  ].filter(Boolean);
+    ['Sexo', patient.sex || '—'], ['Peso', examPeso || at.weight || patient.weight || '—'], ['Idade', idade],
+  ];
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 18px', fontSize: 12.5, marginBottom: 18, padding: '10px 14px', background: accent + '10', borderRadius: 6, borderLeft: '3px solid ' + accent }}>
-      {fields.map(([k, v]) => <span key={k}><b>{k}:</b> {v}</span>)}
+    <div style={{ fontSize: 12.5, marginBottom: 18, padding: '10px 14px', background: accent + '10', borderRadius: 6, borderLeft: '3px solid ' + accent }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 18px' }}>
+        {pairFields.map(([k, v]) => <span key={k}><b>{k}:</b> {v}</span>)}
+      </div>
+      <div style={{ marginTop: 5, display: 'flex', flexWrap: 'wrap', gap: '2px 18px', borderTop: '1px solid ' + accent + '25', paddingTop: 5 }}>
+        <span><b>Tutor(a):</b> {patient.owner || '—'}</span>
+        {patient.cpf && <span><b>CPF:</b> {patient.cpf}</span>}
+        {patient.phone && <span><b>Fone:</b> {patient.phone}</span>}
+        {patient.chip && <span><b>Microchip:</b> {patient.chip}</span>}
+      </div>
     </div>
   );
 }

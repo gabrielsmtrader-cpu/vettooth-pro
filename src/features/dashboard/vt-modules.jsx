@@ -238,7 +238,13 @@ window.vtSaveTeam = function (list) {
 };
 window.vtVetSignature = function (vetName) {
   const n = (vetName || '').replace('M.V. ', '').trim();
-  const m = (window.vtTeam() || []).find((x) => x.vet && (x.name === n || ('M.V. ' + x.name) === vetName));
+  const team = window.vtTeam() || [];
+  // 1) exact match
+  let m = team.find((x) => x.vet && (x.name === n || ('M.V. ' + x.name) === vetName));
+  // 2) partial match — handles renamed vets (e.g. "Gabriel" → "Gabriel Silva Martinez")
+  if (!m) m = team.find((x) => x.vet && (x.name.startsWith(n + ' ') || n.startsWith(x.name + ' ') || x.name.toLowerCase().includes(n.toLowerCase())));
+  // 3) only vet on team — safe fallback when there's exactly one
+  if (!m && team.filter((x) => x.vet).length === 1) m = team.find((x) => x.vet);
   if (!m) return { name: n, crmv: '', especialidade: '', sign: '', icp: null };
   const icp = (m.icpTipo || m.icpTitular || m.icpCpf) ? {
     tipo: m.icpTipo || 'A1',
@@ -1143,7 +1149,10 @@ function AgendaModule({ focusNewPatient, clearAgendaFocus, onIniciarAtendimento 
   const agEndH   = parseInt((agCfg.endTime   || '18:00').split(':')[0], 10);
   const agHolidays = agCfg.holidays || [];
   const agDays = agCfg.days || { seg: true, ter: true, qua: true, qui: true, sex: true, sab: false, dom: false };
-  const isHoliday = (iso) => agHolidays.includes(iso);
+  const isHoliday = (iso) => agHolidays.some((h) => (typeof h === 'string' ? h : h.date) === iso);
+  const getHolidayLabel = (iso) => { const h = agHolidays.find((x) => (typeof x === 'string' ? x : x.date) === iso); return h ? (typeof h === 'string' ? 'Feriado / sem atendimento' : (h.motivo || 'Feriado / sem atendimento')) : null; };
+  const agLunchStartH = agCfg.useLunch ? parseInt((agCfg.lunchStart || '12:00').split(':')[0], 10) : -1;
+  const agLunchEndH   = agCfg.useLunch ? parseInt((agCfg.lunchEnd   || '13:00').split(':')[0], 10) : -1;
   const isWorkday = (iso) => { const d = new Date(iso + 'T12:00:00'); const keys = ['dom','seg','ter','qua','qui','sex','sab']; return agDays[keys[d.getDay()]] !== false && !isHoliday(iso); };
 
   const blank = (date, start) => ({ patient: '', kind: CT[0].label, vet: 'M.V. ' + window.vtVets()[0].name, date: agISO(date), start, dur: agSlotHours, color: '', local: 'Clínica própria', endereco: '', alerta: '1 dia', status: 'Pendente', obs: '' });
@@ -1262,7 +1271,7 @@ function AgendaModule({ focusNewPatient, clearAgendaFocus, onIniciarAtendimento 
         </div>
         {view === 'mes'
           ? <AgendaMonth cursor={cursor} appts={appts} onDay={onDay} openNew={(d) => setModal(blank(d, 9))} openEv={setSel} onPickDay={(d) => { setCursor(d); setView('dia'); }} isWorkday={isWorkday} />
-          : <AgendaGrid days={view === 'dia' ? [cursor] : Array.from({ length: 7 }, (_, i) => agAddDays(agStartOfWeek(cursor), i))} hours={hours} onDay={onDay} openNew={(d, h) => setModal(blank(d, h))} openEv={setSel} selId={sel && sel.id} />}
+          : <AgendaGrid days={view === 'dia' ? [cursor] : Array.from({ length: 7 }, (_, i) => agAddDays(agStartOfWeek(cursor), i))} hours={hours} onDay={onDay} openNew={(d, h) => setModal(blank(d, h))} openEv={setSel} selId={sel && sel.id} getHolidayLabel={getHolidayLabel} agLunchStartH={agLunchStartH} agLunchEndH={agLunchEndH} />}
       </div>
 
       {/* ---- coluna direita: detalhes ---- */}
@@ -1396,25 +1405,39 @@ function AgendaDetail({ ev, onEdit, onStatus, onClose, onIniciarAtendimento }) {
   );
 }
 
-function AgendaGrid({ days, hours, onDay, openNew, openEv, selId }) {
+function AgendaGrid({ days, hours, onDay, openNew, openEv, selId, getHolidayLabel, agLunchStartH, agLunchEndH }) {
   const todayISO = agISO(new Date());
   const patFor = (name) => (((window.VtStore.getData() || {}).patients) || []).find((p) => p.name === name) || {};
   return (
     <div className="vt-card ag-cal">
       <div className="ag-grid" style={{ gridTemplateColumns: `56px repeat(${days.length}, 1fr)` }}>
         <div className="ag-corner" />
-        {days.map((d) => (
-          <div key={agISO(d)} className={`ag-dayhead${agISO(d) === todayISO ? ' today' : ''}`}>
-            <span className="ag-dow">{AG_DOW_FULL[d.getDay()]}</span><span className="ag-dnum">{d.getDate()}</span>
-          </div>
-        ))}
+        {days.map((d) => {
+          const iso = agISO(d);
+          const holLabel = getHolidayLabel ? getHolidayLabel(iso) : null;
+          return (
+            <div key={iso} className={`ag-dayhead${iso === todayISO ? ' today' : ''}${holLabel ? ' ag-dayhead-hol' : ''}`}>
+              <span className="ag-dow">{AG_DOW_FULL[d.getDay()]}</span><span className="ag-dnum">{d.getDate()}</span>
+              {holLabel && <span className="ag-hol-label" title={holLabel}>🔒 {holLabel}</span>}
+            </div>
+          );
+        })}
         {hours.map((h) => (
           <React.Fragment key={h}>
             <div className="ag-hour">{String(h).padStart(2, '0')}:00</div>
             {days.map((d) => {
               const iso = agISO(d);
+              const holLabel = getHolidayLabel ? getHolidayLabel(iso) : null;
+              const isLunch = agLunchStartH >= 0 && h >= agLunchStartH && h < agLunchEndH;
+              const blocked = !!(holLabel || isLunch);
+              const blockTitle = holLabel || (isLunch ? 'Intervalo de almoço' : '');
               return (
-                <div key={iso + h} className="ag-cell" onClick={() => openNew(d, h)}>
+                <div key={iso + h}
+                  className={`ag-cell${blocked ? ' ag-cell-blocked' : ''}`}
+                  style={blocked ? { background: holLabel ? 'rgba(239,68,68,.07)' : 'rgba(148,163,184,.08)', cursor: 'not-allowed' } : null}
+                  title={blockTitle}
+                  onClick={() => { if (blocked) { window.vtToast(blockTitle, 'err'); return; } openNew(d, h); }}>
+                  {isLunch && !holLabel && <div className="ag-lunch-stripe" style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, color:'var(--muted)', pointerEvents:'none', opacity:.6 }}>almoço</div>}
                   {onDay(iso).filter((a) => Math.floor(a.start) === h).map((a) => {
                     if (a._gcal) {
                       return (
@@ -3486,6 +3509,19 @@ function ParceiraModal({ data, onClose, onSave }) {
           <VtEmailField label="Email" value={f.email} onChange={s('email')} width="48%" />
         </div>
         <div className="vt-form-row"><VtField label="Responsável" value={f.responsavel} onChange={s('responsavel')} placeholder="Nome do responsável" width="100%" /></div>
+        <div style={{ borderTop: '1px solid var(--line)', margin: '14px 0 10px', paddingTop: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10 }}>Dados para pagamento / transferência</div>
+          <div className="vt-form-row"><VtField label="Chave PIX" value={f.pixChave || ''} onChange={s('pixChave')} placeholder="CPF, CNPJ, e-mail, celular ou chave aleatória" width="100%" /></div>
+          <div className="vt-form-row">
+            <VtField label="Banco" value={f.banco || ''} onChange={s('banco')} placeholder="Ex.: Nubank, Itaú" width="44%" />
+            <VtField label="Agência" value={f.agencia || ''} onChange={s('agencia')} placeholder="0000" width="24%" />
+            <VtField label="Conta" value={f.conta || ''} onChange={s('conta')} placeholder="00000-0" width="28%" />
+          </div>
+          <div className="vt-form-row">
+            <VtField label="Titular da conta" value={f.titularConta || ''} onChange={s('titularConta')} placeholder="Nome completo" width="60%" />
+            <VtField label="CPF / CNPJ" value={f.cpfCnpjConta || ''} onChange={s('cpfCnpjConta')} placeholder="Documento" width="36%" />
+          </div>
+        </div>
         <div className="fin-modal-actions" style={{ marginTop: 14 }}>
           {data.id && <button className="vt-btn-ghost" style={{ marginRight: 'auto', color: 'var(--red)' }} onClick={() => { onSave({ ...f, _del: true }); }}>Remover</button>}
           <button className="vt-btn-ghost" onClick={onClose}>Cancelar</button>
@@ -4240,6 +4276,7 @@ function OdontogramaTab() {
 function AgendaConfigTab() {
   const [cfg, setCfg] = vtUseState(() => { const c = window.vtAgendaCfg(); return { ...window.VT_AGENDA_CFG_DEFAULT, ...c, days: { ...window.VT_AGENDA_CFG_DEFAULT.days, ...(c.days || {}) } }; });
   const [newHoliday, setNewHoliday] = vtUseState('');
+  const [newHolidayMotivo, setNewHolidayMotivo] = vtUseState('');
 
   const save = (patch) => { const next = { ...cfg, ...patch }; setCfg(next); window.vtSaveAgendaCfg(next); window.vtToast('Configurações de agenda salvas.', 'ok'); };
 
@@ -4250,12 +4287,18 @@ function AgendaConfigTab() {
   const ADVANCES = [7,14,30,60,90,180];
 
   const addHoliday = () => {
-    if (!newHoliday) return;
+    if (!newHoliday) { window.vtToast('Selecione uma data.', 'err'); return; }
+    if (!newHolidayMotivo.trim()) { window.vtToast('Informe o motivo do bloqueio.', 'err'); return; }
     const list = [...(cfg.holidays || [])];
-    if (!list.includes(newHoliday)) { list.push(newHoliday); list.sort(); save({ holidays: list }); }
-    setNewHoliday('');
+    const exists = list.some((h) => (typeof h === 'string' ? h : h.date) === newHoliday);
+    if (!exists) {
+      list.push({ date: newHoliday, motivo: newHolidayMotivo.trim() });
+      list.sort((a, b) => (typeof a === 'string' ? a : a.date).localeCompare(typeof b === 'string' ? b : b.date));
+      save({ holidays: list });
+    }
+    setNewHoliday(''); setNewHolidayMotivo('');
   };
-  const removeHoliday = (d) => save({ holidays: (cfg.holidays || []).filter((h) => h !== d) });
+  const removeHoliday = (dateStr) => save({ holidays: (cfg.holidays || []).filter((h) => (typeof h === 'string' ? h : h.date) !== dateStr) });
 
   return (
     <div>
@@ -4308,18 +4351,25 @@ function AgendaConfigTab() {
 
       <div style={sec}>
         <div style={labelStyle}>Feriados e dias sem atendimento</div>
-        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-          <input type="date" className="vt-input" value={newHoliday} onChange={(e) => setNewHoliday(e.target.value)} style={{ flex: 1, maxWidth: 200 }} />
-          <button className="vt-btn-primary" onClick={addHoliday} disabled={!newHoliday}>+ Adicionar</button>
+        <p style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 0, marginBottom: 10 }}>Dias bloqueados aparecem na agenda com aviso e impedem o agendamento. O motivo é exibido ao tentar marcar.</p>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+          <input type="date" className="vt-input" value={newHoliday} onChange={(e) => setNewHoliday(e.target.value)} style={{ width: 170 }} />
+          <input className="vt-input" value={newHolidayMotivo} onChange={(e) => setNewHolidayMotivo(e.target.value)} placeholder="Motivo obrigatório (ex: Natal, Emenda)" style={{ flex: 1, minWidth: 180 }} />
+          <button className="vt-btn-primary" onClick={addHoliday} disabled={!newHoliday || !newHolidayMotivo.trim()}>+ Adicionar</button>
         </div>
         {!(cfg.holidays || []).length && <div style={{ fontSize: 13, color: 'var(--muted)' }}>Nenhum feriado cadastrado.</div>}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {(cfg.holidays || []).map((d) => (
-            <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', fontSize: 13 }}>
-              {d.split('-').reverse().join('/')}
-              <button onClick={() => removeHoliday(d)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 15, padding: 0, lineHeight: 1 }}>×</button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {(cfg.holidays || []).map((h) => {
+            const dateStr = typeof h === 'string' ? h : h.date;
+            const motivo  = typeof h === 'string' ? '' : (h.motivo || '');
+            return (
+            <div key={dateStr} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 13 }}>
+              <span style={{ fontWeight: 700, minWidth: 80 }}>{dateStr.split('-').reverse().join('/')}</span>
+              <span style={{ flex: 1, color: 'var(--muted)' }}>{motivo || <i>sem motivo</i>}</span>
+              <button onClick={() => removeHoliday(dateStr)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 16, padding: 0, lineHeight: 1, flexShrink: 0 }}>×</button>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -4454,11 +4504,51 @@ function FinanceiroConfigTab() {
                 <span style={{ fontWeight: 500, fontSize: 14, flex: 1 }}>{label}</span>
               </label>
               {key === 'credito' && cfg.pagamentos?.credito && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, paddingLeft: 20 }}>
-                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>Parcelamento máximo:</span>
-                  <select className="vt-input" value={cfg.creditoMaxParcelas} style={{ width: 90 }} onChange={(e) => save({ creditoMaxParcelas: Number(e.target.value) })}>
-                    {[1,2,3,4,6,8,10,12].map((n) => <option key={n} value={n}>{n}x</option>)}
-                  </select>
+                <div style={{ marginTop: 8, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13, color: 'var(--muted)' }}>Parcelamento máximo:</span>
+                    <select className="vt-input" value={cfg.creditoMaxParcelas} style={{ width: 90 }} onChange={(e) => save({ creditoMaxParcelas: Number(e.target.value) })}>
+                      {[1,2,3,4,6,8,10,12].map((n) => <option key={n} value={n}>{n}x</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 6 }}>Quem absorve a taxa da operadora?</div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      {[['clinica','⬅ Clínica absorve (desconta do líquido)'],['cliente','➡ Cliente paga (acréscimo no valor cobrado)']].map(([id, lbl]) => (
+                        <label key={id} style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding:'8px 14px', borderRadius:8, border:'1px solid '+(cfg.creditoJurosPor===id?'var(--teal)':'var(--border)'), background:cfg.creditoJurosPor===id?'var(--teal-t)':'var(--card)', fontSize:13, fontWeight:cfg.creditoJurosPor===id?600:400 }} onClick={() => save({ creditoJurosPor: id })}>
+                          <span style={{ width:14, height:14, borderRadius:'50%', border:'2px solid '+(cfg.creditoJurosPor===id?'var(--teal)':'var(--border)'), background:cfg.creditoJurosPor===id?'var(--teal)':'transparent', flexShrink:0 }} />
+                          {lbl}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 6 }}>Taxa da operadora por número de parcelas (%)</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
+                      {Array.from({ length: cfg.creditoMaxParcelas || 1 }, (_, i) => i + 1).map((n) => (
+                        <label key={n} style={{ display:'flex', flexDirection:'column', gap:3 }}>
+                          <span style={{ fontSize: 11, color: 'var(--muted)' }}>{n}× parcela{n>1?'s':''}</span>
+                          <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                            <input type="number" className="vt-input" min="0" max="20" step="0.01" style={{ width:70, fontSize:13 }}
+                              value={(cfg.creditoTaxas || {})[n] ?? 0}
+                              onChange={(e) => { const t = { ...(cfg.creditoTaxas||{}), [n]: Number(e.target.value) }; save({ creditoTaxas: t }); }} />
+                            <span style={{ fontSize:12, color:'var(--muted)' }}>%</span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Simulador de cálculo */}
+                  <div style={{ background:'var(--teal-t)', borderRadius:8, padding:'10px 14px', fontSize:12.5 }}>
+                    <b style={{ display:'block', marginBottom:6 }}>Simulação para R$ 100,00:</b>
+                    {Array.from({ length: Math.min(3, cfg.creditoMaxParcelas || 1) }, (_, i) => i + 1).map((n) => {
+                      const taxa = (cfg.creditoTaxas || {})[n] || 0;
+                      const cli = cfg.creditoJurosPor === 'cliente';
+                      const cobrado = cli ? (100 / (1 - taxa / 100)) : 100;
+                      const liquido = cli ? 100 : (100 * (1 - taxa / 100));
+                      return <div key={n} style={{ marginTop:3 }}>{n}×: cobrado <b>R$ {cobrado.toFixed(2)}</b> · taxa {taxa}% · líquido clínica <b>R$ {liquido.toFixed(2)}</b></div>;
+                    })}
+                  </div>
                 </div>
               )}
               {key === 'pix' && cfg.pagamentos?.pix && (
