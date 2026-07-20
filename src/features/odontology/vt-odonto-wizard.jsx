@@ -631,18 +631,6 @@
     const [histPanelOpen, setHistPanelOpen] = useState(false);
     const [histList, setHistList] = useState([]);
 
-    const captureChart = () => {
-      const svg = document.querySelector('.odm-svg, [class*="odm-wrap"] svg, .odm-chart svg');
-      if (!svg) { window.vtToast && window.vtToast('Gráfico ainda carregando.', 'err'); return; }
-      try {
-        const clone = svg.cloneNode(true);
-        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-        const s = new XMLSerializer().serializeToString(clone);
-        const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(s)));
-        setW({ chartImage: url });
-        window.vtToast && window.vtToast('Gráfico capturado para o PDF!', 'ok');
-      } catch(e) { window.vtToast && window.vtToast('Não foi possível capturar o gráfico.', 'err'); }
-    };
 
     if (!window.OdontogramaModule) return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: 'var(--muted)' }}>
@@ -706,8 +694,7 @@
           <TbBtn icon="📋" label="Gráficos Anteriores" onClick={handleLoadPrev} />
           <div style={{ flex: 1 }} />
           <TbBtn icon="➕" label="Adicionar" onClick={() => ctrl() && ctrl().novoExame()} />
-          <TbBtn icon="📸" label="Capturar para PDF" onClick={captureChart} />
-          {wiz.chartImage && <span style={{ fontSize: 11, color: 'var(--teal)', fontWeight: 700 }}>✓ Capturado</span>}
+          {wiz.chartImage && <span style={{ fontSize: 11, color: 'var(--teal)', fontWeight: 700 }}>✓ Salvo no PDF</span>}
         </div>
 
         {/* ── Action buttons ── */}
@@ -1228,7 +1215,7 @@
             {wiz.chartImage
               ? <img src={wiz.chartImage} alt="Gráfico odontológico" style={{ width:'100%', maxHeight:220, objectFit:'contain', border:'1px solid #eee', borderRadius:4, marginBottom:8 }} />
               : <div style={{ border:'1px dashed #ccc', borderRadius:4, padding:'14px 12px', marginBottom:8, background:'#f9f9f9', textAlign:'center', color:'#bbb', fontSize:11, minHeight:80 }}>
-                  [ Use o botão 📸 Capturar para PDF no Passo 3 para incluir o gráfico ]
+                  [ Gráfico será incluído automaticamente ao passar pelo Passo 3 ]
                 </div>
             }
 
@@ -1562,9 +1549,21 @@
     const setW = (patch) => setWizRaw(p => ({ ...p, ...patch }));
     const wizWithDate = { ...wiz, date };
 
-    const goNext = () => setStep(s => Math.min(s + 1, 6));
+    const captureStep3 = () => {
+      const svg = document.querySelector('.odm-svg, [class*="odm-wrap"] svg, .odm-chart svg');
+      if (!svg) return;
+      try {
+        const clone = svg.cloneNode(true);
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        const s = new XMLSerializer().serializeToString(clone);
+        const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(s)));
+        setW({ chartImage: url });
+      } catch(e) {}
+    };
+
+    const goNext = () => { if (step === 3) captureStep3(); setStep(s => Math.min(s + 1, 6)); };
     const goPrev = () => setStep(s => Math.max(s - 1, 1));
-    const goStep = (n) => { if (n === 1 || wiz.patientId) setStep(n); };
+    const goStep = (n) => { if (n !== 3 && step === 3) captureStep3(); if (n === 1 || wiz.patientId) setStep(n); };
 
     const saveExam = () => {
       if (!wiz.patientId) { window.vtToast && window.vtToast('Selecione um paciente antes de salvar.', 'err'); return; }
