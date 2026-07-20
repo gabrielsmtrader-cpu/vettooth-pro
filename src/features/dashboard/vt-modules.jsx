@@ -260,7 +260,7 @@ window.vtClinic = function () {
   const d = window.VtStore && window.VtStore.getData();
   if (d && d.clinic) return d.clinic;
   const u = (window.VtStore && window.VtStore.currentUser && window.VtStore.currentUser()) || {};
-  return { name: u.clinic || '', cnpj: '', address: '' };
+  return { name: u.clinic || '', cnpj: '', address: '', crmv: u.crmv ? `CRMV-${u.crmvUF || 'SP'} ${u.crmv}` : '', crmvUF: u.crmvUF || '' };
 };
 window.VT_CURRENCIES = {
   BRL: { sym: 'R$',  loc: 'pt-BR', label: 'Real (R$)',           flag: '🇧🇷' },

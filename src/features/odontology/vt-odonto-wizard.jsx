@@ -235,12 +235,41 @@
   }
 
   /* ─── Cabeçalho do Wizard ─────────────────────────────── */
-  function WizHeader({ step, onClose, date, setDate, images, onOpenModal, onGoStep, patientSelected }) {
+  function WizHeader({ step, onClose, date, setDate, images, onOpenModal, onGoStep, patientSelected, patientName, ownerName }) {
     const totalImgs = (images || []).length;
     return (
-      <div style={{ background: 'var(--card)', borderBottom: '1px solid var(--line)', padding: '0 20px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        {/* Steps como tabs clicáveis */}
-        <div style={{ display: 'flex', alignItems: 'stretch', flex: 1, overflowX: 'auto', gap: 0 }}>
+      <div style={{ background: 'var(--card)', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+        {/* Linha 1 — Título da página + controles (padrão do VetTooth Pro) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px 10px' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.1 }}>Odontograma</h1>
+            <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {patientName
+                ? <><span style={{ fontWeight: 600, color: 'var(--navy-3)' }}>{patientName}</span>{ownerName ? <span> · {ownerName}</span> : null}</>
+                : 'Novo exame dental — selecione o paciente'}
+            </p>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--muted)', flexShrink: 0 }}>
+            📅 <input type="date" value={date} onChange={e => setDate(e.target.value)}
+              className="vt-input" style={{ padding: '4px 8px', fontSize: 12, width: 130 }} />
+          </label>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <button onClick={step >= 2 ? onOpenModal : undefined} disabled={step < 2}
+              title={step < 2 ? 'Selecione o paciente primeiro' : 'Adicionar fotos e radiografias'}
+              className="vt-btn-primary"
+              style={{ fontSize: 12, padding: '6px 12px', opacity: step < 2 ? .45 : 1, cursor: step < 2 ? 'not-allowed' : 'pointer' }}>
+              📷 Fotos
+            </button>
+            {totalImgs > 0 && (
+              <span style={{ position: 'absolute', top: -5, right: -5, background: '#e74c3c', color: '#fff', borderRadius: '50%', width: 17, height: 17, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {totalImgs}
+              </span>
+            )}
+          </div>
+          <button onClick={onClose} className="vt-btn-ghost" style={{ fontSize: 12, padding: '6px 12px', flexShrink: 0 }}>✕ Fechar</button>
+        </div>
+        {/* Linha 2 — Tabs de passo */}
+        <div style={{ display: 'flex', alignItems: 'stretch', overflowX: 'auto', borderTop: '1px solid var(--line)', padding: '0 8px' }}>
           {STEPS.map((s) => {
             const isActive = step === s.n;
             const isDone = step > s.n;
@@ -248,13 +277,13 @@
             return (
               <button key={s.n} onClick={() => canGo && onGoStep(s.n)}
                 title={!canGo ? 'Selecione o paciente primeiro' : s.label}
-                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '14px 16px', border: 'none', cursor: canGo ? 'pointer' : 'not-allowed',
-                  background: 'transparent', fontSize: 13, fontWeight: isActive ? 700 : 400,
-                  color: isActive ? 'var(--teal, #14a8a0)' : isDone ? 'var(--ink)' : 'var(--muted)',
-                  borderBottom: isActive ? '2.5px solid var(--teal, #14a8a0)' : '2.5px solid transparent',
-                  whiteSpace: 'nowrap', opacity: canGo ? 1 : .45, flexShrink: 0 }}>
-                <span style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0,
-                  background: isActive ? 'var(--teal, #14a8a0)' : isDone ? 'var(--teal-t, #e2f4f3)' : 'var(--bg)',
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', border: 'none', cursor: canGo ? 'pointer' : 'not-allowed',
+                  background: 'transparent', fontSize: 12.5, fontWeight: isActive ? 700 : 400,
+                  color: isActive ? 'var(--teal)' : isDone ? 'var(--ink)' : 'var(--muted)',
+                  borderBottom: isActive ? '2.5px solid var(--teal)' : '2.5px solid transparent',
+                  whiteSpace: 'nowrap', opacity: canGo ? 1 : .5, flexShrink: 0, transition: 'color .15s' }}>
+                <span style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0,
+                  background: isActive ? 'var(--teal)' : isDone ? 'var(--teal-t)' : 'var(--bg)',
                   border: `1.5px solid ${isActive ? 'var(--teal)' : isDone ? 'var(--teal)' : 'var(--line)'}`,
                   color: isActive ? '#fff' : isDone ? 'var(--teal)' : 'var(--muted)' }}>
                   {isDone ? '✓' : s.n}
@@ -263,27 +292,6 @@
               </button>
             );
           })}
-        </div>
-        {/* Data + Adicionar + Fechar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, padding: '8px 0' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--muted)' }}>
-            📅 <input type="date" value={date} onChange={e => setDate(e.target.value)}
-              className="vt-input" style={{ padding: '4px 8px', fontSize: 12, width: 130 }} />
-          </label>
-          <div style={{ position: 'relative' }}>
-            <button onClick={step >= 2 ? onOpenModal : undefined} disabled={step < 2}
-              title={step < 2 ? 'Selecione o paciente primeiro' : 'Adicionar fotos e radiografias'}
-              className="vt-btn-primary"
-              style={{ fontSize: 12, padding: '6px 12px', opacity: step < 2 ? .45 : 1, cursor: step < 2 ? 'not-allowed' : 'pointer' }}>
-              📷 Adicionar
-            </button>
-            {totalImgs > 0 && (
-              <span style={{ position: 'absolute', top: -5, right: -5, background: '#e74c3c', color: '#fff', borderRadius: '50%', width: 17, height: 17, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {totalImgs}
-              </span>
-            )}
-          </div>
-          <button onClick={onClose} className="vt-btn-ghost" style={{ fontSize: 12, padding: '6px 12px' }}>✕ Fechar</button>
         </div>
       </div>
     );
@@ -934,15 +942,17 @@
       ...Object.entries(wiz.anomalias || {}).filter(([, v]) => v && v.checked),
     ];
     const clinic = window.vtClinic ? window.vtClinic() : {};
-    const clinicName  = clinic.name     || 'Dentalis Vet';
-    const clinicAddr  = clinic.address  || '';
+    const _cu    = (window.VtStore && window.VtStore.currentUser && window.VtStore.currentUser()) || {};
+    const clinicName  = clinic.name     || _cu.clinic || 'Dentalis Vet';
+    const _addr       = clinic.addr || {};
+    const clinicAddr  = clinic.address || [_addr.street, _addr.num, _addr.district, _addr.city, _addr.state].filter(Boolean).join(', ') || '';
     const clinicPhone = clinic.phone || clinic.tel || '';
     const clinicEmail = clinic.email    || '';
     const clinicInsta = clinic.instagram || clinic.social || '';
     const clinicSite  = clinic.site || clinic.website || '';
     const clinicLogo  = clinic.logo     || '';
     const clinicVet   = clinic.vetName  || wiz.sedVet || 'M.V. Veterinário';
-    const clinicCrmv  = clinic.crmv     || '';
+    const clinicCrmv  = clinic.crmv || (_cu.crmv ? `CRMV-${_cu.crmvUF || 'SP'} ${_cu.crmv}` : '');
     const images = wiz.images || [];
 
     const loadPrev = () => {
@@ -1501,29 +1511,22 @@
 
         {/* coluna direita — ações */}
         <div style={{ width: 190, flexShrink: 0, background: 'var(--card)', borderLeft: '1px solid var(--line)', padding: '24px 14px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
-          <button onClick={() => window.vtToast && window.vtToast('Prévia do gráfico em breve.', 'ok')}
-            style={{ padding: '14px 10px', borderRadius: 12, border: 'none', background: 'var(--teal)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', lineHeight: 1.3 }}>
-            Visualização do Gráfico
-          </button>
-          <button onClick={() => { window._vtSetActive && window._vtSetActive('agenda'); onClose && onClose(); }}
-            style={{ padding: '14px 10px', borderRadius: 12, border: 'none', background: 'var(--teal)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', lineHeight: 1.3 }}>
-            Marcar Consulta
+          <button onClick={onSave}
+            className="vt-btn-primary"
+            style={{ padding: '12px 10px', fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>
+            ✓ Concluir Exame
           </button>
           <button onClick={() => {
             if (!wiz.patientId) { window.vtToast && window.vtToast('Selecione um paciente.', 'err'); return; }
             const key = `vt-odonto-draft:${wiz.patientId}`;
             localStorage.setItem(key, JSON.stringify({ ...wiz, date: wiz.date, _draft: true }));
             window.vtToast && window.vtToast('Rascunho salvo.', 'ok');
-          }} style={{ padding: '14px 10px', borderRadius: 12, border: 'none', background: 'var(--navy, #16395f)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', lineHeight: 1.3 }}>
-            Save Draft
+          }} className="vt-btn-ghost" style={{ padding: '10px', fontSize: 12 }}>
+            Salvar rascunho
           </button>
-          <button onClick={onSave}
-            style={{ padding: '14px 10px', borderRadius: 12, border: 'none', background: 'var(--navy, #16395f)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', lineHeight: 1.3 }}>
-            Gráfico Salvar
-          </button>
-          <button onClick={onSave}
-            style={{ padding: '14px 10px', borderRadius: 12, border: 'none', background: '#27ae60', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', lineHeight: 1.3, marginTop: 8 }}>
-            Enviar
+          <button onClick={() => { window._vtSetActive && window._vtSetActive('agenda'); onClose && onClose(); }}
+            className="vt-btn-ghost" style={{ padding: '10px', fontSize: 12 }}>
+            Agendar retorno
           </button>
 
           <div style={{ flex: 1 }} />
@@ -1610,7 +1613,8 @@
         )}
         <WizHeader step={step} onClose={onClose} date={date} setDate={setDate}
           images={wiz.images} onOpenModal={() => setShowImgModal(true)}
-          onGoStep={goStep} patientSelected={!!wiz.patientId} />
+          onGoStep={goStep} patientSelected={!!wiz.patientId}
+          patientName={wiz.patientName} ownerName={wiz.ownerName} />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {step === 1 && <Step1Patient wiz={wizWithDate} setW={setW} onNext={goNext} />}
           {step === 2 && <Step2Avaliacao wiz={wizWithDate} setW={setW} />}
