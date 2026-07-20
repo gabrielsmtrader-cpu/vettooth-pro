@@ -291,26 +291,14 @@
 
   /* ─── PASSO 1: Seleção de Paciente ─────────────────────── */
   function Step1Patient({ wiz, setW, onNext }) {
-    const [query, setQuery] = useState('');
-    const [expanded, setExpanded] = useState({});
-    const allPatients = useMemo(() => { const d = window.VtStore && window.VtStore.getData(); return (d && d.patients) || []; }, []);
+    const [selectedOwner, setSelectedOwner] = useState(wiz.ownerName || null);
+    const [ownerQuery, setOwnerQuery] = useState('');
+    const [patientQuery, setPatientQuery] = useState('');
 
-    const filtered = useMemo(() => {
-      const q = query.toLowerCase();
-      if (!q) return allPatients;
-      return allPatients.filter(p => p.name.toLowerCase().includes(q) || (p.owner || '').toLowerCase().includes(q));
-    }, [query, allPatients]);
-
-    /* Agrupar por tutor */
-    const byOwner = useMemo(() => {
-      const map = {};
-      filtered.forEach(p => {
-        const owner = p.owner || 'Sem tutor';
-        if (!map[owner]) map[owner] = [];
-        map[owner].push(p);
-      });
-      return map;
-    }, [filtered]);
+    const allPatients = useMemo(() => {
+      const d = window.VtStore && window.VtStore.getData();
+      return (d && d.patients) || [];
+    }, []);
 
     const speciesLabel = (p) => {
       const s = (p.species || '').toLowerCase();
@@ -319,56 +307,151 @@
       return { emoji: '🐶', label: 'Cão' };
     };
 
+    const ownerMap = useMemo(() => {
+      const map = {};
+      allPatients.forEach(p => {
+        const owner = p.owner || 'Sem tutor';
+        if (!map[owner]) map[owner] = [];
+        map[owner].push(p);
+      });
+      return map;
+    }, [allPatients]);
+
+    const recentOwners = useMemo(() => {
+      const seen = new Set();
+      const result = [];
+      allPatients.forEach(p => {
+        if (!p.owner || seen.has(p.owner)) return;
+        const hist = JSON.parse(localStorage.getItem('vt-odonto-hist:' + p.id) || '[]');
+        if (hist.length > 0) { seen.add(p.owner); result.push(p.owner); }
+      });
+      return result.slice(0, 5);
+    }, [allPatients]);
+
+    const allOwners = useMemo(() => Object.keys(ownerMap).sort(), [ownerMap]);
+
+    const filteredOwners = useMemo(() => {
+      const q = ownerQuery.toLowerCase();
+      if (!q) return allOwners;
+      return allOwners.filter(o => o.toLowerCase().includes(q));
+    }, [ownerQuery, allOwners]);
+
+    const ownerPatients = useMemo(() => {
+      if (!selectedOwner) return [];
+      const patients = ownerMap[selectedOwner] || [];
+      const q = patientQuery.toLowerCase();
+      if (!q) return patients;
+      return patients.filter(p => p.name.toLowerCase().includes(q));
+    }, [selectedOwner, ownerMap, patientQuery]);
+
+    const getLastVisit = (patientId) => {
+      const hist = JSON.parse(localStorage.getItem('vt-odonto-hist:' + patientId) || '[]');
+      if (!hist.length) return null;
+      hist.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      return hist[0].date || null;
+    };
+
+    const formatDate = (d) => {
+      if (!d) return null;
+      const [y, m, day] = d.split('-');
+      return day + '/' + m + '/' + y;
+    };
+
     const select = (p) => {
       const sp = speciesLabel(p);
       setW({ patientId: p.id, patientName: p.name, ownerName: p.owner || '', species: sp.label });
       onNext();
     };
 
+    const renderOwnerRow = (owner) => {
+      const isSelected = selectedOwner === owner;
+      return (
+        <button key={owner} onClick={() => { setSelectedOwner(owner); setPatientQuery(''); }}
+          style={{ width: '100%', textAlign: 'left', padding: '11px 16px', background: isSelected ? '#f0f2f5' : 'transparent',
+            border: 'none', borderBottom: '1px solid var(--line)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 14 }}>👤</span>
+          <span style={{ flex: 1, fontWeight: isSelected ? 700 : 500, fontSize: 13.5, color: 'var(--ink)' }}>{owner}</span>
+          <span style={{ fontSize: 11, color: 'var(--muted)', marginRight: 4 }}>{(ownerMap[owner] || []).length}</span>
+          <span style={{ color: 'var(--muted)', fontSize: 15 }}>›</span>
+        </button>
+      );
+    };
+
     return (
-      <div style={{ padding: 24, flex: 1, overflowY: 'auto' }}>
-        <h2 style={{ margin: '0 0 4px', fontSize: 20, color: 'var(--navy, #16395f)' }}>🐾 Selecione o paciente</h2>
-        <p style={{ margin: '0 0 18px', color: 'var(--muted)', fontSize: 13 }}>Toque no nome do tutor para ver os animais. Selecione o animal para avançar automaticamente.</p>
+      <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+        {/* Coluna Esquerda – Tutores */}
+        <div style={{ width: '44%', minWidth: 180, borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ padding: '13px 16px 10px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>Tutores</span>
+            <button className="vt-btn-ghost" style={{ fontSize: 11, padding: '3px 8px' }}>Adicionar Tutor +</button>
+          </div>
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+            <input className="vt-input" placeholder="🔍 Buscar tutor…" value={ownerQuery} onChange={e => setOwnerQuery(e.target.value)}
+              style={{ width: '100%', fontSize: 13 }} />
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {recentOwners.length > 0 && !ownerQuery && (
+              <>
+                <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>Recentes</div>
+                {recentOwners.filter(o => allOwners.includes(o)).map(renderOwnerRow)}
+                <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>Todos os Tutores</div>
+              </>
+            )}
+            {filteredOwners.length === 0
+              ? <div style={{ padding: 24, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Nenhum tutor encontrado.</div>
+              : filteredOwners.map(renderOwnerRow)
+            }
+          </div>
+        </div>
 
-        <input className="vt-input" placeholder="Buscar por paciente ou tutor…" value={query} onChange={e => setQuery(e.target.value)}
-          style={{ width: '100%', marginBottom: 16, maxWidth: 520 }} />
-
-        {Object.keys(byOwner).length === 0 && (
-          <div style={{ textAlign: 'center', padding: 40, color: 'var(--muted)' }}>Nenhum paciente encontrado.</div>
-        )}
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 600 }}>
-          {Object.entries(byOwner).map(([owner, patients]) => (
-            <div key={owner} style={{ border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
-              <button onClick={() => setExpanded(e => ({ ...e, [owner]: !e[owner] }))}
-                style={{ width: '100%', textAlign: 'left', padding: '12px 16px', background: 'var(--card)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 16 }}>👤</span>
-                <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>{owner}</span>
-                <span style={{ fontSize: 12, color: 'var(--muted)' }}>{patients.length} animal(is)</span>
-                <span style={{ color: 'var(--muted)', fontSize: 12 }}>{expanded[owner] ? '▲' : '▼'}</span>
-              </button>
-              {expanded[owner] && (
-                <div style={{ background: 'var(--bg)' }}>
-                  {patients.map(p => {
+        {/* Coluna Direita – Pacientes */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ padding: '13px 16px 10px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>Paciente</span>
+            <button className="vt-btn-ghost" style={{ fontSize: 11, padding: '3px 8px' }}>Adicionar Paciente +</button>
+          </div>
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+            <input className="vt-input" placeholder="🔍 Buscar animal…" value={patientQuery} onChange={e => setPatientQuery(e.target.value)}
+              style={{ width: '100%', fontSize: 13 }} disabled={!selectedOwner} />
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {!selectedOwner
+              ? <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 32 }}>
+                  <div style={{ textAlign: 'center', color: 'var(--muted)' }}>
+                    <div style={{ fontSize: 38, marginBottom: 10 }}>🐾</div>
+                    <div style={{ fontSize: 13 }}>Selecione um tutor para ver os pacientes</div>
+                  </div>
+                </div>
+              : ownerPatients.length === 0
+                ? <div style={{ padding: 24, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Nenhum animal encontrado.</div>
+                : ownerPatients.map(p => {
                     const sp = speciesLabel(p);
                     const isSelected = wiz.patientId === p.id;
+                    const lastVisit = getLastVisit(p.id);
                     return (
                       <button key={p.id} onClick={() => select(p)}
-                        style={{ width: '100%', textAlign: 'left', padding: '11px 18px 11px 36px', background: isSelected ? 'var(--teal-t, #e2f4f3)' : 'transparent',
-                          border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: 18 }}>{sp.emoji}</span>
+                        style={{ width: '100%', textAlign: 'left', padding: '12px 16px',
+                          background: isSelected ? '#e8f5f4' : 'transparent',
+                          border: 'none', borderBottom: '1px solid var(--line)', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 24 }}>{sp.emoji}</span>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, fontSize: 13, color: isSelected ? 'var(--teal)' : 'var(--ink)' }}>{p.name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{p.species || sp.label} {p.breed ? '· ' + p.breed : ''} {p.sex ? '· ' + p.sex : ''}</div>
+                          <div style={{ fontWeight: 600, fontSize: 14, color: isSelected ? 'var(--teal)' : 'var(--ink)' }}>{p.name}</div>
+                          {lastVisit
+                            ? <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                                ATEND. ANTERIOR: <span style={{ color: '#d63031', fontWeight: 700 }}>{formatDate(lastVisit)}</span>
+                              </div>
+                            : <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                                {p.species || sp.label}{p.breed ? ' · ' + p.breed : ''}{p.sex ? ' · ' + p.sex : ''}
+                              </div>
+                          }
                         </div>
-                        {isSelected && <span style={{ color: 'var(--teal)', fontWeight: 700, fontSize: 13 }}>✓ Selecionado</span>}
+                        <span style={{ color: 'var(--muted)', fontSize: 16 }}>›</span>
                       </button>
                     );
-                  })}
-                </div>
-              )}
-            </div>
-          ))}
+                  })
+            }
+          </div>
         </div>
       </div>
     );
@@ -376,112 +459,131 @@
 
   /* ─── PASSO 2: Avaliação Inicial ─────────────────────────── */
   function Step2Avaliacao({ wiz, setW }) {
-    const hasHistory = useMemo(() => {
-      const hist = JSON.parse(localStorage.getItem(`vt-odonto-hist:${wiz.patientId}`) || '[]');
-      return hist.length > 0;
-    }, [wiz.patientId]);
+    const bcsMax = 9;
+    const bcsScore = wiz.condScore || 5;
+    const MAX_NOTES = 270;
+    const FARMACOS = ['Detomidina', 'Butorfanol', 'Iombina', 'Dexmedetomidina', 'Acepromazina', 'Midazolam', 'Propofol', 'Ketamina', 'Xilazina', 'Morfina', 'Tramadol', 'Outro'];
 
-    const protocols = useMemo(() => window.vtSedProtocols ? window.vtSedProtocols() : [], []);
+    const sedAtiva = wiz.sedAtiva || false;
+    const sedRows = wiz.sedRows || [
+      { tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' },
+      { tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' },
+    ];
 
-    const SCORE_LABELS = ['N/A', '1 — Saudável', '2 — Leve', '3 — Moderada', '4 — Grave', '5 — Muito Grave'];
-
-    const applyProtocol = (proto) => {
-      if (!proto) return;
-      const p = protocols.find(p => p.nome === proto);
-      if (p) setW({ sedTipo: p.nome, sedDose: p.dose || '', sedVia: p.via || '', sedObs: p.obs || '' });
+    const updateSedRow = (i, field, val) => {
+      const rows = sedRows.map((r, idx) => idx === i ? { ...r, [field]: val } : r);
+      setW({ sedRows: rows, sedTipo: rows.filter(r => r.tipo).map(r => r.tipo).join(', ') });
     };
+
+    const loadPrevNotes = () => {
+      const hist = JSON.parse(localStorage.getItem('vt-odonto-hist:' + wiz.patientId) || '[]');
+      if (!hist.length) return;
+      hist.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      if (hist[0].clinicalNotes) setW({ clinicalNotes: hist[0].clinicalNotes });
+    };
+
+    const bcsLabel = (n) => {
+      if (n <= 2) return 'Caquético / Muito magro';
+      if (n <= 4) return 'Abaixo do peso';
+      if (n === 5) return 'Peso ideal';
+      if (n <= 7) return 'Acima do peso';
+      return 'Obeso / Muito obeso';
+    };
+
+    const inputStyle = { padding: '7px 8px', fontSize: 13, border: '1px solid var(--line)', borderRadius: 7, background: 'var(--card)', color: 'var(--ink)', width: '100%', boxSizing: 'border-box' };
 
     return (
       <div style={{ padding: 24, flex: 1, overflowY: 'auto' }}>
         <h2 style={{ margin: '0 0 4px', fontSize: 20, color: 'var(--navy, #16395f)' }}>📋 Avaliação Inicial</h2>
         <p style={{ margin: '0 0 20px', color: 'var(--muted)', fontSize: 13 }}>Paciente: <b>{wiz.patientName}</b> — {wiz.ownerName}</p>
 
-        {/* Pontuação de condição */}
+        {/* BCS Slider */}
         <div className="vt-card vt-sec vt-form" style={{ marginBottom: 16 }}>
-          <div className="vt-form-sec">Pontuação de Condição Dentária</div>
-          <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '0 0 14px' }}>Deslize para registrar a pontuação. Deixe em N/A para não registrar.</p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {SCORE_LABELS.map((lbl, i) => {
-              const val = i === 0 ? null : i;
-              const active = wiz.condScore === val;
-              return (
-                <button key={i} onClick={() => setW({ condScore: val })}
-                  style={{ padding: '7px 14px', borderRadius: 20, border: `2px solid ${active ? 'var(--teal)' : 'var(--line)'}`,
-                    background: active ? 'var(--teal)' : 'var(--card)', color: active ? '#fff' : 'var(--ink)',
-                    cursor: 'pointer', fontSize: 13, fontWeight: active ? 700 : 400 }}>
-                  {lbl}
-                </button>
-              );
-            })}
+          <div className="vt-form-sec" style={{ marginBottom: 10 }}>Condição Corporal (BCS 1–9)</div>
+          <div style={{ userSelect: 'none' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2, padding: '0 1px' }}>
+              {Array.from({ length: bcsMax }, (_, i) => i + 1).map(n => (
+                <span key={n} style={{ fontSize: 11, color: n === bcsScore ? 'var(--teal)' : 'var(--muted)', fontWeight: n === bcsScore ? 800 : 400,
+                  width: (100 / bcsMax) + '%', textAlign: 'center', display: 'block' }}>{n}</span>
+              ))}
+            </div>
+            <input type="range" min={1} max={bcsMax} step={1} value={bcsScore}
+              onChange={e => setW({ condScore: Number(e.target.value) })}
+              style={{ width: '100%', accentColor: 'var(--teal)', cursor: 'pointer', height: 20, margin: '2px 0' }} />
+            <div style={{ textAlign: 'center', marginTop: 6 }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--teal)' }}>{bcsScore}/9</span>
+              <span style={{ fontSize: 12.5, color: 'var(--muted)', marginLeft: 8 }}>{bcsLabel(bcsScore)}</span>
+            </div>
           </div>
         </div>
 
-        {/* Último tratamento — só mostra se NÃO tem histórico */}
-        {!hasHistory && (
-          <div className="vt-card vt-sec vt-form" style={{ marginBottom: 16 }}>
-            <div className="vt-form-sec">Último Período de Tratamento</div>
-            <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '0 0 12px' }}>Registre a data do último tratamento odontológico conhecido. Este campo não aparece quando o animal já possui gráficos anteriores.</p>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <input type="date" className="vt-input" value={wiz.lastTreatment} onChange={e => setW({ lastTreatment: e.target.value })} style={{ width: 180 }} />
-              <button className="vt-btn-ghost" style={{ fontSize: 12 }} onClick={() => setW({ lastTreatment: '' })}>Não informado</button>
-            </div>
-          </div>
-        )}
-        {hasHistory && (
-          <div className="vt-ai-note" style={{ marginBottom: 16, fontSize: 12.5 }}>
-            ℹ️ Este animal possui gráficos anteriores. A data do gráfico mais recente será registrada automaticamente.
-          </div>
-        )}
-
         {/* Notas de Histórico Clínico */}
         <div className="vt-card vt-sec vt-form" style={{ marginBottom: 16 }}>
-          <div className="vt-form-sec">Notas de Histórico Clínico</div>
-          <textarea className="vt-input" rows={3} placeholder="Adicione notas pré-tratamento, observações relevantes…"
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+            <div className="vt-form-sec" style={{ margin: 0, flex: 1 }}>Notas de Histórico Clínico</div>
+            <span style={{ fontSize: 12, color: 'var(--muted)', marginRight: 10 }}>({(wiz.clinicalNotes || '').length}/{MAX_NOTES})</span>
+            <button className="vt-btn-ghost" style={{ fontSize: 12, padding: '4px 10px', color: 'var(--teal)', borderColor: 'var(--teal)' }}
+              onClick={loadPrevNotes}>+ Carregar Anterior</button>
+          </div>
+          <textarea className="vt-input" rows={4} maxLength={MAX_NOTES}
+            placeholder="Adicione notas pré-tratamento, observações relevantes…"
             value={wiz.clinicalNotes} onChange={e => setW({ clinicalNotes: e.target.value })}
             style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }} />
         </div>
 
-        {/* Sedação */}
+        {/* Sedação — card com toggle */}
         <div className="vt-card vt-sec vt-form">
-          <div className="vt-form-sec">Sedação</div>
-          <div className="vt-form-row" style={{ marginBottom: 12 }}>
-            <label className="vtf" style={{ width: '48%' }}>
-              <span className="vtf-label">Veterinário assistente</span>
-              <span className="vtf-inputwrap"><input className="vtf-input" placeholder="Nome do veterinário" value={wiz.sedVet} onChange={e => setW({ sedVet: e.target.value })} /></span>
-            </label>
-            <label className="vtf" style={{ width: '48%' }}>
-              <span className="vtf-label">Protocolo pré-configurado</span>
-              <span className="vtf-inputwrap">
-                <select className="vtf-input" value={wiz.sedTipo} onChange={e => applyProtocol(e.target.value)}>
-                  <option value="">— Selecionar protocolo —</option>
-                  {protocols.map(p => <option key={p.id} value={p.nome}>{p.nome} ({p.especie})</option>)}
-                </select>
-              </span>
-            </label>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: sedAtiva ? 16 : 0 }}>
+            <div className="vt-form-sec" style={{ margin: 0, flex: 1 }}>Sedação</div>
+            <span style={{ fontSize: 12, color: 'var(--muted)', marginRight: 7 }}>{sedAtiva ? 'ON' : 'OFF'}</span>
+            <div onClick={() => setW({ sedAtiva: !sedAtiva })}
+              style={{ width: 44, height: 24, borderRadius: 12, background: sedAtiva ? 'var(--teal)' : '#bbb',
+                position: 'relative', cursor: 'pointer', transition: 'background .2s', flexShrink: 0 }}>
+              <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute',
+                top: 3, left: sedAtiva ? 23 : 3, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.25)' }} />
+            </div>
           </div>
-          <div className="vt-form-row" style={{ marginBottom: 12 }}>
-            <label className="vtf" style={{ width: '34%' }}>
-              <span className="vtf-label">Tipo / Fármaco</span>
-              <span className="vtf-inputwrap"><input className="vtf-input" placeholder="Ex: Dexmedetomidina" value={wiz.sedTipo} onChange={e => setW({ sedTipo: e.target.value })} /></span>
-            </label>
-            <label className="vtf" style={{ width: '28%' }}>
-              <span className="vtf-label">Dose</span>
-              <span className="vtf-inputwrap"><input className="vtf-input" placeholder="Ex: 0,01 mg/kg" value={wiz.sedDose} onChange={e => setW({ sedDose: e.target.value })} /></span>
-            </label>
-            <label className="vtf" style={{ width: '18%' }}>
-              <span className="vtf-label">Via</span>
-              <span className="vtf-inputwrap">
-                <select className="vtf-input" value={wiz.sedVia} onChange={e => setW({ sedVia: e.target.value })}>
-                  <option value="">—</option>
-                  {['IV', 'IM', 'SC', 'VO', 'IN', 'Tópica'].map(v => <option key={v}>{v}</option>)}
-                </select>
-              </span>
-            </label>
-          </div>
-          <label className="vtf">
-            <span className="vtf-label">Observações da sedação</span>
-            <span className="vtf-inputwrap"><input className="vtf-input" placeholder="Ex: administrado 15 min antes do procedimento" value={wiz.sedObs} onChange={e => setW({ sedObs: e.target.value })} /></span>
-          </label>
+
+          {sedAtiva && (
+            <div>
+              {/* Veterinário Presente */}
+              <div style={{ padding: '12px 14px', background: 'var(--bg)', borderRadius: 8, marginBottom: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Veterinário Presente</div>
+                <div className="vt-form-row">
+                  <label className="vtf" style={{ flex: 1 }}>
+                    <span className="vtf-label">Consultório</span>
+                    <span className="vtf-inputwrap"><input className="vtf-input" placeholder="Nome do consultório" value={wiz.sedVetConsultorio || ''} onChange={e => setW({ sedVetConsultorio: e.target.value })} /></span>
+                  </label>
+                  <label className="vtf" style={{ flex: 1 }}>
+                    <span className="vtf-label">Nome do Veterinário</span>
+                    <span className="vtf-inputwrap"><input className="vtf-input" placeholder="Dr(a)." value={wiz.sedVetNome || ''} onChange={e => setW({ sedVetNome: e.target.value, sedVet: e.target.value })} /></span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Tabela de sedação */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Protocolo</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 110px', gap: 6, marginBottom: 5, padding: '0 2px' }}>
+                  <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>Tempo</span>
+                  <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>Fármaco</span>
+                  <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>Quantidade</span>
+                </div>
+                {sedRows.map((row, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 110px', gap: 6, marginBottom: 6 }}>
+                    <input type="time" value={row.tempo} onChange={e => updateSedRow(i, 'tempo', e.target.value)} style={inputStyle} />
+                    <select value={row.tipo} onChange={e => updateSedRow(i, 'tipo', e.target.value)} style={inputStyle}>
+                      <option value="">— Fármaco —</option>
+                      {FARMACOS.map(f => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                    <input placeholder="Ex: 5 mg" value={row.quantidade} onChange={e => updateSedRow(i, 'quantidade', e.target.value)} style={inputStyle} />
+                  </div>
+                ))}
+                <button className="vt-btn-ghost" onClick={() => setW({ sedRows: [...sedRows, { tempo: '', tipo: '', quantidade: '' }] })}
+                  style={{ fontSize: 12, padding: '5px 12px', marginTop: 4 }}>+ Adicionar linha</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1447,8 +1549,10 @@
       breed: '', age: '', sex: '', color: '', weight: '', height: '',
       ownerPhone: '', ownerEmail: '', ownerAddress: '',
       propertyName: '', propertyCity: '', propertyPhone: '',
-      condScore: null, lastTreatment: '', clinicalNotes: '',
+      condScore: 5, lastTreatment: '', clinicalNotes: '',
       sedVet: '', sedTipo: '', sedDose: '', sedVia: '', sedObs: '',
+      sedAtiva: false, sedVetConsultorio: '', sedVetNome: '',
+      sedRows: [{ tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' }],
       anomalias: {}, anomaliasObs: '', chartNotes: '', chartImage: '',
       findings: {},
       charges: '', callout: '', taxRate: '', paid: false, paidType: 'Dinheiro', refNum: '',
