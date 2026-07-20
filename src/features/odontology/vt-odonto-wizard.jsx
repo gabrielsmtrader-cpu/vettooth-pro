@@ -808,7 +808,7 @@
     );
   }
 
-  /* ─── PASSO 4: Achados & Tratamentos (por espécie) ─────── */
+  /* ─── PASSO 4: Achados & Tratamentos (layout two-column) ─── */
   function Step4Tratamentos({ wiz, setW }) {
     const isHorse = /equi|caval/i.test(wiz.species || '');
     const isGato  = /gato|felin/i.test(wiz.species || '');
@@ -817,14 +817,16 @@
     const dxCfg = useMemo(() => window.vtOdontoDxCfg ? window.vtOdontoDxCfg() : {}, []);
     const speciesData = dxCfg[speciesKey] || {};
 
-    const CAT_LABELS = { incisivos:'Incisivos', caninos:'Caninos', denteslobo:'Dentes de Lobo', premolares:'Pré-molares', molares:'Molares', outros:'Outros' };
+    const CAT_LABELS = { incisivos:'Incisivos', caninos:'Caninos', denteslobo:'Dente de Lobo', premolares:'Pré-molares', molares:'Molares', outros:'Outros' };
     const catOrder = isHorse
       ? ['incisivos','caninos','denteslobo','premolares','molares','outros']
       : ['incisivos','caninos','premolares','molares','outros'];
 
-    const findings = wiz.findings || {};
+    const availCats = catOrder.filter(c => (speciesData[c] || []).length > 0);
+    const [activeCat, setActiveCat] = useState(() => availCats[0] || 'incisivos');
     const [openNotes, setOpenNotes] = useState({});
 
+    const findings = wiz.findings || {};
     const key = (cat, id) => `${cat}:${id}`;
     const getF = (cat, item) => findings[key(cat, item.id)] || { checked: false, price: item.price || 0, note: '' };
 
@@ -844,89 +846,147 @@
     const checkedItems = Object.entries(findings).filter(([,v]) => v.checked);
     const total = checkedItems.reduce((s,[,v]) => s + (parseFloat(v.price)||0), 0);
 
+    const catCheckedCount = (cat) => {
+      const items = speciesData[cat] || [];
+      return items.filter(item => (findings[key(cat, item.id)] || {}).checked).length;
+    };
+
+    const activeItems = speciesData[activeCat] || [];
+
+    if (Object.keys(speciesData).length === 0) return (
+      <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:32 }}>
+        <div className="vt-ai-note" style={{ maxWidth:480 }}>
+          Nenhum achado configurado para esta espécie. Acesse <b>Configurações → Odontograma → Achados por Espécie</b> para adicionar.
+        </div>
+      </div>
+    );
+
     return (
-      <div style={{ padding: 24, flex: 1, overflowY: 'auto' }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
-          <h2 style={{ margin:0, fontSize:20, color:'var(--ink)' }}>✅ Achados & Tratamentos</h2>
+      <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+
+        {/* ── Barra de totais ── */}
+        <div style={{ background:'var(--card)', borderBottom:'1px solid var(--line)', padding:'9px 18px', display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
+          <span style={{ fontWeight:700, fontSize:14, color:'var(--ink)' }}>✅ Tratamentos e Achados</span>
+          <span style={{ fontSize:12, color:'var(--muted)' }}>
+            {checkedItems.length > 0
+              ? <span style={{ color:'var(--teal)', fontWeight:600 }}>{checkedItems.length} item(ns) selecionado(s)</span>
+              : `Selecione os achados para ${wiz.species || 'o paciente'}`}
+          </span>
           {total > 0 && (
-            <div style={{ background:'var(--teal-t,#e2f4f3)', border:'1px solid var(--teal)', borderRadius:20, padding:'6px 16px', fontSize:14, fontWeight:700, color:'var(--teal)' }}>
+            <div style={{ marginLeft:'auto', background:'var(--teal)', borderRadius:20, padding:'5px 16px', fontSize:13, fontWeight:700, color:'#fff' }}>
               Total: R$ {total.toLocaleString('pt-BR',{minimumFractionDigits:2})}
             </div>
           )}
         </div>
-        <p style={{ margin:'0 0 18px', color:'var(--muted)', fontSize:13 }}>
-          Selecione os achados para <b>{wiz.species || 'o paciente'}</b>. Ajuste o valor e adicione anotações por item.
-          {checkedItems.length > 0 && <span style={{ color:'var(--teal)', fontWeight:600 }}> {checkedItems.length} item(ns) selecionado(s).</span>}
-        </p>
 
-        {catOrder.map(cat => {
-          const items = speciesData[cat];
-          if (!items || items.length === 0) return null;
-          return (
-            <div key={cat} style={{ marginBottom:16 }}>
-              <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:6, paddingBottom:4, borderBottom:'1px solid var(--line)' }}>
-                {CAT_LABELS[cat] || cat}
+        {/* ── Layout two-column ── */}
+        <div style={{ flex:1, display:'flex', overflow:'hidden' }}>
+
+          {/* Sidebar — categorias */}
+          <div style={{ width:200, flexShrink:0, borderRight:'1px solid var(--line)', background:'var(--card)', overflowY:'auto', padding:'8px 0' }}>
+            {availCats.map(cat => {
+              const isActive = cat === activeCat;
+              const cnt = catCheckedCount(cat);
+              return (
+                <button key={cat} onClick={() => setActiveCat(cat)}
+                  style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between',
+                    padding:'13px 18px', border:'none', cursor:'pointer', textAlign:'left',
+                    background: isActive ? '#f0faf6' : 'transparent',
+                    borderLeft: isActive ? '3.5px solid var(--teal)' : '3.5px solid transparent',
+                    fontWeight: isActive ? 700 : 400, fontSize:14,
+                    color: isActive ? 'var(--teal)' : 'var(--ink)', transition:'all .12s' }}>
+                  <span>{CAT_LABELS[cat] || cat}</span>
+                  {cnt > 0 && (
+                    <span style={{ background:'var(--teal)', color:'#fff', borderRadius:12, padding:'1px 7px', fontSize:11, fontWeight:700 }}>{cnt}</span>
+                  )}
+                </button>
+              );
+            })}
+            {/* Linha de observações gerais */}
+            <button onClick={() => setActiveCat('__obs__')}
+              style={{ width:'100%', display:'flex', alignItems:'center', padding:'13px 18px', border:'none', cursor:'pointer', textAlign:'left', marginTop:8,
+                background: activeCat === '__obs__' ? '#f0faf6' : 'transparent',
+                borderTop:'1px solid var(--line)',
+                borderLeft: activeCat === '__obs__' ? '3.5px solid var(--teal)' : '3.5px solid transparent',
+                fontWeight: activeCat === '__obs__' ? 700 : 400, fontSize:14,
+                color: activeCat === '__obs__' ? 'var(--teal)' : 'var(--muted)' }}>
+              Observações
+            </button>
+          </div>
+
+          {/* Painel direito — itens da categoria ativa */}
+          <div style={{ flex:1, overflowY:'auto', background:'var(--bg)' }}>
+            {activeCat === '__obs__' ? (
+              <div style={{ padding:24 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.07em', marginBottom:10 }}>Observações Gerais</div>
+                <textarea className="vt-input" rows={6} placeholder="Notas gerais sobre tratamentos realizados…"
+                  value={wiz.anomaliasObs || ''} onChange={e => setW({ anomaliasObs: e.target.value })}
+                  style={{ width:'100%', maxWidth:600, resize:'vertical', fontFamily:'inherit', fontSize:13 }} />
               </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                {items.map(item => {
-                  const f = getF(cat, item);
-                  const noteOpen = openNotes[key(cat, item.id)];
+            ) : (
+              <div style={{ background:'var(--card)', margin:0 }}>
+                {activeItems.map((item, idx) => {
+                  const f = getF(activeCat, item);
+                  const nk = key(activeCat, item.id);
+                  const noteOpen = openNotes[nk];
                   return (
-                    <div key={item.id} style={{ border:`1px solid ${f.checked?'var(--teal)':'var(--line)'}`, borderRadius:10,
-                      background:f.checked?'var(--teal-t,#e2f4f3)':'var(--card)', overflow:'hidden', transition:'border-color .15s' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px' }}>
-                        {/* Checkbox */}
-                        <button onClick={() => toggle(cat, item)}
-                          style={{ width:22, height:22, borderRadius:4, border:`2px solid ${f.checked?'var(--teal)':'var(--muted)'}`,
-                            background:f.checked?'var(--teal)':'transparent', display:'flex', alignItems:'center', justifyContent:'center',
-                            color:'#fff', fontSize:13, flexShrink:0, cursor:'pointer' }}>
-                          {f.checked ? '✓' : ''}
+                    <div key={item.id}>
+                      <div style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 20px',
+                        borderBottom: idx < activeItems.length - 1 ? '1px solid var(--line)' : 'none' }}>
+
+                        {/* Checkbox teal */}
+                        <button onClick={() => toggle(activeCat, item)}
+                          style={{ width:26, height:26, borderRadius:6, flexShrink:0, cursor:'pointer',
+                            border: f.checked ? 'none' : '2px solid #cbd5e0',
+                            background: f.checked ? 'var(--teal)' : 'transparent',
+                            display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          {f.checked && <span style={{ color:'#fff', fontSize:14, fontWeight:700, lineHeight:1 }}>✓</span>}
                         </button>
-                        {/* Name */}
-                        <span style={{ flex:1, fontWeight:f.checked?600:400, fontSize:14, color:f.checked?'var(--teal)':'var(--ink)' }}>{item.name}</span>
-                        {/* Price — only when checked */}
-                        {f.checked && (
-                          <label style={{ display:'flex', alignItems:'center', gap:5, flexShrink:0 }}>
-                            <span style={{ fontSize:12, color:'var(--muted)' }}>R$</span>
-                            <input type="number" min="0" step="0.01" value={f.price}
-                              onChange={e => setPrice(cat, item, parseFloat(e.target.value)||0)}
-                              style={{ width:80, border:'1px solid var(--line)', borderRadius:6, padding:'4px 7px', fontSize:13, textAlign:'right', outline:'none', background:'var(--card)', fontFamily:'inherit' }} />
-                          </label>
-                        )}
-                        {/* Notes toggle */}
-                        {f.checked && (
-                          <button onClick={() => setOpenNotes(n => ({...n, [key(cat,item.id)]: !n[key(cat,item.id)]}))}
-                            style={{ fontSize:11, padding:'3px 9px', borderRadius:6, border:'1px solid var(--line)', background:'transparent', cursor:'pointer', color:'var(--muted)', flexShrink:0 }}>
-                            {noteOpen ? '▲ Notas' : '▼ Notas'}
-                          </button>
-                        )}
+
+                        {/* Nome uppercase */}
+                        <span style={{ flex:1, fontSize:14, fontWeight:600, letterSpacing:'.03em',
+                          textTransform:'uppercase', color: f.checked ? 'var(--ink)' : 'var(--muted)' }}>
+                          {item.name}
+                        </span>
+
+                        {/* Preço */}
+                        <span style={{ fontSize:13, fontWeight:600, color:'var(--muted)', flexShrink:0 }}>R$</span>
+                        <input type="number" min="0" step="0.01" value={f.price}
+                          onChange={e => setPrice(activeCat, item, parseFloat(e.target.value)||0)}
+                          style={{ width:90, background:'var(--teal)', color:'#fff', border:'none', borderRadius:22,
+                            padding:'6px 14px', fontSize:13, fontWeight:700, textAlign:'center',
+                            outline:'none', fontFamily:'inherit', cursor: f.checked ? 'text' : 'default',
+                            opacity: f.checked ? 1 : 0.35 }}
+                          disabled={!f.checked} />
+
+                        {/* Botão + (toggle notas) */}
+                        <button onClick={() => { if (!f.checked) toggle(activeCat, item); else setOpenNotes(n => ({...n, [nk]: !n[nk]})); }}
+                          style={{ width:32, height:32, borderRadius:'50%', border:'none', cursor:'pointer', flexShrink:0,
+                            background:'var(--teal)', color:'#fff', fontSize:20, fontWeight:300,
+                            display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>
+                          {f.checked && noteOpen ? '−' : '+'}
+                        </button>
                       </div>
+
+                      {/* Nota expandida */}
                       {f.checked && noteOpen && (
-                        <div style={{ padding:'0 14px 12px' }}>
-                          <textarea className="vt-input" rows={2} placeholder={`Anotações sobre ${item.name}…`} value={f.note}
-                            onChange={e => setNote(cat, item, e.target.value)}
-                            style={{ width:'100%', fontSize:13, resize:'vertical', fontFamily:'inherit' }} />
+                        <div style={{ padding:'0 20px 14px 60px', background:'#f8fffe', borderBottom: idx < activeItems.length - 1 ? '1px solid var(--line)' : 'none' }}>
+                          <textarea className="vt-input" rows={2} placeholder={`Anotação sobre ${item.name}…`} value={f.note}
+                            onChange={e => setNote(activeCat, item, e.target.value)}
+                            style={{ width:'100%', maxWidth:500, fontSize:13, resize:'vertical', fontFamily:'inherit' }} />
                         </div>
                       )}
                     </div>
                   );
                 })}
+                {activeItems.length === 0 && (
+                  <div style={{ padding:32, textAlign:'center', color:'var(--muted)', fontSize:13 }}>
+                    Nenhum item nesta categoria.
+                  </div>
+                )}
               </div>
-            </div>
-          );
-        })}
-
-        {Object.keys(speciesData).length === 0 && (
-          <div className="vt-ai-note">
-            Nenhum achado configurado para esta espécie. Acesse <b>Configurações → Odontograma → Achados por Espécie</b> para adicionar.
+            )}
           </div>
-        )}
-
-        <div style={{ marginTop:20 }}>
-          <div style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:8 }}>Observações gerais</div>
-          <textarea className="vt-input" rows={3} placeholder="Notas gerais sobre tratamentos realizados…"
-            value={wiz.anomaliasObs} onChange={e => setW({ anomaliasObs: e.target.value })}
-            style={{ width:'100%', maxWidth:680, resize:'vertical', fontFamily:'inherit', fontSize:13 }} />
         </div>
       </div>
     );
