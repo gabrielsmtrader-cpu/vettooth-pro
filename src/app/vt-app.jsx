@@ -192,7 +192,7 @@ function SyncIndicator() {
   );
 }
 
-function TopBar({ user, onLogout, onAvatar, onProfileUpdate, nav }) {
+function TopBar({ user, onLogout, onAvatar, onProfileUpdate, nav, onLock }) {
   const [menu, setMenu] = useState(false);
   const [modal, setModal] = useState(null); // 'perfil' | 'atalhos' | 'novidades' | 'ajuda'
   const [dark, setDark] = useState(() => document.body.classList.contains('vt-dark'));
@@ -261,6 +261,7 @@ function TopBar({ user, onLogout, onAvatar, onProfileUpdate, nav }) {
       <div className="vt-topbar-spacer" />
       <div className="vt-topbar-actions">
         <SyncIndicator />
+        {onLock && <button className="vt-bell" title="Bloquear tela (PIN)" onClick={onLock} style={{ fontSize: 16 }}>🔒</button>}
         <button className="vt-bell" onClick={() => window.vtToast && window.vtToast('Sem notificações novas.', 'ok')}><VtIcon name="bell" size={20} /><span className="dot" /></button>
         <div className="vt-user" style={{ position: 'relative' }} onClick={() => setMenu(!menu)}>
           {user && user.avatar ? <img className="vt-avatar" src={user.avatar} alt="" style={{ objectFit: 'cover' }} /> : <div className="vt-avatar">{initials}</div>}
@@ -552,7 +553,7 @@ function Dashboard({ setActive }) {
     <div>
       <div className="vt-page-head">
         <h1>Dashboard</h1>
-        <p>Visão geral da clínica — dados em tempo real</p>
+        <p>Visão geral {(() => { const t = window.vtSysCfg && window.vtSysCfg().tipo; return t === 'hospital' ? 'do hospital' : t === 'volante' ? 'do atendimento' : 'da clínica'; })()} — dados em tempo real</p>
       </div>
 
       <div className="vt-grid vt-kpis vt-anim" style={{ marginBottom: 18 }}>
@@ -685,16 +686,16 @@ function Dashboard({ setActive }) {
 }
 
 /* ----------------------- Odontograma (módulo nativo OdontogramaModule) ----------------------- */
-function Odontograma({ patientId }) {
-  if (!window.OdontogramaModule) return (
+function Odontograma({ patientId, onClose }) {
+  if (!window.OdontogramaWizard) return (
     <div className="vt-frame-wrap" style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12, color:'var(--muted)' }}>
-      <div style={{ width:32, height:32, border:'3px solid var(--line)', borderTopColor:'var(--primary)', borderRadius:'50%', animation:'vtspin .7s linear infinite' }} />
+      <div style={{ width:32, height:32, border:'3px solid var(--line)', borderTopColor:'var(--teal)', borderRadius:'50%', animation:'vtspin .7s linear infinite' }} />
       Carregando odontograma…
     </div>
   );
   return (
-    <div className="vt-frame-wrap od-embed">
-      <window.OdontogramaModule initialPatientId={patientId || ''} />
+    <div className="vt-frame-wrap od-embed" style={{ padding:0, overflow:'hidden' }}>
+      <window.OdontogramaWizard onClose={onClose} />
     </div>
   );
 }
@@ -717,6 +718,45 @@ function Placeholder({ nav }) {
 }
 
 /* ----------------------- App ----------------------- */
+/* ---- PIN lock screen ---- */
+function PinLockScreen({ user, onUnlock, onLogout }) {
+  const [digits, setDigits] = useState('');
+  const [err, setErr] = useState(false);
+  const pin = (() => { const d = window.VtStore && window.VtStore.getData(); return (d && d.securityCfg && d.securityCfg.pin) || ''; })();
+  const enter = (d) => {
+    const next = (digits + d).slice(0, 4);
+    setDigits(next);
+    setErr(false);
+    if (next.length === 4) {
+      if (next === pin) { onUnlock(); }
+      else { setErr(true); setTimeout(() => setDigits(''), 500); }
+    }
+  };
+  const del = () => setDigits((p) => p.slice(0, -1));
+  const dots = Array.from({ length: 4 }, (_, i) => digits.length > i);
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'var(--ink, #0e2c4d)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
+      <div style={{ color: '#fff', fontSize: 32, marginBottom: 4 }}>🔒</div>
+      <div style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>{user.name || 'VetTooth Pro'}</div>
+      <div style={{ color: 'rgba(255,255,255,.55)', fontSize: 13 }}>Digite o PIN para desbloquear</div>
+      <div style={{ display: 'flex', gap: 14, margin: '8px 0' }}>
+        {dots.map((filled, i) => <div key={i} style={{ width: 16, height: 16, borderRadius: '50%', background: err ? '#f87171' : filled ? '#fff' : 'transparent', border: '2px solid ' + (err ? '#f87171' : 'rgba(255,255,255,.5)'), transition: 'background .15s' }} />)}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 72px)', gap: 12 }}>
+        {[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map((k, i) => k === '' ? <div key={i} /> : (
+          <button key={i} onClick={() => k === '⌫' ? del() : enter(String(k))}
+            style={{ width: 72, height: 72, borderRadius: 16, border: '1.5px solid rgba(255,255,255,.2)', background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: k === '⌫' ? 22 : 26, fontWeight: 600, cursor: 'pointer', transition: 'background .1s' }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,.18)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,.08)'}>
+            {k}
+          </button>
+        ))}
+      </div>
+      <button onClick={onLogout} style={{ marginTop: 8, background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>Sair da conta</button>
+    </div>
+  );
+}
+
 function App() {
   const [user, setUser] = useState(() => { const u = window.VtStore.currentUser(); if (u) { window.VtStore.migrate(); const cfg = window.vtSysCfg && window.vtSysCfg(); if (cfg && cfg.cor) document.documentElement.style.setProperty('--teal', cfg.cor); } return u; });
   const [active, setActive] = useState('dashboard');
@@ -727,7 +767,9 @@ function App() {
   const [odontoPatient, setOdontoPatient] = useState(null);
   const [focusIA, setFocusIA] = useState(null);
   const [dataVer, setDataVer] = useState(0);
+  const [pinLocked, setPinLocked] = useState(false);
   const flush = active === 'odontograma';
+  const inactivityTimer = React.useRef(null);
 
   // Escuta restauração de dados do Supabase → força re-render de todos os módulos
   useEffect(() => {
@@ -738,7 +780,33 @@ function App() {
     return () => { document.removeEventListener('vtDataRestored', handler); window.removeEventListener('vtCfgChanged', handler); delete window.vtForceRefresh; };
   }, []);
 
+  // Inactivity PIN lock
+  useEffect(() => {
+    if (!user) return;
+    const getTimeoutMs = () => {
+      const d = window.VtStore && window.VtStore.getData();
+      const cfg = d && d.securityCfg;
+      const pin = cfg && cfg.pin;
+      if (!pin) return 0;
+      const t = (cfg && cfg.timeout) || '30';
+      if (t === 'never') return 0;
+      return parseInt(t, 10) * 60 * 1000;
+    };
+    const reset = () => {
+      clearTimeout(inactivityTimer.current);
+      const ms = getTimeoutMs();
+      if (ms > 0) inactivityTimer.current = setTimeout(() => setPinLocked(true), ms);
+    };
+    const events = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'];
+    events.forEach((ev) => document.addEventListener(ev, reset, { passive: true }));
+    reset();
+    window.vtLockScreen = () => setPinLocked(true);
+    return () => { events.forEach((ev) => document.removeEventListener(ev, reset)); clearTimeout(inactivityTimer.current); delete window.vtLockScreen; };
+  }, [user]);
+
   if (!user) return <AuthScreen onAuthed={(u) => { setUser(u); setActive('dashboard'); }} />;
+
+  if (pinLocked) return <PinLockScreen user={user} onUnlock={() => setPinLocked(false)} onLogout={() => { window.VtStore.logout(); setUser(null); setPinLocked(false); }} />;
 
   // expõe setActive e openIA para launchers globais
   window._vtSetActive = setActive;
@@ -760,13 +828,13 @@ function App() {
     <div className="vt-app">
       <Sidebar active={active} setActive={setActive} />
       <div className="vt-main">
-        <TopBar user={user} onLogout={logout} onAvatar={(a) => setUser((u) => ({ ...u, avatar: a }))} onProfileUpdate={(p) => setUser((u) => ({ ...u, ...p }))} nav={navSearch} />
+        <TopBar user={user} onLogout={logout} onAvatar={(a) => setUser((u) => ({ ...u, avatar: a }))} onProfileUpdate={(p) => setUser((u) => ({ ...u, ...p }))} nav={navSearch} onLock={() => { const d = window.VtStore && window.VtStore.getData(); if (d && d.securityCfg && d.securityCfg.pin) setPinLocked(true); else window.vtToast('Configure um PIN em Configurações → Segurança para usar o bloqueio.', 'err'); }} />
         <main className={`vt-content${flush ? ' flush' : ''}`}>
           {active === 'dashboard' && <Dashboard key={'dash-'+dataVer} setActive={setActive} user={user} />}
           {active === 'pacientes' && <PacientesModule key={'pac-'+dataVer} openOdonto={openOdonto} goAgenda={() => setActive('agenda')} openAgendaNew={openAgendaNew} openAtendimento={openAtendimento} focusPatientId={focusPatient} clearFocus={() => setFocusPatient(null)} />}
           {active === 'clientes' && <ClientesModule key={'cli-'+dataVer} openPatient={openPatient} focusOwnerName={focusOwner} clearFocus={() => setFocusOwner(null)} />}
           {active === 'agenda' && <AgendaModule key={'ag-'+dataVer} focusNewPatient={focusAgenda} clearAgendaFocus={() => setFocusAgenda(null)} onIniciarAtendimento={iniciarAtendimentoFromAgenda} />}
-          {active === 'odontograma' && <Odontograma patientId={odontoPatient} />}
+          {active === 'odontograma' && <Odontograma patientId={odontoPatient} onClose={() => setActive('atendimentos')} />}
           {active === 'atendimentos' && <AtendimentosModule key={'at-'+dataVer} openPatient={openPatient} openOdonto={openOdonto} focus={focusAtend} clearFocus={() => setFocusAtend(null)} />}
           {active === 'insumos' && <EstoqueModule3 key={'est-'+dataVer} />}
           {active === 'financas' && <FinancasModuleV4 key={'fin-'+dataVer} />}

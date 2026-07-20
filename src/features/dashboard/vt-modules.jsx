@@ -2468,28 +2468,15 @@ function SegurancaTab() {
   });
   const save = (next) => { setC(next); if (window.VtStore) window.VtStore.setData({ securityCfg: next }); };
   const set = (k, v) => save({ ...c, [k]: v });
-  const [pw, setPw] = vtUseState({ atual: '', nova: '' });
-  const changePw = async () => {
-    if (!window.VtStore || !window.VtStore.changePassword) { window.vtToast('Indisponível.', 'err'); return; }
-    if ((pw.nova || '').length < 6) { window.vtToast('A nova senha precisa de 6+ caracteres.', 'err'); return; }
-    const r = await window.VtStore.changePassword(pw.atual, pw.nova);
-    if (r.ok) { window.vtToast('Senha alterada.', 'ok'); setPw({ atual: '', nova: '' }); } else window.vtToast(r.error || 'Falha.', 'err');
-  };
   const log = (() => { const d = window.VtStore && window.VtStore.getData(); return (d && d.accessLog) || []; })();
   return (
     <div>
-      <div className="vt-card vt-sec vt-form" style={{ marginBottom: 16 }}>
-        <div className="vt-form-sec">Alterar senha</div>
-        <div className="vt-form-row">
-          <label className="vtf" style={{ width: '48%' }}><span className="vtf-label">Senha atual</span><span className="vtf-inputwrap"><input className="vtf-input" type="password" value={pw.atual} onChange={(e) => setPw({ ...pw, atual: e.target.value })} /></span></label>
-          <label className="vtf" style={{ width: '48%' }}><span className="vtf-label">Nova senha</span><span className="vtf-inputwrap"><input className="vtf-input" type="password" value={pw.nova} onChange={(e) => setPw({ ...pw, nova: e.target.value })} placeholder="6+ caracteres" /></span></label>
-        </div>
-        <div className="vt-form-actions"><button className="vt-btn-primary" onClick={changePw}>Salvar nova senha</button></div>
+      <div className="vt-ai-note" style={{ marginBottom: 14, fontSize: 13 }}>
+        💡 Para <b>alterar a senha</b> de acesso da conta, vá em <b>Configurações → Conta &amp; Backup</b>.
       </div>
-
       <div className="vt-card vt-sec vt-form" style={{ marginBottom: 16 }}>
-        <div className="vt-form-sec">PIN de acesso rápido</div>
-        <p className="vt-muted" style={{ fontSize: 13, marginTop: 0 }}>PIN de 4 dígitos para desbloqueio rápido em terminais compartilhados.</p>
+        <div className="vt-form-sec">PIN de bloqueio de tela</div>
+        <p className="vt-muted" style={{ fontSize: 13, marginTop: 0 }}>PIN de 4 dígitos para bloquear e desbloquear a tela rapidamente — útil em terminais compartilhados. Use o botão 🔒 no topo para bloquear manualmente.</p>
         <div className="vt-form-row" style={{ alignItems: 'flex-end' }}>
           <label className="vtf" style={{ width: '30%' }}><span className="vtf-label">PIN (4 dígitos)</span><span className="vtf-inputwrap"><input className="vtf-input" inputMode="numeric" maxLength={4} value={c.pin || ''} onChange={(e) => set('pin', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="••••" /></span></label>
           {c.pin && <button className="vt-btn-ghost" style={{ flex: 'none' }} onClick={() => set('pin', '')}>Remover PIN</button>}
@@ -3081,8 +3068,14 @@ function ContaTab() {
         <div className="vt-form-actions"><button className="vt-btn-primary" onClick={saveMe}>Salvar assinatura</button></div>
       </div>
 
+      {(() => { const [icpOpen, setIcpOpen] = vtUseState(false); return (
       <div className="vt-card vt-sec vt-form" style={{ marginBottom: 16 }}>
-        <div className="vt-form-sec">🔏 Certificado Digital ICP-Brasil</div>
+        <div className="vt-form-sec" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }} onClick={() => setIcpOpen(p => !p)}>
+          <span>🔏 Certificado Digital ICP-Brasil</span>
+          <span style={{ fontSize:12, color:'var(--muted)', fontWeight:400 }}>{icpOpen ? '▲ recolher' : '▼ expandir'}</span>
+        </div>
+        {!icpOpen && <p className="vt-muted" style={{ fontSize:12.5, margin:'4px 0 0' }}>Configuração de e-CPF A1/A3 para assinatura qualificada de receituário de controle especial.</p>}
+        {icpOpen && <div>
         <div style={{ marginBottom: 12, padding: '10px 14px', background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 8, fontSize: 12.5, color: '#1e40af' }}>
           <b>Tipo de assinatura por receituário:</b><br />
           • <b>Simples / Antimicrobiano:</b> Assinatura Avançada — Gov.br prata/ouro (Lei 14.063/2020)<br />
@@ -3166,7 +3159,9 @@ function ContaTab() {
           <button className="vt-btn-primary" onClick={saveMe}>Salvar dados do certificado</button>
           <a href="https://assinador.iti.br" target="_blank" rel="noopener noreferrer" className="vt-btn-ghost" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>🔗 Assinador ITI (backup)</a>
         </div>
+        </div>}
       </div>
+      ); })()}
 
       <div className="vt-card vt-sec vt-form">
         <div className="vt-form-sec">Alterar senha</div>
@@ -3253,11 +3248,16 @@ function SistemaTab() {
 
       <div className="vt-card vt-sec" style={{ marginBottom: 16 }}>
         <div className="vt-form-sec">Tipo de operação</div>
-        <p className="vt-muted" style={{ fontSize: 13, marginTop: 0 }}>Ajusta termos e módulos do sistema ao seu perfil.</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
+        <p className="vt-muted" style={{ fontSize: 13, marginTop: 0 }}>Ajusta termos e descrições do sistema ao seu perfil.</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9, marginBottom: 12 }}>
           {[['clinica', 'Clínica veterinária'], ['hospital', 'Hospital veterinário'], ['volante', 'Veterinário(a) volante']].map(([id, l]) => (
             <button key={id} className={`pr-check${(c.tipo || 'clinica') === id ? ' on' : ''}`} onClick={() => set('tipo', id)}><span className="pr-check-box" style={(c.tipo || 'clinica') === id ? { background: 'var(--teal)', borderColor: 'var(--teal)' } : null}>{(c.tipo || 'clinica') === id ? '✓' : ''}</span>{l}</button>
           ))}
+        </div>
+        <div style={{ fontSize: 12.5, color: 'var(--muted)', padding: '8px 12px', background: 'var(--bg)', borderRadius: 8 }}>
+          {(c.tipo || 'clinica') === 'clinica' && '🏥 Modo Clínica: dashboard mostra "visão geral da clínica". Ideal para consultórios e policlínicas.'}
+          {(c.tipo || 'clinica') === 'hospital' && '🏨 Modo Hospital: dashboard mostra "visão geral do hospital". Ideal para centros cirúrgicos e internação.'}
+          {(c.tipo || 'clinica') === 'volante' && '🚗 Modo Volante: dashboard mostra "visão geral do atendimento". Ideal para veterinário autônomo sem estrutura fixa.'}
         </div>
       </div>
 
@@ -3680,7 +3680,286 @@ function ConsultasTab() {
   );
 }
 
+function ModelosConsultaTab() {
+  const ALL_MODELS = (window.vtConsultModels ? window.vtConsultModels() : window.PR.consultModels).filter((m) => m.id !== 'livre');
+  const [editing, setEditing] = vtUseState(null); // modelId being edited
+  const [tab, setTabM] = vtUseState('anamnese'); // editor sub-tab
+
+  /* ── dados por modelo ── */
+  const [roteiros, setRoteiros] = vtUseState(() => window.vtConsultRoteiros());
+  const [anameseMap, setAnameseMap] = vtUseState(() => {
+    const out = {};
+    ALL_MODELS.forEach((m) => { out[m.id] = window.vtAnamneseFor(m.id).map((x) => ({ ...x })); });
+    return out;
+  });
+  const [globalExame, setGlobalExame] = vtUseState(() => window.vtExamCfg().map((x) => ({ ...x })));
+  const [globalSistemas, setGlobalSistemas] = vtUseState(() => [...window.vtSistemasCfg()]);
+
+  const openModel = (id) => { setEditing(id); setTabM('anamnese'); };
+  const closeModel = () => setEditing(null);
+
+  const getAnm = (id) => anameseMap[id] || [];
+  const setAnm = (id, list) => {
+    setAnameseMap((m) => ({ ...m, [id]: list }));
+    window.vtSaveAnamneseFor(id, list);
+  };
+  const getRoteiro = (id) => (roteiros[id] || {}).items || [];
+  const setRoteiro = (id, items) => {
+    const next = { ...roteiros, [id]: { ...(roteiros[id] || {}), items } };
+    setRoteiros(next); window.vtSaveConsultRoteiros(next);
+  };
+  const getInc = (id) => window.vtConsultInclude(id);
+  const toggleInc = (id, k) => { const cur = getInc(id); window.vtSaveConsultInclude(id, { ...cur, [k]: !cur[k] }); setTabM((t) => t); };
+
+  /* ── Anamnese editor ── */
+  const AnmEditor = ({ modelId }) => {
+    const list = getAnm(modelId);
+    const upd = (i, k, v) => setAnm(modelId, list.map((x, j) => j === i ? { ...x, [k]: v } : x));
+    const del = (i) => setAnm(modelId, list.filter((_, j) => j !== i));
+    const add = () => setAnm(modelId, [...list, { k: 'q' + Date.now().toString(36), q: '', type: 'text', opts: [] }]);
+    return (
+      <div>
+        <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 14px' }}>Configure as perguntas da anamnese para este modelo. Tipo <b>Texto</b> = caixa de entrada livre. Tipo <b>Botões</b> = seleção rápida com opções.</p>
+        {list.map((it, i) => (
+          <div key={i} style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10, padding: 14, marginBottom: 10 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: it.type === 'quick' ? 10 : 0, flexWrap: 'wrap' }}>
+              <input value={it.q} onChange={(e) => upd(i, 'q', e.target.value)} placeholder="Pergunta…"
+                style={{ flex: 2, fontFamily: 'inherit', fontSize: 13.5, border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px', minWidth: 160 }} />
+              <select value={it.type} onChange={(e) => upd(i, 'type', e.target.value)}
+                style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--line)', fontSize: 13 }}>
+                <option value="text">Caixa de texto</option>
+                <option value="quick">Botões de seleção</option>
+              </select>
+              <button className="pr-del-btn" onClick={() => del(i)}>✕</button>
+            </div>
+            {it.type === 'quick' && (
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Opções dos botões (separadas por vírgula):</div>
+                <input value={(it.opts || []).join(', ')} onChange={(e) => upd(i, 'opts', e.target.value.split(',').map((s) => s.trim()).filter(Boolean))}
+                  placeholder="Ex: Sim, Não, Às vezes"
+                  style={{ width: '100%', fontFamily: 'inherit', fontSize: 13, border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px' }} />
+                {(it.opts || []).length > 0 && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                    <span style={{ fontSize: 11, color: 'var(--muted)', marginRight: 4 }}>Prévia:</span>
+                    {(it.opts || []).map((opt, oi) => (
+                      <span key={oi} style={{ padding: '3px 10px', borderRadius: 12, border: '1.5px solid var(--teal)', color: 'var(--teal)', fontSize: 12 }}>{opt}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+        {list.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>Nenhuma pergunta configurada. Clique em "+ Adicionar" para começar.</p>}
+        <button className="pr-addrow" onClick={add} style={{ marginTop: 4 }}><VtIcon name="plus" size={14} /> Adicionar pergunta</button>
+      </div>
+    );
+  };
+
+  /* ── Roteiro editor ── */
+  const RoteiroEditor = ({ modelId }) => {
+    const items = getRoteiro(modelId);
+    const upd = (i, v) => setRoteiro(modelId, items.map((x, j) => j === i ? v : x));
+    const del = (i) => setRoteiro(modelId, items.filter((_, j) => j !== i));
+    const add = () => setRoteiro(modelId, [...items, '']);
+    return (
+      <div>
+        <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 14px' }}>Itens do roteiro de avaliação. Cada item aparece na aba Consulta com botões Normal / Alterado / N-A e campo de observação.</p>
+        {items.map((it, i) => (
+          <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+            <span style={{ color: 'var(--muted)', fontSize: 13, minWidth: 20 }}>{i + 1}.</span>
+            <input value={it} onChange={(e) => upd(i, e.target.value)} placeholder="Ex: Avaliação periodontal"
+              style={{ flex: 1, fontFamily: 'inherit', fontSize: 13.5, border: '1px solid var(--line)', borderRadius: 8, padding: '9px 11px' }} />
+            <button className="pr-del-btn" onClick={() => del(i)}>✕</button>
+          </div>
+        ))}
+        {items.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 13 }}>Nenhum item no roteiro deste modelo.</p>}
+        <button className="pr-addrow" onClick={add} style={{ marginTop: 4 }}><VtIcon name="plus" size={14} /> Adicionar item</button>
+      </div>
+    );
+  };
+
+  /* ── Seções editor ── */
+  const SecoesEditor = ({ modelId }) => {
+    const [tick, setTick] = vtUseState(0);
+    const inc = getInc(modelId);
+    const tog = (k) => { toggleInc(modelId, k); setTick((n) => n + 1); };
+    const incNow = window.vtConsultInclude(modelId);
+    return (
+      <div>
+        <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 18px' }}>Defina quais seções aparecem durante uma consulta deste modelo.</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 480 }}>
+          {[
+            { k: null, l: 'Anamnese', always: true, desc: 'Perguntas sobre histórico e queixas do paciente' },
+            { k: 'exame', l: 'Exame Físico', desc: 'Parâmetros vitais (temperatura, FC, FR, peso…)' },
+            { k: 'roteiro', l: 'Roteiro de Avaliação', desc: 'Lista de itens configurados na aba acima' },
+            { k: 'sistemas', l: 'Avaliação por Sistemas', desc: 'Cardiovascular, Respiratório, Digestório…' },
+            { k: null, l: 'Diagnóstico', always: true, desc: 'Diagnóstico definitivo e observações' },
+          ].map(({ k, l, always, desc }) => {
+            const on = always || incNow[k];
+            return (
+              <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10,
+                border: `1px solid ${on ? 'var(--teal)' : 'var(--line)'}`, background: on ? 'var(--teal-t, #e2f4f3)' : 'var(--card)' }}>
+                {always ? (
+                  <div style={{ width: 20, height: 20, borderRadius: 4, background: 'var(--teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, flexShrink: 0 }}>✓</div>
+                ) : (
+                  <button onClick={() => tog(k)} style={{ width: 20, height: 20, borderRadius: 4, border: `2px solid ${on ? 'var(--teal)' : 'var(--muted)'}`,
+                    background: on ? 'var(--teal)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, cursor: 'pointer', padding: 0, flexShrink: 0 }}>
+                    {on ? '✓' : ''}
+                  </button>
+                )}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: on ? 'var(--teal)' : 'var(--ink)' }}>{l} {always && <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--muted)' }}>(sempre ativo)</span>}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>{desc}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  /* ── Campos Globais editor ── */
+  const CamposGlobaisEditor = () => {
+    const [open, setOpen] = vtUseState('exame');
+    const saveAll = () => {
+      window.vtSaveExamCfg(globalExame.filter((x) => x.l && x.l.trim()).map((x) => ({ ...x, k: x.k || x.l.toLowerCase().replace(/\s+/g, '_') })));
+      window.vtSaveSistemasCfg(globalSistemas.filter((x) => x && x.trim()));
+      window.vtToast('Campos globais salvos.', 'ok');
+    };
+    const Acc = ({ id, title, children }) => (
+      <div style={{ border: '1px solid var(--line)', borderRadius: 10, marginBottom: 10, overflow: 'hidden' }}>
+        <button onClick={() => setOpen(open === id ? '' : id)} style={{ width: '100%', textAlign: 'left', padding: '12px 16px', background: open === id ? 'var(--teal-t, #e2f4f3)' : 'var(--card)', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14, display: 'flex', justifyContent: 'space-between' }}>
+          {title} <span style={{ color: 'var(--muted)' }}>{open === id ? '▲' : '▼'}</span>
+        </button>
+        {open === id && <div style={{ padding: '14px 16px', background: 'var(--bg)' }}>{children}</div>}
+      </div>
+    );
+    return (
+      <div>
+        <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 14px' }}>Campos compartilhados por todos os modelos. Alterações afetam todas as consultas.</p>
+        <Acc id="exame" title={`Parâmetros do Exame Físico (${globalExame.length})`}>
+          {globalExame.map((it, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+              <input value={it.l} onChange={(e) => setGlobalExame(globalExame.map((x, j) => j === i ? { ...x, l: e.target.value } : x))}
+                placeholder="Parâmetro" style={{ flex: 2, fontFamily: 'inherit', fontSize: 13.5, border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px' }} />
+              <input value={it.u} onChange={(e) => setGlobalExame(globalExame.map((x, j) => j === i ? { ...x, u: e.target.value } : x))}
+                placeholder="Unidade" style={{ flex: 1, fontFamily: 'inherit', fontSize: 13.5, border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px' }} />
+              <input value={it.ph || ''} onChange={(e) => setGlobalExame(globalExame.map((x, j) => j === i ? { ...x, ph: e.target.value } : x))}
+                placeholder="Valor padrão" style={{ flex: 1, fontFamily: 'inherit', fontSize: 13.5, border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px' }} />
+              <button className="pr-del-btn" onClick={() => setGlobalExame(globalExame.filter((_, j) => j !== i))}>✕</button>
+            </div>
+          ))}
+          <button className="pr-addrow" onClick={() => setGlobalExame([...globalExame, { k: 'p' + Date.now().toString(36), l: '', u: '', ph: '' }])}><VtIcon name="plus" size={14} /> Adicionar parâmetro</button>
+        </Acc>
+        <Acc id="sistemas" title={`Sistemas da Avaliação Clínica (${globalSistemas.length})`}>
+          {globalSistemas.map((s, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+              <input value={s} onChange={(e) => setGlobalSistemas(globalSistemas.map((x, j) => j === i ? e.target.value : x))}
+                placeholder="Ex: Cardiovascular" style={{ flex: 1, fontFamily: 'inherit', fontSize: 13.5, border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px' }} />
+              <button className="pr-del-btn" onClick={() => setGlobalSistemas(globalSistemas.filter((_, j) => j !== i))}>✕</button>
+            </div>
+          ))}
+          <button className="pr-addrow" onClick={() => setGlobalSistemas([...globalSistemas, ''])}><VtIcon name="plus" size={14} /> Adicionar sistema</button>
+        </Acc>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <button className="vt-btn-primary" onClick={saveAll}>Salvar campos globais</button>
+        </div>
+      </div>
+    );
+  };
+
+  /* ── Editor de um modelo ── */
+  if (editing) {
+    const model = ALL_MODELS.find((m) => m.id === editing);
+    const TABS_M = [
+      { id: 'anamnese', label: 'Anamnese' },
+      { id: 'roteiro',  label: 'Roteiro de Avaliação' },
+      { id: 'secoes',   label: 'Seções Visíveis' },
+      { id: 'globais',  label: 'Campos Globais' },
+    ];
+    return (
+      <div>
+        <button className="vt-link" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14, fontSize: 13 }} onClick={closeModel}>
+          ← Voltar aos modelos
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--teal-t, #e2f4f3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
+            <VtIcon name={model && model.icon || 'stethoscope'} size={22} />
+          </div>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 18, color: 'var(--navy, #16395f)' }}>{model && model.label}</h2>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>{model && model.desc}</p>
+          </div>
+        </div>
+        <div className="vt-chip-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
+          {TABS_M.map((t) => (
+            <button key={t.id} onClick={() => setTabM(t.id)}
+              style={{ padding: '6px 16px', borderRadius: 20, border: `1.5px solid ${tab === t.id ? 'var(--teal)' : 'var(--line)'}`, background: tab === t.id ? 'var(--teal)' : 'var(--card)', color: tab === t.id ? '#fff' : 'var(--ink)', fontSize: 13, cursor: 'pointer', fontWeight: tab === t.id ? 600 : 400 }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="vt-card vt-sec" style={{ padding: 20 }}>
+          {tab === 'anamnese' && <AnmEditor modelId={editing} />}
+          {tab === 'roteiro'  && <RoteiroEditor modelId={editing} />}
+          {tab === 'secoes'   && <SecoesEditor modelId={editing} />}
+          {tab === 'globais'  && <CamposGlobaisEditor />}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Lista de modelos ── */
+  return (
+    <div>
+      <div style={{ marginBottom: 18 }}>
+        <h2 style={{ margin: '0 0 4px', fontSize: 18, color: 'var(--navy, #16395f)' }}>Modelos de Consulta</h2>
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>Clique em um modelo para configurar suas perguntas, botões, seções e campos de avaliação.</p>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+        {ALL_MODELS.map((m) => {
+          const anmCount = getAnm(m.id).length;
+          const rotCount = getRoteiro(m.id).length;
+          const inc = getInc(m.id);
+          const secoesOn = ['exame','roteiro','sistemas'].filter((k) => inc[k]).length;
+          return (
+            <button key={m.id} onClick={() => openModel(m.id)}
+              style={{ textAlign: 'left', background: 'var(--card)', border: '1.5px solid var(--line)', borderRadius: 14, padding: 18, cursor: 'pointer', transition: 'border-color .15s, box-shadow .15s' }}
+              onMouseOver={(e) => { e.currentTarget.style.borderColor = 'var(--teal)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(20,168,160,.15)'; }}
+              onMouseOut={(e) => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.boxShadow = 'none'; }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--teal-t, #e2f4f3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <VtIcon name={m.icon || 'stethoscope'} size={18} />
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>{m.label}</div>
+              </div>
+              <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{m.desc}</p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 12, background: anmCount > 0 ? 'var(--teal-t, #e2f4f3)' : 'var(--bg)', color: anmCount > 0 ? 'var(--teal)' : 'var(--muted)', border: '1px solid var(--line)' }}>
+                  {anmCount} pergunta{anmCount !== 1 ? 's' : ''}
+                </span>
+                <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 12, background: rotCount > 0 ? 'var(--teal-t, #e2f4f3)' : 'var(--bg)', color: rotCount > 0 ? 'var(--teal)' : 'var(--muted)', border: '1px solid var(--line)' }}>
+                  {rotCount} item{rotCount !== 1 ? 's' : ''} roteiro
+                </span>
+                <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 12, background: 'var(--bg)', color: 'var(--muted)', border: '1px solid var(--line)' }}>
+                  {secoesOn + 2} seção/seções
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── ANTIGO RoteirosTab — substituído por ModelosConsultaTab acima ── */
 function RoteirosTab() {
+  return <ModelosConsultaTab />;
+}
+function _RoteirosTabOld() {
   const models = (window.vtConsultModels ? window.vtConsultModels() : window.PR.consultModels).filter((m) => m.id !== 'livre');
   const [data, setData] = vtUseState(() => {
     const cur = window.vtConsultRoteiros();
@@ -3711,6 +3990,11 @@ function RoteirosTab() {
     window.vtToast('Roteiros restaurados ao padrão.', 'ok');
   };
   return (
+    <div>
+      <div className="vt-ai-note" style={{ marginBottom: 14, fontSize: 13, lineHeight: 1.6 }}>
+        <b>O que são os Modelos de Consulta?</b><br />
+        Cada tipo de atendimento (Clínica Geral, Odontologia, Pré-cirúrgico...) tem um <b>roteiro de avaliação</b> próprio — a lista de itens que o veterinário preenche durante a consulta. Aqui você personaliza esses itens para cada modelo. As alterações aparecem automaticamente na aba <b>Consulta</b> de cada atendimento.
+      </div>
     <div className="vt-card vt-sec">
       <div className="vt-head-row" style={{ marginBottom: 12 }}>
         <div><h3 className="vt-sec-title" style={{ margin: 0 }}>Modelos de consulta · roteiros de avaliação</h3><p className="vt-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>Cada tipo de consulta avalia itens diferentes. Personalize o roteiro de cada modelo — ele aparece na aba Consulta.</p></div>
@@ -3745,6 +4029,7 @@ function RoteirosTab() {
       <AnamnesePorModelo modelId={sel} modelLabel={cur.label} />
       <div className="pr-divider" style={{ margin: '20px 0' }} />
       <ConsultaCamposEditor />
+    </div>
     </div>
   );
 }
@@ -4404,6 +4689,10 @@ function EstoqueConfigTab() {
 
   return (
     <div>
+      <div className="vt-ai-note" style={{ marginBottom: 16, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <span>💡 Aqui você configura categorias, unidades e fornecedores. Para ver o estoque de produtos, acesse o módulo <b>Estoque</b>.</span>
+        <button className="vt-btn-primary" style={{ flex: 'none', fontSize: 12, padding: '5px 12px' }} onClick={() => window._vtSetActive && window._vtSetActive('insumos')}>Ir para Estoque →</button>
+      </div>
       <div style={sec}>
         <div style={labelStyle}>Categorias de produtos</div>
         <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
