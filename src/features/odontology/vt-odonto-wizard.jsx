@@ -269,7 +269,7 @@
           <button onClick={onClose} className="vt-btn-ghost" style={{ fontSize: 12, padding: '6px 12px', flexShrink: 0 }}>✕ Fechar</button>
         </div>
         {/* Linha 2 — Tabs de passo */}
-        <div style={{ display: 'flex', alignItems: 'stretch', overflowX: 'auto', borderTop: '1px solid var(--line)', padding: '0 8px' }}>
+        <div style={{ display: 'flex', alignItems: 'stretch', overflowX: 'auto', borderTop: '1px solid var(--line)', padding: '0 12px', gap: 2 }}>
           {STEPS.map((s) => {
             const isActive = step === s.n;
             const isDone = step > s.n;
@@ -277,15 +277,16 @@
             return (
               <button key={s.n} onClick={() => canGo && onGoStep(s.n)}
                 title={!canGo ? 'Selecione o paciente primeiro' : s.label}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', border: 'none', cursor: canGo ? 'pointer' : 'not-allowed',
-                  background: 'transparent', fontSize: 12.5, fontWeight: isActive ? 700 : 400,
-                  color: isActive ? 'var(--teal)' : isDone ? 'var(--ink)' : 'var(--muted)',
+                style={{ display: 'flex', alignItems: 'center', gap: 7, height: 40, padding: '0 16px', border: 'none',
                   borderBottom: isActive ? '2.5px solid var(--teal)' : '2.5px solid transparent',
-                  whiteSpace: 'nowrap', opacity: canGo ? 1 : .5, flexShrink: 0, transition: 'color .15s' }}>
-                <span style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0,
-                  background: isActive ? 'var(--teal)' : isDone ? 'var(--teal-t)' : 'var(--bg)',
+                  cursor: canGo ? 'pointer' : 'not-allowed', background: 'transparent',
+                  fontSize: 12.5, fontWeight: isActive ? 700 : 500,
+                  color: isActive ? 'var(--teal)' : isDone ? 'var(--ink)' : 'var(--muted)',
+                  whiteSpace: 'nowrap', opacity: canGo ? 1 : .45, flexShrink: 0, transition: 'color .15s' }}>
+                <span style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0,
+                  background: isActive ? 'var(--teal)' : isDone ? 'var(--teal)' : 'var(--bg)',
                   border: `1.5px solid ${isActive ? 'var(--teal)' : isDone ? 'var(--teal)' : 'var(--line)'}`,
-                  color: isActive ? '#fff' : isDone ? 'var(--teal)' : 'var(--muted)' }}>
+                  color: isActive ? '#fff' : isDone ? '#fff' : 'var(--muted)' }}>
                   {isDone ? '✓' : s.n}
                 </span>
                 {s.label}
@@ -681,30 +682,36 @@
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
 
-        {/* ── Header Pimbury ── */}
-        <div style={{ background: 'var(--card)', borderBottom: '1px solid var(--line)', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 800, fontSize: 17, color: 'var(--navy-3)', marginRight: 4 }}>Gráfico Visual</span>
-          <span style={{ color: 'var(--faint)', fontSize: 13, marginRight: 12, cursor: 'pointer' }} title="Ajuda">(?)</span>
-
-          <TbBtn icon="✕" label="Limpar Gráfico" onClick={() => ctrl() && ctrl().clearAll()} />
-          <TbBtn icon="↩" label="Desfazer" onClick={() => ctrl() && ctrl().undoShape()} />
-          <div className="vt-btn-ghost" style={{ fontSize: 12, padding: '5px 11px', gap: 6, pointerEvents: 'none' }}>
-            📅 {formatDate(date)}
-          </div>
-          <TbBtn icon="📋" label="Gráficos Anteriores" onClick={handleLoadPrev} />
+        {/* ── Header do Gráfico ── */}
+        <div style={{ background: 'var(--card)', borderBottom: '1px solid var(--line)', padding: '9px 18px', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginRight: 4 }}>🦷 Gráfico Odontológico</span>
           <div style={{ flex: 1 }} />
-          <TbBtn icon="➕" label="Adicionar" onClick={() => ctrl() && ctrl().novoExame()} />
-          {wiz.chartImage && <span style={{ fontSize: 11, color: 'var(--teal)', fontWeight: 700 }}>✓ Salvo no PDF</span>}
+          {wiz.chartImage && (
+            <span style={{ fontSize: 11, color: 'var(--teal)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--teal)', display: 'inline-block' }} />✓ Capturado para PDF
+            </span>
+          )}
+          <button onClick={handleLoadPrev} className="vt-btn-ghost" style={{ fontSize: 12, padding: '5px 11px' }}>📋 Histórico</button>
+          <button onClick={() => ctrl() && ctrl().undoShape()} className="vt-btn-ghost" style={{ fontSize: 12, padding: '5px 11px' }}>↩ Desfazer</button>
+          <button onClick={() => ctrl() && ctrl().clearAll()}
+            style={{ fontSize: 12, padding: '5px 11px', border: '1.5px solid #fcd0d0', borderRadius: 7, background: 'transparent', color: '#c0392b', cursor: 'pointer', fontWeight: 600 }}>
+            ✕ Limpar
+          </button>
+          <button onClick={() => ctrl() && ctrl().novoExame()} className="vt-btn-primary" style={{ fontSize: 12, padding: '5px 12px' }}>➕ Adicionar</button>
         </div>
 
-        {/* ── Action buttons ── */}
-        <div style={{ padding: '10px 20px', display: 'flex', gap: 10, flexShrink: 0 }}>
-          <button onClick={handleLoadPrev} className="vt-btn-primary" style={{ fontSize: 13 }}>
+        {/* ── Ações rápidas ── */}
+        <div style={{ padding: '8px 18px', display: 'flex', gap: 8, flexShrink: 0, background: 'var(--bg)', borderBottom: '1px solid var(--line)' }}>
+          <button onClick={handleLoadPrev} className="vt-btn-primary" style={{ fontSize: 12 }}>
             ＋ Carregar Anterior
           </button>
-          <button onClick={() => window.vtToast && window.vtToast('Visão incisal em breve.', 'ok')} className="vt-btn-ghost" style={{ fontSize: 13 }}>
+          <button onClick={() => window.vtToast && window.vtToast('Visão incisal em breve.', 'ok')} className="vt-btn-ghost" style={{ fontSize: 12 }}>
             ＋ Visão Incisal
           </button>
+          <div style={{ flex: 1 }} />
+          <span style={{ fontSize: 11.5, color: 'var(--muted)', display: 'flex', alignItems: 'center' }}>
+            📅 {formatDate(date)}
+          </span>
         </div>
 
         {/* ── Chart ── */}
@@ -718,42 +725,56 @@
           </div>
         </div>
 
-        {/* ── Bottom Tool Palette (3 grupos) ── */}
-        <div style={{ flexShrink: 0, background: 'var(--card)', borderTop: '1px solid var(--line)', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* ── Bottom Tool Palette ── */}
+        <div style={{ flexShrink: 0, background: 'var(--card)', borderTop: '1px solid var(--line)', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto' }}>
+
+          {/* Label: ferramentas */}
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.07em', color: 'var(--muted)', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>Ferramenta</span>
 
           {/* Grupo 1: ferramentas de desenho */}
-          <div style={{ display: 'flex', gap: 4, padding: '6px 10px', background: 'var(--bg)', borderRadius: 12 }}>
+          <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
             {DRAW_TOOLS.map((t, i) => (
               <button key={i} onClick={() => handleTool(t.id)} title={t.label}
-                style={{ width: 36, height: 36, borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: activeTool === t.id ? 'var(--navy-3)' : 'transparent', color: activeTool === t.id ? '#fff' : 'var(--ink)' }}>
+                style={{ height: 32, minWidth: 32, padding: '0 8px', borderRadius: 7, cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: activeTool === t.id ? 'none' : '1.5px solid var(--line)',
+                  background: activeTool === t.id ? 'var(--navy-3)' : 'transparent',
+                  color: activeTool === t.id ? '#fff' : 'var(--ink)' }}>
                 {t.icon}
               </button>
             ))}
           </div>
 
-          <div style={{ width: 1, height: 36, background: 'var(--line)' }} />
+          {/* Divider */}
+          <div style={{ width: 1, height: 28, background: 'var(--line)', flexShrink: 0 }} />
 
-          {/* Grupo 2: condições dentárias */}
-          <div style={{ display: 'flex', gap: 4, padding: '6px 10px', background: 'var(--bg)', borderRadius: 12 }}>
+          {/* Label: condições */}
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.07em', color: 'var(--muted)', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>Condição</span>
+
+          {/* Grupo 2: condições com label curto */}
+          <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
             {COND_TOOLS.map((t, i) => (
               <button key={i} onClick={() => handleCond(t.cond)} title={t.label}
-                style={{ width: 36, height: 36, borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'transparent', color: 'var(--teal)' }}>
-                {t.icon}
+                style={{ height: 28, padding: '0 9px', borderRadius: 14, border: '1.5px solid var(--line)',
+                  cursor: 'pointer', fontSize: 10.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4,
+                  background: 'transparent', color: 'var(--ink)', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 13 }}>{t.icon}</span>
+                <span style={{ fontSize: 10 }}>{t.label.split(' ')[0]}</span>
               </button>
             ))}
           </div>
 
-          <div style={{ width: 1, height: 36, background: 'var(--line)' }} />
+          {/* Divider */}
+          <div style={{ width: 1, height: 28, background: 'var(--line)', flexShrink: 0 }} />
 
           {/* Grupo 3: badges de status */}
-          <div style={{ display: 'flex', gap: 6, padding: '6px 10px', background: 'var(--bg)', borderRadius: 12 }}>
+          <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
             {BADGE_TOOLS.map((t, i) => (
               <button key={i} onClick={() => handleBadge(t)} title={t.label}
-                style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'var(--navy-3)', color: '#fff' }}>
-                {t.icon}
+                style={{ height: 28, padding: '0 10px', borderRadius: 14, border: 'none', cursor: 'pointer',
+                  fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 5,
+                  background: 'var(--navy-3)', color: '#fff', whiteSpace: 'nowrap' }}>
+                <span>{t.icon}</span>
+                <span style={{ fontSize: 10, fontWeight: 700 }}>{t.label.split(' ')[0]}</span>
               </button>
             ))}
           </div>
