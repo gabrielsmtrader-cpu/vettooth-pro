@@ -864,17 +864,17 @@
     return (
       <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
 
-        {/* ── Barra de totais ── */}
-        <div style={{ background:'var(--card)', borderBottom:'1px solid var(--line)', padding:'9px 18px', display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
-          <span style={{ fontWeight:700, fontSize:14, color:'var(--ink)' }}>✅ Tratamentos e Achados</span>
-          <span style={{ fontSize:12, color:'var(--muted)' }}>
-            {checkedItems.length > 0
-              ? <span style={{ color:'var(--teal)', fontWeight:600 }}>{checkedItems.length} item(ns) selecionado(s)</span>
-              : `Selecione os achados para ${wiz.species || 'o paciente'}`}
-          </span>
+        {/* ── Header navy ── */}
+        <div style={{ background:'var(--navy)', padding:'12px 20px', display:'flex', alignItems:'center', gap:14, flexShrink:0 }}>
+          <div style={{ flex:1 }}>
+            <div style={{ fontWeight:700, fontSize:15, color:'#fff', letterSpacing:'.01em' }}>Tratamentos e Anormalidades</div>
+            <div style={{ fontSize:11, color:'rgba(255,255,255,.55)', marginTop:1 }}>
+              {wiz.species || 'Selecione espécie'} — {checkedItems.length} item(ns) selecionado(s)
+            </div>
+          </div>
           {total > 0 && (
-            <div style={{ marginLeft:'auto', background:'var(--teal)', borderRadius:20, padding:'5px 16px', fontSize:13, fontWeight:700, color:'#fff' }}>
-              Total: R$ {total.toLocaleString('pt-BR',{minimumFractionDigits:2})}
+            <div style={{ background:'var(--teal)', borderRadius:20, padding:'5px 16px', fontSize:13, fontWeight:700, color:'#fff', flexShrink:0 }}>
+              R$ {total.toLocaleString('pt-BR',{minimumFractionDigits:2})}
             </div>
           )}
         </div>
@@ -883,94 +883,97 @@
         <div style={{ flex:1, display:'flex', overflow:'hidden' }}>
 
           {/* Sidebar — categorias */}
-          <div style={{ width:200, flexShrink:0, borderRight:'1px solid var(--line)', background:'var(--card)', overflowY:'auto', padding:'8px 0' }}>
+          <div style={{ width:190, flexShrink:0, borderRight:'1px solid var(--line)', background:'var(--card)', overflowY:'auto' }}>
             {availCats.map(cat => {
               const isActive = cat === activeCat;
               const cnt = catCheckedCount(cat);
               return (
                 <button key={cat} onClick={() => setActiveCat(cat)}
                   style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between',
-                    padding:'13px 18px', border:'none', cursor:'pointer', textAlign:'left',
-                    background: isActive ? '#f0faf6' : 'transparent',
-                    borderLeft: isActive ? '3.5px solid var(--teal)' : '3.5px solid transparent',
-                    fontWeight: isActive ? 700 : 400, fontSize:14,
-                    color: isActive ? 'var(--teal)' : 'var(--ink)', transition:'all .12s' }}>
+                    padding:'14px 16px', border:'none', cursor:'pointer', textAlign:'left',
+                    background: isActive ? 'var(--bg)' : 'var(--card)',
+                    borderLeft: isActive ? '3px solid var(--teal)' : '3px solid transparent',
+                    borderBottom: '1px solid var(--line)',
+                    fontWeight: isActive ? 700 : 500, fontSize:13.5,
+                    color: isActive ? 'var(--teal)' : 'var(--ink)', transition:'all .1s' }}>
                   <span>{CAT_LABELS[cat] || cat}</span>
                   {cnt > 0 && (
-                    <span style={{ background:'var(--teal)', color:'#fff', borderRadius:12, padding:'1px 7px', fontSize:11, fontWeight:700 }}>{cnt}</span>
+                    <span style={{ background:'var(--teal)', color:'#fff', borderRadius:10, padding:'2px 7px', fontSize:11, fontWeight:700, flexShrink:0 }}>{cnt}</span>
                   )}
                 </button>
               );
             })}
-            {/* Linha de observações gerais */}
             <button onClick={() => setActiveCat('__obs__')}
-              style={{ width:'100%', display:'flex', alignItems:'center', padding:'13px 18px', border:'none', cursor:'pointer', textAlign:'left', marginTop:8,
-                background: activeCat === '__obs__' ? '#f0faf6' : 'transparent',
-                borderTop:'1px solid var(--line)',
-                borderLeft: activeCat === '__obs__' ? '3.5px solid var(--teal)' : '3.5px solid transparent',
-                fontWeight: activeCat === '__obs__' ? 700 : 400, fontSize:14,
+              style={{ width:'100%', display:'flex', alignItems:'center', padding:'14px 16px', border:'none', cursor:'pointer', textAlign:'left',
+                background: activeCat === '__obs__' ? 'var(--bg)' : 'var(--card)',
+                borderLeft: activeCat === '__obs__' ? '3px solid var(--teal)' : '3px solid transparent',
+                borderTop: '1px solid var(--line)',
+                fontWeight: activeCat === '__obs__' ? 700 : 500, fontSize:13.5,
                 color: activeCat === '__obs__' ? 'var(--teal)' : 'var(--muted)' }}>
-              Observações
+              📝 Observações
             </button>
           </div>
 
-          {/* Painel direito — itens da categoria ativa */}
+          {/* Painel direito */}
           <div style={{ flex:1, overflowY:'auto', background:'var(--bg)' }}>
             {activeCat === '__obs__' ? (
               <div style={{ padding:24 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.07em', marginBottom:10 }}>Observações Gerais</div>
+                <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.07em', marginBottom:10 }}>Observações Gerais</div>
                 <textarea className="vt-input" rows={6} placeholder="Notas gerais sobre tratamentos realizados…"
                   value={wiz.anomaliasObs || ''} onChange={e => setW({ anomaliasObs: e.target.value })}
                   style={{ width:'100%', maxWidth:600, resize:'vertical', fontFamily:'inherit', fontSize:13 }} />
               </div>
             ) : (
-              <div style={{ background:'var(--card)', margin:0 }}>
+              <div style={{ background:'var(--card)', borderRadius:0 }}>
                 {activeItems.map((item, idx) => {
                   const f = getF(activeCat, item);
                   const nk = key(activeCat, item.id);
                   const noteOpen = openNotes[nk];
                   return (
                     <div key={item.id}>
-                      <div style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 20px',
-                        borderBottom: idx < activeItems.length - 1 ? '1px solid var(--line)' : 'none' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:12, padding:'13px 18px',
+                        borderBottom:'1px solid var(--line)', background: f.checked ? 'var(--card)' : 'var(--card)' }}>
 
-                        {/* Checkbox teal */}
+                        {/* Checkbox quadrado teal */}
                         <button onClick={() => toggle(activeCat, item)}
-                          style={{ width:26, height:26, borderRadius:6, flexShrink:0, cursor:'pointer',
-                            border: f.checked ? 'none' : '2px solid #cbd5e0',
+                          style={{ width:24, height:24, borderRadius:5, flexShrink:0, cursor:'pointer',
+                            border: f.checked ? '2px solid var(--teal)' : '2px solid var(--line)',
                             background: f.checked ? 'var(--teal)' : 'transparent',
-                            display:'flex', alignItems:'center', justifyContent:'center' }}>
-                          {f.checked && <span style={{ color:'#fff', fontSize:14, fontWeight:700, lineHeight:1 }}>✓</span>}
+                            display:'flex', alignItems:'center', justifyContent:'center', transition:'all .12s' }}>
+                          {f.checked && <span style={{ color:'#fff', fontSize:13, fontWeight:800, lineHeight:1 }}>✓</span>}
                         </button>
 
-                        {/* Nome uppercase */}
-                        <span style={{ flex:1, fontSize:14, fontWeight:600, letterSpacing:'.03em',
-                          textTransform:'uppercase', color: f.checked ? 'var(--ink)' : 'var(--muted)' }}>
+                        {/* Nome UPPERCASE */}
+                        <span style={{ flex:1, fontSize:13, fontWeight: f.checked ? 700 : 500,
+                          letterSpacing:'.04em', textTransform:'uppercase',
+                          color: f.checked ? 'var(--navy)' : 'var(--muted)' }}>
                           {item.name}
                         </span>
 
-                        {/* Preço */}
-                        <span style={{ fontSize:13, fontWeight:600, color:'var(--muted)', flexShrink:0 }}>R$</span>
+                        {/* R$ + input pill */}
+                        <span style={{ fontSize:12, fontWeight:600, color:'var(--muted)', flexShrink:0 }}>R$</span>
                         <input type="number" min="0" step="0.01" value={f.price}
                           onChange={e => setPrice(activeCat, item, parseFloat(e.target.value)||0)}
-                          style={{ width:90, background:'var(--teal)', color:'#fff', border:'none', borderRadius:22,
-                            padding:'6px 14px', fontSize:13, fontWeight:700, textAlign:'center',
-                            outline:'none', fontFamily:'inherit', cursor: f.checked ? 'text' : 'default',
-                            opacity: f.checked ? 1 : 0.35 }}
+                          style={{ width:84, background: f.checked ? 'var(--teal)' : 'var(--bg)',
+                            color: f.checked ? '#fff' : 'var(--muted)',
+                            border: f.checked ? 'none' : '1.5px solid var(--line)',
+                            borderRadius:20, padding:'5px 12px', fontSize:13, fontWeight:700,
+                            textAlign:'center', outline:'none', fontFamily:'inherit', transition:'all .15s' }}
                           disabled={!f.checked} />
 
-                        {/* Botão + (toggle notas) */}
+                        {/* Botão círculo + */}
                         <button onClick={() => { if (!f.checked) toggle(activeCat, item); else setOpenNotes(n => ({...n, [nk]: !n[nk]})); }}
-                          style={{ width:32, height:32, borderRadius:'50%', border:'none', cursor:'pointer', flexShrink:0,
-                            background:'var(--teal)', color:'#fff', fontSize:20, fontWeight:300,
-                            display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>
+                          style={{ width:30, height:30, borderRadius:'50%', border:'none', cursor:'pointer', flexShrink:0,
+                            background: f.checked ? 'var(--teal)' : 'var(--navy)',
+                            color:'#fff', fontSize:18, fontWeight:300,
+                            display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1, transition:'background .12s' }}>
                           {f.checked && noteOpen ? '−' : '+'}
                         </button>
                       </div>
 
                       {/* Nota expandida */}
                       {f.checked && noteOpen && (
-                        <div style={{ padding:'0 20px 14px 60px', background:'#f8fffe', borderBottom: idx < activeItems.length - 1 ? '1px solid var(--line)' : 'none' }}>
+                        <div style={{ padding:'10px 18px 14px 54px', background:'var(--bg)', borderBottom:'1px solid var(--line)' }}>
                           <textarea className="vt-input" rows={2} placeholder={`Anotação sobre ${item.name}…`} value={f.note}
                             onChange={e => setNote(activeCat, item, e.target.value)}
                             style={{ width:'100%', maxWidth:500, fontSize:13, resize:'vertical', fontFamily:'inherit' }} />
