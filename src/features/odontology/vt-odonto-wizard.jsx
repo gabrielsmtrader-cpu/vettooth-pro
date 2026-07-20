@@ -123,7 +123,7 @@
             {/* Topo */}
             <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 12, background: 'var(--card)', flexShrink: 0 }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy, #16395f)' }}>{IMG_CATS.find(c => c.id === activeCat)?.label}</div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>{IMG_CATS.find(c => c.id === activeCat)?.label}</div>
                 <div style={{ fontSize: 12, color: 'var(--muted)' }}>Clique em uma imagem para adicionar marcadores de letra. Sem limite de fotos.</div>
               </div>
               <button onClick={() => fileRef.current && fileRef.current.click()}
@@ -367,10 +367,10 @@
       const isSelected = selectedOwner === owner;
       return (
         <button key={owner} onClick={() => { setSelectedOwner(owner); setPatientQuery(''); }}
-          style={{ width: '100%', textAlign: 'left', padding: '11px 16px', background: isSelected ? '#f0f2f5' : 'transparent',
+          style={{ width: '100%', textAlign: 'left', padding: '11px 16px', background: isSelected ? 'var(--teal-t)' : 'transparent',
             border: 'none', borderBottom: '1px solid var(--line)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 14 }}>👤</span>
-          <span style={{ flex: 1, fontWeight: isSelected ? 700 : 500, fontSize: 13.5, color: 'var(--ink)' }}>{owner}</span>
+          <span style={{ flex: 1, fontWeight: isSelected ? 700 : 500, fontSize: 13.5, color: isSelected ? 'var(--teal)' : 'var(--ink)' }}>{owner}</span>
           <span style={{ fontSize: 11, color: 'var(--muted)', marginRight: 4 }}>{(ownerMap[owner] || []).length}</span>
           <span style={{ color: 'var(--muted)', fontSize: 15 }}>›</span>
         </button>
@@ -431,7 +431,7 @@
                     return (
                       <button key={p.id} onClick={() => select(p)}
                         style={{ width: '100%', textAlign: 'left', padding: '12px 16px',
-                          background: isSelected ? '#e8f5f4' : 'transparent',
+                          background: isSelected ? 'var(--teal-t)' : 'transparent',
                           border: 'none', borderBottom: '1px solid var(--line)', cursor: 'pointer',
                           display: 'flex', alignItems: 'center', gap: 10 }}>
                         <span style={{ fontSize: 24 }}>{sp.emoji}</span>
@@ -439,7 +439,7 @@
                           <div style={{ fontWeight: 600, fontSize: 14, color: isSelected ? 'var(--teal)' : 'var(--ink)' }}>{p.name}</div>
                           {lastVisit
                             ? <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                                ATEND. ANTERIOR: <span style={{ color: '#d63031', fontWeight: 700 }}>{formatDate(lastVisit)}</span>
+                                ATEND. ANTERIOR: <span style={{ color: 'var(--red)', fontWeight: 700 }}>{formatDate(lastVisit)}</span>
                               </div>
                             : <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
                                 {p.species || sp.label}{p.breed ? ' · ' + p.breed : ''}{p.sex ? ' · ' + p.sex : ''}
@@ -490,11 +490,11 @@
       return 'Obeso / Muito obeso';
     };
 
-    const inputStyle = { padding: '7px 8px', fontSize: 13, border: '1px solid var(--line)', borderRadius: 7, background: 'var(--card)', color: 'var(--ink)', width: '100%', boxSizing: 'border-box' };
+    const inputStyle = { width: '100%' };
 
     return (
       <div style={{ padding: 24, flex: 1, overflowY: 'auto' }}>
-        <h2 style={{ margin: '0 0 4px', fontSize: 20, color: 'var(--navy, #16395f)' }}>📋 Avaliação Inicial</h2>
+        <h2 style={{ margin: '0 0 4px', fontSize: 20, color: 'var(--ink)' }}>📋 Avaliação Inicial</h2>
         <p style={{ margin: '0 0 20px', color: 'var(--muted)', fontSize: 13 }}>Paciente: <b>{wiz.patientName}</b> — {wiz.ownerName}</p>
 
         {/* BCS Slider */}
@@ -537,7 +537,7 @@
             <div className="vt-form-sec" style={{ margin: 0, flex: 1 }}>Sedação</div>
             <span style={{ fontSize: 12, color: 'var(--muted)', marginRight: 7 }}>{sedAtiva ? 'ON' : 'OFF'}</span>
             <div onClick={() => setW({ sedAtiva: !sedAtiva })}
-              style={{ width: 44, height: 24, borderRadius: 12, background: sedAtiva ? 'var(--teal)' : '#bbb',
+              style={{ width: 44, height: 24, borderRadius: 12, background: sedAtiva ? 'var(--teal)' : 'var(--faint)',
                 position: 'relative', cursor: 'pointer', transition: 'background .2s', flexShrink: 0 }}>
               <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute',
                 top: 3, left: sedAtiva ? 23 : 3, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.25)' }} />
@@ -547,7 +547,7 @@
           {sedAtiva && (
             <div>
               {/* Veterinário Presente */}
-              <div style={{ padding: '12px 14px', background: 'var(--bg)', borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ padding: '12px 14px', background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 8, marginBottom: 14 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Veterinário Presente</div>
                 <div className="vt-form-row">
                   <label className="vtf" style={{ flex: 1 }}>
@@ -571,12 +571,12 @@
                 </div>
                 {sedRows.map((row, i) => (
                   <div key={i} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 110px', gap: 6, marginBottom: 6 }}>
-                    <input type="time" value={row.tempo} onChange={e => updateSedRow(i, 'tempo', e.target.value)} style={inputStyle} />
-                    <select value={row.tipo} onChange={e => updateSedRow(i, 'tipo', e.target.value)} style={inputStyle}>
+                    <input type="time" className="vtf-input" value={row.tempo} onChange={e => updateSedRow(i, 'tempo', e.target.value)} style={inputStyle} />
+                    <select className="vtf-input" value={row.tipo} onChange={e => updateSedRow(i, 'tipo', e.target.value)} style={inputStyle}>
                       <option value="">— Fármaco —</option>
                       {FARMACOS.map(f => <option key={f} value={f}>{f}</option>)}
                     </select>
-                    <input placeholder="Ex: 5 mg" value={row.quantidade} onChange={e => updateSedRow(i, 'quantidade', e.target.value)} style={inputStyle} />
+                    <input className="vtf-input" placeholder="Ex: 5 mg" value={row.quantidade} onChange={e => updateSedRow(i, 'quantidade', e.target.value)} style={inputStyle} />
                   </div>
                 ))}
                 <button className="vt-btn-ghost" onClick={() => setW({ sedRows: [...sedRows, { tempo: '', tipo: '', quantidade: '' }] })}
@@ -676,48 +676,45 @@
 
     /* ── botão do toolbar ── */
     const TbBtn = ({ label, icon, onClick }) => (
-      <button onClick={onClick} title={label}
-        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 11px', border: '1px solid #d1d9e0', borderRadius: 8,
-          background: '#fff', fontSize: 12, color: '#344054', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}>
+      <button onClick={onClick} title={label} className="vt-btn-ghost"
+        style={{ fontSize: 12, padding: '5px 11px', gap: 6 }}>
         <span style={{ fontSize: 14 }}>{icon}</span>{label}
       </button>
     );
 
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f4f6f8' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
 
         {/* ── Header Pimbury ── */}
-        <div style={{ background: '#fff', borderBottom: '1px solid #e0e5ea', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 800, fontSize: 17, color: '#16395f', marginRight: 4 }}>Gráfico Visual</span>
-          <span style={{ color: '#94a3b8', fontSize: 13, marginRight: 12, cursor: 'pointer' }} title="Ajuda">(?)</span>
+        <div style={{ background: 'var(--card)', borderBottom: '1px solid var(--line)', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 800, fontSize: 17, color: 'var(--navy-3)', marginRight: 4 }}>Gráfico Visual</span>
+          <span style={{ color: 'var(--faint)', fontSize: 13, marginRight: 12, cursor: 'pointer' }} title="Ajuda">(?)</span>
 
           <TbBtn icon="✕" label="Limpar Gráfico" onClick={() => ctrl() && ctrl().clearAll()} />
           <TbBtn icon="↩" label="Desfazer" onClick={() => ctrl() && ctrl().undoShape()} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 11px', border: '1px solid #d1d9e0', borderRadius: 8, background: '#fff', fontSize: 12, color: '#344054' }}>
+          <div className="vt-btn-ghost" style={{ fontSize: 12, padding: '5px 11px', gap: 6, pointerEvents: 'none' }}>
             📅 {formatDate(date)}
           </div>
           <TbBtn icon="📋" label="Gráficos Anteriores" onClick={handleLoadPrev} />
           <div style={{ flex: 1 }} />
           <TbBtn icon="➕" label="Adicionar" onClick={() => ctrl() && ctrl().novoExame()} />
           <TbBtn icon="📸" label="Capturar para PDF" onClick={captureChart} />
-          {wiz.chartImage && <span style={{ fontSize: 11, color: '#14a8a0', fontWeight: 700 }}>✓ Capturado</span>}
+          {wiz.chartImage && <span style={{ fontSize: 11, color: 'var(--teal)', fontWeight: 700 }}>✓ Capturado</span>}
         </div>
 
         {/* ── Action buttons ── */}
         <div style={{ padding: '10px 20px', display: 'flex', gap: 10, flexShrink: 0 }}>
-          <button onClick={handleLoadPrev}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 10, border: '2px solid var(--teal)', background: 'var(--teal)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-            ＋ LOAD PREVIOUS
+          <button onClick={handleLoadPrev} className="vt-btn-primary" style={{ fontSize: 13 }}>
+            ＋ Carregar Anterior
           </button>
-          <button onClick={() => window.vtToast && window.vtToast('Visão incisal em breve.', 'ok')}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 10, border: '2px solid var(--teal)', background: 'var(--teal)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-            ＋ INCISOR VIEW
+          <button onClick={() => window.vtToast && window.vtToast('Visão incisal em breve.', 'ok')} className="vt-btn-ghost" style={{ fontSize: 13 }}>
+            ＋ Visão Incisal
           </button>
         </div>
 
         {/* ── Chart ── */}
         <div style={{ flex: 1, overflow: 'auto', padding: '0 20px' }}>
-          <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,.09)', overflow: 'hidden', minHeight: 300 }}>
+          <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden', minHeight: 300 }}>
             <window.OdontogramaModule
               initialPatientId={wiz.patientId}
               slim={true}
@@ -727,23 +724,23 @@
         </div>
 
         {/* ── Bottom Tool Palette (3 grupos) ── */}
-        <div style={{ flexShrink: 0, background: '#fff', borderTop: '1px solid #e0e5ea', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ flexShrink: 0, background: 'var(--card)', borderTop: '1px solid var(--line)', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
 
           {/* Grupo 1: ferramentas de desenho */}
-          <div style={{ display: 'flex', gap: 4, padding: '6px 10px', background: '#f0f2f5', borderRadius: 12 }}>
+          <div style={{ display: 'flex', gap: 4, padding: '6px 10px', background: 'var(--bg)', borderRadius: 12 }}>
             {DRAW_TOOLS.map((t, i) => (
               <button key={i} onClick={() => handleTool(t.id)} title={t.label}
                 style={{ width: 36, height: 36, borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: activeTool === t.id ? '#16395f' : 'transparent', color: activeTool === t.id ? '#fff' : '#344054' }}>
+                  background: activeTool === t.id ? 'var(--navy-3)' : 'transparent', color: activeTool === t.id ? '#fff' : 'var(--ink)' }}>
                 {t.icon}
               </button>
             ))}
           </div>
 
-          <div style={{ width: 1, height: 36, background: '#e0e5ea' }} />
+          <div style={{ width: 1, height: 36, background: 'var(--line)' }} />
 
           {/* Grupo 2: condições dentárias */}
-          <div style={{ display: 'flex', gap: 4, padding: '6px 10px', background: '#f0f2f5', borderRadius: 12 }}>
+          <div style={{ display: 'flex', gap: 4, padding: '6px 10px', background: 'var(--bg)', borderRadius: 12 }}>
             {COND_TOOLS.map((t, i) => (
               <button key={i} onClick={() => handleCond(t.cond)} title={t.label}
                 style={{ width: 36, height: 36, borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -753,14 +750,14 @@
             ))}
           </div>
 
-          <div style={{ width: 1, height: 36, background: '#e0e5ea' }} />
+          <div style={{ width: 1, height: 36, background: 'var(--line)' }} />
 
           {/* Grupo 3: badges de status */}
-          <div style={{ display: 'flex', gap: 6, padding: '6px 10px', background: '#f0f2f5', borderRadius: 12 }}>
+          <div style={{ display: 'flex', gap: 6, padding: '6px 10px', background: 'var(--bg)', borderRadius: 12 }}>
             {BADGE_TOOLS.map((t, i) => (
               <button key={i} onClick={() => handleBadge(t)} title={t.label}
                 style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: '#16395f', color: '#fff' }}>
+                  background: 'var(--navy-3)', color: '#fff' }}>
                 {t.icon}
               </button>
             ))}
@@ -771,20 +768,20 @@
         {histPanelOpen && (
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.4)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             onClick={() => setHistPanelOpen(false)}>
-            <div style={{ background: '#fff', borderRadius: 16, padding: 24, minWidth: 360, maxWidth: 480, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,.2)' }}
+            <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', padding: 24, minWidth: 360, maxWidth: 480, maxHeight: '80vh', overflowY: 'auto', boxShadow: 'var(--shadow)' }}
               onClick={e => e.stopPropagation()}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h3 style={{ margin: 0, fontSize: 16, color: '#16395f' }}>📋 Gráficos Anteriores</h3>
-                <button onClick={() => setHistPanelOpen(false)} style={{ border: 'none', background: 'none', fontSize: 18, cursor: 'pointer', color: '#94a3b8' }}>✕</button>
+                <h3 style={{ margin: 0, fontSize: 16, color: 'var(--navy-3)' }}>📋 Gráficos Anteriores</h3>
+                <button onClick={() => setHistPanelOpen(false)} style={{ border: 'none', background: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--faint)' }}>✕</button>
               </div>
               {histList.length === 0
-                ? <p style={{ color: '#94a3b8', fontSize: 13 }}>Nenhum gráfico anterior registrado para este paciente.</p>
+                ? <p style={{ color: 'var(--faint)', fontSize: 13 }}>Nenhum gráfico anterior registrado para este paciente.</p>
                 : histList.map((h, i) => (
-                  <div key={i} style={{ border: '1px solid #e0e5ea', borderRadius: 10, padding: '12px 14px', marginBottom: 8, cursor: 'pointer' }}
+                  <div key={i} style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px', marginBottom: 8, cursor: 'pointer' }}
                     onClick={() => { ctrl() && ctrl().loadExam(h); setHistPanelOpen(false); }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: '#16395f' }}>{h.date} — {h.speciesLabel}</div>
-                    <div style={{ fontSize: 12, color: '#667085', marginTop: 3 }}>{h.summary}</div>
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{h.anorm} anormal · {h.tratados} tratados · Vet: {h.vet}</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--navy-3)' }}>{h.date} — {h.speciesLabel}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>{h.summary}</div>
+                    <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 2 }}>{h.anorm} anormal · {h.tratados} tratados · Vet: {h.vet}</div>
                   </div>
                 ))
               }
@@ -834,7 +831,7 @@
     return (
       <div style={{ padding: 24, flex: 1, overflowY: 'auto' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
-          <h2 style={{ margin:0, fontSize:20, color:'var(--navy, #16395f)' }}>✅ Achados & Tratamentos</h2>
+          <h2 style={{ margin:0, fontSize:20, color:'var(--ink)' }}>✅ Achados & Tratamentos</h2>
           {total > 0 && (
             <div style={{ background:'var(--teal-t,#e2f4f3)', border:'1px solid var(--teal)', borderRadius:20, padding:'6px 16px', fontSize:14, fontWeight:700, color:'var(--teal)' }}>
               Total: R$ {total.toLocaleString('pt-BR',{minimumFractionDigits:2})}
@@ -1093,9 +1090,9 @@
         {/* ── Coluna esquerda: Anotações ── */}
         <div style={{ width: 280, minWidth: 200, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--line)', background: 'var(--bg)', padding: '14px 12px', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-            <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--navy, #16395f)' }}>Anotações Clínicas</span>
-            <button onClick={loadPrev}
-              style={{ background: 'var(--teal, #14a8a0)', border: 'none', color: '#fff', borderRadius: 20, padding: '4px 10px', fontSize: 10, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--ink)' }}>Anotações Clínicas</span>
+            <button onClick={loadPrev} className="vt-btn-primary"
+              style={{ fontSize: 11, padding: '4px 10px' }}>
               ↩ Carregar
             </button>
           </div>
@@ -1103,7 +1100,8 @@
             value={wiz.chartNotes}
             onChange={e => setW({ chartNotes: e.target.value })}
             placeholder="Achados clínicos, observações por região dentária, recomendações pós-procedimento…"
-            style={{ flex: 1, border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', fontSize: 12, fontFamily: 'inherit', resize: 'none', outline: 'none', background: 'var(--card)', color: 'var(--text)', lineHeight: 1.7 }}
+            className="vt-input"
+            style={{ flex: 1, resize: 'none', fontSize: 12, lineHeight: 1.7 }}
           />
           {images.length > 0 && (
             <div>
@@ -1380,14 +1378,14 @@
 
     /* ── campo de valor com reset ── */
     const MoneyField = ({ label, desc, fieldKey }) => (
-      <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', marginBottom: 14, boxShadow: '0 1px 4px rgba(0,0,0,.07)' }}>
-        <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy, #16395f)', marginBottom: 4 }}>{label}</div>
+      <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', padding: '18px 20px', marginBottom: 14, border: '1px solid var(--line)', boxShadow: 'var(--shadow)' }}>
+        <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 4 }}>{label}</div>
         <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>{desc}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy, #16395f)', flexShrink: 0 }}>R$</span>
+          <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', flexShrink: 0 }}>R$</span>
           <input type="number" min="0" step="0.01" placeholder="0.00" value={wiz[fieldKey]}
             onChange={e => setW({ [fieldKey]: e.target.value })}
-            style={{ flex: 1, border: '1.5px solid var(--line)', borderRadius: 20, padding: '8px 14px', fontSize: 15, fontFamily: 'inherit', textAlign: 'right', outline: 'none' }} />
+            style={{ flex: 1, border: '1.5px solid var(--line)', borderRadius: 10, padding: '8px 14px', fontSize: 15, fontFamily: 'inherit', textAlign: 'right', outline: 'none' }} />
           <button onClick={() => setW({ [fieldKey]: '' })}
             style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'var(--teal)', color: '#fff', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>↺</button>
         </div>
@@ -1402,13 +1400,13 @@
 
         {/* coluna esquerda — conteúdo */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', background: 'var(--bg)' }}>
-          <h2 style={{ margin: '0 0 18px', fontSize: 18, color: 'var(--navy, #16395f)', fontWeight: 700 }}>
+          <h2 style={{ margin: '0 0 18px', fontSize: 18, color: 'var(--ink)', fontWeight: 700 }}>
             Cobrança e Notificações de Ligar de Volta
           </h2>
 
           {findingsTotal > 0 && (
-            <div style={{ background: '#fff', borderRadius: 16, padding: '14px 20px', marginBottom: 14, boxShadow: '0 1px 4px rgba(0,0,0,.07)', border: '1px solid var(--teal-t,#e2f4f3)' }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--navy, #16395f)', marginBottom: 2 }}>Tratamentos selecionados (Passo 4)</div>
+            <div style={{ background: 'var(--teal-t)', borderRadius: 'var(--radius)', padding: '14px 20px', marginBottom: 14, border: '1px solid var(--teal)', boxShadow: 'var(--shadow)' }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>Tratamentos selecionados (Passo 4)</div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
                 {Object.entries(wiz.findings||{}).filter(([,v])=>v.checked).length} item(ns) selecionado(s)
               </div>
@@ -1429,15 +1427,15 @@
             fieldKey="callout" />
 
           {/* Total + Pago */}
-          <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', marginBottom: 14, boxShadow: '0 1px 4px rgba(0,0,0,.07)' }}>
+          <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', padding: '18px 20px', marginBottom: 14, border: '1px solid var(--line)', boxShadow: 'var(--shadow)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy, #16395f)' }}>Total</div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>Total</div>
                 <div style={{ fontSize: 12, color: 'var(--muted)' }}>Total cobrança ao cliente. Imposto sera adicionado automaticamente se selecionado.</div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 {findingsTotal > 0 && <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>Tratamentos: R$ {findingsTotal.toFixed(2)} + Extras: R$ {(charges+callout).toFixed(2)}</div>}
-                <span style={{ fontWeight: 800, fontSize: 22, color: 'var(--navy, #16395f)' }}>
+                <span style={{ fontWeight: 800, fontSize: 22, color: 'var(--ink)' }}>
                   {total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </span>
               </div>
@@ -1475,8 +1473,8 @@
           </div>
 
           {/* Slider de retorno */}
-          <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,.07)' }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy, #16395f)', marginBottom: 4 }}>Notificação de ligar de volta</div>
+          <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', padding: '18px 20px', border: '1px solid var(--line)', boxShadow: 'var(--shadow)' }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 4 }}>Notificação de ligar de volta</div>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 20 }}>Período selecionado: <b style={{ color: 'var(--teal)' }}>{CB_SLOTS[sliderIdx]}</b></div>
 
             {/* labels acima do slider */}
