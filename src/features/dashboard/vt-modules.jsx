@@ -2380,6 +2380,45 @@ window.VT_ODONTO_CFG_DEFAULT = {
 window.vtOdontoCfg = function () { const d = window.VtStore && window.VtStore.getData(); return Object.assign({}, window.VT_ODONTO_CFG_DEFAULT, (d && d.odontoCfg) || {}); };
 window.vtSaveOdontoCfg = function (c) { if (window.VtStore) window.VtStore.setData({ odontoCfg: c }); if (c.conds && c.conds.length) window.OD_CONDS = c.conds; window.dispatchEvent(new CustomEvent('vtCfgChanged')); };
 
+// ── ACHADOS / TRATAMENTOS POR ESPÉCIE (Passo 4) ─────────────────────────────
+window.VT_ODONTO_DX_DEFAULT = {
+  caes: {
+    incisivos:  [{ id:'c-inc-1',name:'Extração (incisivo)',price:0},{ id:'c-inc-2',name:'Restauração (incisivo)',price:0}],
+    caninos:    [{ id:'c-can-1',name:'Extração (canino)',price:0},{ id:'c-can-2',name:'Endodontia (canino)',price:0},{ id:'c-can-3',name:'Restauração (canino)',price:0}],
+    premolares: [{ id:'c-pm-1',name:'Extração (pré-molar)',price:0},{ id:'c-pm-2',name:'Restauração (pré-molar)',price:0}],
+    molares:    [{ id:'c-mol-1',name:'Extração (molar)',price:0},{ id:'c-mol-2',name:'Restauração (molar)',price:0}],
+    outros:     [{ id:'c-out-1',name:'Limpeza dental',price:0},{ id:'c-out-2',name:'Raspagem / Destartarização',price:0},{ id:'c-out-3',name:'Polimento',price:0},{ id:'c-out-4',name:'Fluorização',price:0}],
+  },
+  gatos: {
+    incisivos:  [{ id:'g-inc-1',name:'Extração (incisivo)',price:0},{ id:'g-inc-2',name:'Restauração (incisivo)',price:0}],
+    caninos:    [{ id:'g-can-1',name:'Extração (canino)',price:0},{ id:'g-can-2',name:'Endodontia (canino)',price:0}],
+    premolares: [{ id:'g-pm-1',name:'Extração (pré-molar)',price:0},{ id:'g-pm-2',name:'Restauração (pré-molar)',price:0}],
+    molares:    [{ id:'g-mol-1',name:'Extração (molar)',price:0},{ id:'g-mol-2',name:'Restauração (molar)',price:0}],
+    outros:     [{ id:'g-out-1',name:'Limpeza dental',price:0},{ id:'g-out-2',name:'Raspagem / Destartarização',price:0},{ id:'g-out-3',name:'Polimento',price:0}],
+  },
+  equino: {
+    incisivos:  [{ id:'e-inc-1',name:'Ajuste de esmalte (incisivo)',price:0},{ id:'e-inc-2',name:'Extração (incisivo)',price:0}],
+    caninos:    [{ id:'e-can-1',name:'Redução de canino',price:0},{ id:'e-can-2',name:'Extração (canino)',price:0}],
+    denteslobo: [{ id:'e-dl-1',name:'Extração dente de lobo (PM1)',price:0},{ id:'e-dl-2',name:'Extração dente de lobo impactado',price:0}],
+    premolares: [{ id:'e-pm-1',name:'Odontoplastia (pré-molar)',price:0},{ id:'e-pm-2',name:'Extração (pré-molar)',price:0},{ id:'e-pm-3',name:'Recapeamento (pré-molar)',price:0}],
+    molares:    [{ id:'e-mol-1',name:'Odontoplastia (molar)',price:0},{ id:'e-mol-2',name:'Extração (molar)',price:0},{ id:'e-mol-3',name:'Recapeamento (molar)',price:0}],
+    outros:     [{ id:'e-out-1',name:'Floating (nivelamento geral)',price:0},{ id:'e-out-2',name:'Lavagem de bolsas periodontais',price:0},{ id:'e-out-3',name:'Remoção de pontas de esmalte',price:0}],
+  },
+};
+window.vtOdontoDxCfg = function () {
+  const d = window.VtStore && window.VtStore.getData();
+  const saved = (d && d.odontoDxCfg) || {};
+  const result = {};
+  ['caes','gatos','equino'].forEach(sp => {
+    result[sp] = {};
+    Object.keys(window.VT_ODONTO_DX_DEFAULT[sp]).forEach(cat => {
+      result[sp][cat] = (saved[sp] && saved[sp][cat]) || window.VT_ODONTO_DX_DEFAULT[sp][cat].map(x => ({...x}));
+    });
+  });
+  return result;
+};
+window.vtSaveOdontoDxCfg = function (c) { if (window.VtStore) window.VtStore.setData({ odontoDxCfg: c }); window.dispatchEvent(new CustomEvent('vtCfgChanged')); };
+
 // ── AGENDA CFG ───────────────────────────────────────────────────────────────
 window.VT_AGENDA_CFG_DEFAULT = {
   days: { seg: true, ter: true, qua: true, qui: true, sex: true, sab: false, dom: false },
@@ -4553,6 +4592,100 @@ function OdontogramaTab() {
           ))}
         </div>
       </div>
+
+      {/* ── Achados / Tratamentos por Espécie ── */}
+      {(() => {
+        const [dxCfg, setDxCfg] = vtUseState(() => window.vtOdontoDxCfg());
+        const [activeSp, setActiveSp] = vtUseState('caes');
+        const [editCat, setEditCat] = vtUseState(null);
+        const [editItemIdx, setEditItemIdx] = vtUseState(null);
+        const [editItem, setEditItem] = vtUseState(null);
+        const [newMode, setNewMode] = vtUseState(false);
+
+        const saveDx = (next) => { setDxCfg(next); window.vtSaveOdontoDxCfg(next); window.vtToast('Achados salvos.', 'ok'); };
+
+        const SP_LABELS = { caes: '🐶 Cães', gatos: '🐱 Gatos', equino: '🐴 Equinos' };
+        const CAT_LABELS = { incisivos: 'Incisivos', caninos: 'Caninos', denteslobo: 'Dentes de Lobo', premolares: 'Pré-molares', molares: 'Molares', outros: 'Outros' };
+        const spCats = Object.keys(dxCfg[activeSp] || {});
+
+        const openEdit = (cat, idx) => { setEditCat(cat); setEditItemIdx(idx); setEditItem({ ...(dxCfg[activeSp][cat][idx]) }); setNewMode(false); };
+        const openNew = (cat) => { setEditCat(cat); setEditItemIdx(-1); setEditItem({ id: Date.now().toString(36), name: '', price: 0 }); setNewMode(true); };
+        const cancelEdit = () => { setEditCat(null); setEditItemIdx(null); setEditItem(null); setNewMode(false); };
+        const saveItem = () => {
+          if (!editItem.name.trim()) { window.vtToast('Informe o nome do achado.','err'); return; }
+          const spData = { ...dxCfg[activeSp] };
+          const list = [...(spData[editCat] || [])];
+          if (newMode) list.push(editItem); else list[editItemIdx] = editItem;
+          spData[editCat] = list;
+          saveDx({ ...dxCfg, [activeSp]: spData });
+          cancelEdit();
+        };
+        const removeItem = (cat, idx) => {
+          if (!window.confirm('Remover este achado?')) return;
+          const spData = { ...dxCfg[activeSp] };
+          spData[cat] = spData[cat].filter((_,i)=>i!==idx);
+          saveDx({ ...dxCfg, [activeSp]: spData });
+          cancelEdit();
+        };
+
+        return (
+          <div style={sec}>
+            <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10 }}>
+              <div style={labelStyle}>Achados / Tratamentos por Espécie (Passo 4)</div>
+            </div>
+            {/* Species tabs */}
+            <div style={{ display:'flex',gap:6,marginBottom:14 }}>
+              {Object.entries(SP_LABELS).map(([sp,lbl]) => (
+                <button key={sp} onClick={()=>{setActiveSp(sp);cancelEdit();}}
+                  className={activeSp===sp?'vt-btn-primary':'vt-btn-ghost'}
+                  style={{ fontSize:13,padding:'5px 14px' }}>{lbl}</button>
+              ))}
+            </div>
+            {/* Categories */}
+            {spCats.map(cat => {
+              const items = dxCfg[activeSp][cat] || [];
+              return (
+                <div key={cat} style={{ marginBottom:14, background:'var(--card)', border:'1px solid var(--border)', borderRadius:10, overflow:'hidden' }}>
+                  <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',borderBottom:'1px solid var(--border)',background:'var(--bg)' }}>
+                    <span style={{ fontWeight:700,fontSize:13,color:'var(--navy)' }}>{CAT_LABELS[cat]||cat}</span>
+                    <button className="vt-btn-primary" style={{ fontSize:11,padding:'3px 10px' }} onClick={()=>openNew(cat)}>+ Adicionar</button>
+                  </div>
+                  {items.map((item,idx) => (
+                    <div key={item.id} onClick={()=>openEdit(cat,idx)}
+                      style={{ display:'flex',alignItems:'center',gap:12,padding:'9px 14px',borderBottom:idx<items.length-1?'1px solid var(--border)':'none',cursor:'pointer',
+                        background:editCat===cat&&editItemIdx===idx?'var(--teal-t)':'' }}>
+                      <span style={{ flex:1,fontSize:13 }}>{item.name}</span>
+                      <span style={{ fontSize:12,color:'var(--muted)' }}>{item.price>0?`R$ ${parseFloat(item.price).toFixed(2)}`:'—'}</span>
+                    </div>
+                  ))}
+                  {items.length===0 && <div style={{ padding:'12px 14px',fontSize:12,color:'var(--muted)',fontStyle:'italic' }}>Nenhum achado configurado.</div>}
+                </div>
+              );
+            })}
+            {/* Edit panel */}
+            {editItem && (
+              <div style={{ background:'var(--card)',border:'1px solid var(--teal)',borderRadius:10,padding:16,marginTop:4 }}>
+                <div style={{ fontWeight:700,fontSize:13,color:'var(--navy)',marginBottom:12 }}>{newMode?'Novo achado':'Editar achado'} — {CAT_LABELS[editCat]||editCat}</div>
+                <div style={{ display:'grid',gridTemplateColumns:'1fr 160px',gap:10,marginBottom:12 }}>
+                  <div>
+                    <div style={{ fontSize:11,color:'var(--muted)',marginBottom:4 }}>Nome do achado / tratamento *</div>
+                    <input className="vt-input" value={editItem.name} onChange={e=>setEditItem({...editItem,name:e.target.value})} placeholder="Ex: Extração (incisivo)" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize:11,color:'var(--muted)',marginBottom:4 }}>Valor padrão (R$)</div>
+                    <input type="number" className="vt-input" value={editItem.price} min="0" step="0.01" onChange={e=>setEditItem({...editItem,price:parseFloat(e.target.value)||0})} placeholder="0.00" />
+                  </div>
+                </div>
+                <div style={{ display:'flex',gap:8,flexWrap:'wrap' }}>
+                  <button className="vt-btn-primary" onClick={saveItem}>Salvar</button>
+                  <button className="vt-btn-ghost" onClick={cancelEdit}>Cancelar</button>
+                  {!newMode && <button className="vt-btn-ghost" onClick={()=>removeItem(editCat,editItemIdx)} style={{ color:'var(--red)',borderColor:'var(--red)',marginLeft:'auto' }}>Remover</button>}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

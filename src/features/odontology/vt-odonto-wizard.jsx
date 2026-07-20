@@ -235,59 +235,56 @@
   }
 
   /* ─── Cabeçalho do Wizard ─────────────────────────────── */
-  function WizHeader({ step, onClose, date, setDate, images, onOpenModal }) {
+  function WizHeader({ step, onClose, date, setDate, images, onOpenModal, onGoStep, patientSelected }) {
     const totalImgs = (images || []).length;
     return (
-      <div style={{ background: 'var(--navy, #16395f)', color: '#fff', padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
-        <button onClick={onClose} style={{ background: 'rgba(255,255,255,.12)', border: 'none', color: '#fff', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 13 }}>✕ Fechar</button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 0, flex: 1, overflowX: 'auto' }}>
-          {STEPS.map((s, i) => (
-            <React.Fragment key={s.n}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 64 }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700,
-                  background: step === s.n ? 'var(--teal, #14a8a0)' : step > s.n ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.12)',
-                  border: step === s.n ? '2px solid #fff' : '2px solid transparent', color: '#fff' }}>
-                  {step > s.n ? '✓' : s.n}
-                </div>
-                <span style={{ fontSize: 9, fontWeight: step === s.n ? 700 : 400, opacity: step === s.n ? 1 : .6, whiteSpace: 'nowrap' }}>{s.label}</span>
-              </div>
-              {i < STEPS.length - 1 && <div style={{ flex: 1, height: 2, background: step > s.n ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.15)', margin: '0 2px', marginBottom: 14 }} />}
-            </React.Fragment>
-          ))}
+      <div style={{ background: 'var(--card)', borderBottom: '1px solid var(--line)', padding: '0 20px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        {/* Steps como tabs clicáveis */}
+        <div style={{ display: 'flex', alignItems: 'stretch', flex: 1, overflowX: 'auto', gap: 0 }}>
+          {STEPS.map((s) => {
+            const isActive = step === s.n;
+            const isDone = step > s.n;
+            const canGo = s.n === 1 || patientSelected;
+            return (
+              <button key={s.n} onClick={() => canGo && onGoStep(s.n)}
+                title={!canGo ? 'Selecione o paciente primeiro' : s.label}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '14px 16px', border: 'none', cursor: canGo ? 'pointer' : 'not-allowed',
+                  background: 'transparent', fontSize: 13, fontWeight: isActive ? 700 : 400,
+                  color: isActive ? 'var(--teal, #14a8a0)' : isDone ? 'var(--ink)' : 'var(--muted)',
+                  borderBottom: isActive ? '2.5px solid var(--teal, #14a8a0)' : '2.5px solid transparent',
+                  whiteSpace: 'nowrap', opacity: canGo ? 1 : .45, flexShrink: 0 }}>
+                <span style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0,
+                  background: isActive ? 'var(--teal, #14a8a0)' : isDone ? 'var(--teal-t, #e2f4f3)' : 'var(--bg)',
+                  border: `1.5px solid ${isActive ? 'var(--teal)' : isDone ? 'var(--teal)' : 'var(--line)'}`,
+                  color: isActive ? '#fff' : isDone ? 'var(--teal)' : 'var(--muted)' }}>
+                  {isDone ? '✓' : s.n}
+                </span>
+                {s.label}
+              </button>
+            );
+          })}
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'rgba(255,255,255,.8)', flexShrink: 0 }}>
-          📅 <input type="date" value={date} onChange={e => setDate(e.target.value)}
-            style={{ background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.25)', borderRadius: 6, color: '#fff', padding: '3px 7px', fontSize: 12 }} />
-        </label>
-        {/* Botão Adicionar — ativo somente a partir do Passo 2 */}
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          <button onClick={step >= 2 ? onOpenModal : undefined}
-            disabled={step < 2}
-            title={step < 2 ? 'Selecione o paciente primeiro' : 'Adicionar fotos e radiografias'}
-            style={{ background: step >= 2 ? 'var(--teal, #14a8a0)' : 'rgba(255,255,255,.12)', border: 'none', color: '#fff',
-              borderRadius: 8, padding: '6px 12px', cursor: step >= 2 ? 'pointer' : 'not-allowed',
-              fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5, opacity: step < 2 ? .5 : 1 }}>
-            📷 Adicionar
-          </button>
-          {totalImgs > 0 && (
-            <span style={{ position: 'absolute', top: -6, right: -6, background: '#e74c3c', color: '#fff', borderRadius: '50%', width: 18, height: 18, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {totalImgs}
-            </span>
-          )}
+        {/* Data + Adicionar + Fechar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, padding: '8px 0' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--muted)' }}>
+            📅 <input type="date" value={date} onChange={e => setDate(e.target.value)}
+              className="vt-input" style={{ padding: '4px 8px', fontSize: 12, width: 130 }} />
+          </label>
+          <div style={{ position: 'relative' }}>
+            <button onClick={step >= 2 ? onOpenModal : undefined} disabled={step < 2}
+              title={step < 2 ? 'Selecione o paciente primeiro' : 'Adicionar fotos e radiografias'}
+              className="vt-btn-primary"
+              style={{ fontSize: 12, padding: '6px 12px', opacity: step < 2 ? .45 : 1, cursor: step < 2 ? 'not-allowed' : 'pointer' }}>
+              📷 Adicionar
+            </button>
+            {totalImgs > 0 && (
+              <span style={{ position: 'absolute', top: -5, right: -5, background: '#e74c3c', color: '#fff', borderRadius: '50%', width: 17, height: 17, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {totalImgs}
+              </span>
+            )}
+          </div>
+          <button onClick={onClose} className="vt-btn-ghost" style={{ fontSize: 12, padding: '6px 12px' }}>✕ Fechar</button>
         </div>
-      </div>
-    );
-  }
-
-  /* ─── Botões de Navegação ─────────────────────────────── */
-  function WizNav({ step, onPrev, onNext, nextLabel, nextDisabled }) {
-    return (
-      <div style={{ borderTop: '1px solid var(--line)', padding: '14px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--card)', flexShrink: 0 }}>
-        <button className="vt-btn-ghost" onClick={onPrev} disabled={step === 1} style={{ opacity: step === 1 ? .3 : 1 }}>← Voltar</button>
-        <span style={{ fontSize: 12, color: 'var(--muted)' }}>Passo {step} de {STEPS.length}</span>
-        <button className="vt-btn-primary" onClick={onNext} disabled={nextDisabled}>
-          {nextLabel || (step === 6 ? '💾 Salvar Exame' : 'Próximo →')}
-        </button>
       </div>
     );
   }
@@ -518,11 +515,24 @@
     { key: 'treated', icon: 'T', label: 'Tratado' },
   ];
 
-  function Step3Odontograma({ wiz, date }) {
+  function Step3Odontograma({ wiz, date, setW }) {
     const odoRef = useRef(null);
     const [activeTool, setActiveTool] = useState('pencil');
     const [histPanelOpen, setHistPanelOpen] = useState(false);
     const [histList, setHistList] = useState([]);
+
+    const captureChart = () => {
+      const svg = document.querySelector('.odm-svg, [class*="odm-wrap"] svg, .odm-chart svg');
+      if (!svg) { window.vtToast && window.vtToast('Gráfico ainda carregando.', 'err'); return; }
+      try {
+        const clone = svg.cloneNode(true);
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        const s = new XMLSerializer().serializeToString(clone);
+        const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(s)));
+        setW({ chartImage: url });
+        window.vtToast && window.vtToast('Gráfico capturado para o PDF!', 'ok');
+      } catch(e) { window.vtToast && window.vtToast('Não foi possível capturar o gráfico.', 'err'); }
+    };
 
     if (!window.OdontogramaModule) return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: 'var(--muted)' }}>
@@ -587,7 +597,8 @@
           <TbBtn icon="📋" label="Gráficos Anteriores" onClick={handleLoadPrev} />
           <div style={{ flex: 1 }} />
           <TbBtn icon="➕" label="Adicionar" onClick={() => ctrl() && ctrl().novoExame()} />
-          <TbBtn icon="✕" label="eFechar" onClick={() => {}} />
+          <TbBtn icon="📸" label="Capturar para PDF" onClick={captureChart} />
+          {wiz.chartImage && <span style={{ fontSize: 11, color: '#14a8a0', fontWeight: 700 }}>✓ Capturado</span>}
         </div>
 
         {/* ── Action buttons ── */}
@@ -682,67 +693,125 @@
     );
   }
 
-  /* ─── PASSO 4: Tratamentos & Anomalias ─────────────────── */
+  /* ─── PASSO 4: Achados & Tratamentos (por espécie) ─────── */
   function Step4Tratamentos({ wiz, setW }) {
-    const flags = window.PR ? window.PR.odontoFlags : [
-      'Placa', 'Cálculo', 'Gengivite', 'Periodontite', 'Mobilidade', 'Furca',
-      'Fraturas', 'Ausências dentárias', 'Persistência decídua', 'Lesões',
-      'Reabsorções', 'Maloclusões', 'Diastemas',
-    ];
+    const isHorse = /equi|caval/i.test(wiz.species || '');
+    const isGato  = /gato|felin/i.test(wiz.species || '');
+    const speciesKey = isHorse ? 'equino' : isGato ? 'gatos' : 'caes';
 
-    const toggleFlag = (f) => {
-      const cur = wiz.anomalias[f] || { checked: false, note: '' };
-      setW({ anomalias: { ...wiz.anomalias, [f]: { ...cur, checked: !cur.checked } } });
+    const dxCfg = useMemo(() => window.vtOdontoDxCfg ? window.vtOdontoDxCfg() : {}, []);
+    const speciesData = dxCfg[speciesKey] || {};
+
+    const CAT_LABELS = { incisivos:'Incisivos', caninos:'Caninos', denteslobo:'Dentes de Lobo', premolares:'Pré-molares', molares:'Molares', outros:'Outros' };
+    const catOrder = isHorse
+      ? ['incisivos','caninos','denteslobo','premolares','molares','outros']
+      : ['incisivos','caninos','premolares','molares','outros'];
+
+    const findings = wiz.findings || {};
+    const [openNotes, setOpenNotes] = useState({});
+
+    const key = (cat, id) => `${cat}:${id}`;
+    const getF = (cat, item) => findings[key(cat, item.id)] || { checked: false, price: item.price || 0, note: '' };
+
+    const toggle = (cat, item) => {
+      const k = key(cat, item.id); const cur = getF(cat, item);
+      setW({ findings: { ...findings, [k]: { ...cur, checked: !cur.checked, price: cur.price || item.price || 0 } } });
     };
-    const setNote = (f, note) => {
-      const cur = wiz.anomalias[f] || { checked: true, note: '' };
-      setW({ anomalias: { ...wiz.anomalias, [f]: { ...cur, note } } });
+    const setPrice = (cat, item, val) => {
+      const k = key(cat, item.id); const cur = getF(cat, item);
+      setW({ findings: { ...findings, [k]: { ...cur, price: val } } });
+    };
+    const setNote = (cat, item, note) => {
+      const k = key(cat, item.id); const cur = getF(cat, item);
+      setW({ findings: { ...findings, [k]: { ...cur, note } } });
     };
 
-    const checked = flags.filter(f => wiz.anomalias[f] && wiz.anomalias[f].checked);
+    const checkedItems = Object.entries(findings).filter(([,v]) => v.checked);
+    const total = checkedItems.reduce((s,[,v]) => s + (parseFloat(v.price)||0), 0);
 
     return (
       <div style={{ padding: 24, flex: 1, overflowY: 'auto' }}>
-        <h2 style={{ margin: '0 0 4px', fontSize: 20, color: 'var(--navy, #16395f)' }}>✅ Tratamentos & Anomalias</h2>
-        <p style={{ margin: '0 0 18px', color: 'var(--muted)', fontSize: 13 }}>Selecione as anomalias identificadas. Adicione notas em cada item se necessário.</p>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
+          <h2 style={{ margin:0, fontSize:20, color:'var(--navy, #16395f)' }}>✅ Achados & Tratamentos</h2>
+          {total > 0 && (
+            <div style={{ background:'var(--teal-t,#e2f4f3)', border:'1px solid var(--teal)', borderRadius:20, padding:'6px 16px', fontSize:14, fontWeight:700, color:'var(--teal)' }}>
+              Total: R$ {total.toLocaleString('pt-BR',{minimumFractionDigits:2})}
+            </div>
+          )}
+        </div>
+        <p style={{ margin:'0 0 18px', color:'var(--muted)', fontSize:13 }}>
+          Selecione os achados para <b>{wiz.species || 'o paciente'}</b>. Ajuste o valor e adicione anotações por item.
+          {checkedItems.length > 0 && <span style={{ color:'var(--teal)', fontWeight:600 }}> {checkedItems.length} item(ns) selecionado(s).</span>}
+        </p>
 
-        {checked.length > 0 && (
-          <div className="vt-ai-note" style={{ marginBottom: 16, fontSize: 12.5 }}>
-            {checked.length} anomalia(s) selecionada(s): {checked.join(' · ')}
+        {catOrder.map(cat => {
+          const items = speciesData[cat];
+          if (!items || items.length === 0) return null;
+          return (
+            <div key={cat} style={{ marginBottom:16 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:6, paddingBottom:4, borderBottom:'1px solid var(--line)' }}>
+                {CAT_LABELS[cat] || cat}
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                {items.map(item => {
+                  const f = getF(cat, item);
+                  const noteOpen = openNotes[key(cat, item.id)];
+                  return (
+                    <div key={item.id} style={{ border:`1px solid ${f.checked?'var(--teal)':'var(--line)'}`, borderRadius:10,
+                      background:f.checked?'var(--teal-t,#e2f4f3)':'var(--card)', overflow:'hidden', transition:'border-color .15s' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px' }}>
+                        {/* Checkbox */}
+                        <button onClick={() => toggle(cat, item)}
+                          style={{ width:22, height:22, borderRadius:4, border:`2px solid ${f.checked?'var(--teal)':'var(--muted)'}`,
+                            background:f.checked?'var(--teal)':'transparent', display:'flex', alignItems:'center', justifyContent:'center',
+                            color:'#fff', fontSize:13, flexShrink:0, cursor:'pointer' }}>
+                          {f.checked ? '✓' : ''}
+                        </button>
+                        {/* Name */}
+                        <span style={{ flex:1, fontWeight:f.checked?600:400, fontSize:14, color:f.checked?'var(--teal)':'var(--ink)' }}>{item.name}</span>
+                        {/* Price — only when checked */}
+                        {f.checked && (
+                          <label style={{ display:'flex', alignItems:'center', gap:5, flexShrink:0 }}>
+                            <span style={{ fontSize:12, color:'var(--muted)' }}>R$</span>
+                            <input type="number" min="0" step="0.01" value={f.price}
+                              onChange={e => setPrice(cat, item, parseFloat(e.target.value)||0)}
+                              style={{ width:80, border:'1px solid var(--line)', borderRadius:6, padding:'4px 7px', fontSize:13, textAlign:'right', outline:'none', background:'var(--card)', fontFamily:'inherit' }} />
+                          </label>
+                        )}
+                        {/* Notes toggle */}
+                        {f.checked && (
+                          <button onClick={() => setOpenNotes(n => ({...n, [key(cat,item.id)]: !n[key(cat,item.id)]}))}
+                            style={{ fontSize:11, padding:'3px 9px', borderRadius:6, border:'1px solid var(--line)', background:'transparent', cursor:'pointer', color:'var(--muted)', flexShrink:0 }}>
+                            {noteOpen ? '▲ Notas' : '▼ Notas'}
+                          </button>
+                        )}
+                      </div>
+                      {f.checked && noteOpen && (
+                        <div style={{ padding:'0 14px 12px' }}>
+                          <textarea className="vt-input" rows={2} placeholder={`Anotações sobre ${item.name}…`} value={f.note}
+                            onChange={e => setNote(cat, item, e.target.value)}
+                            style={{ width:'100%', fontSize:13, resize:'vertical', fontFamily:'inherit' }} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+
+        {Object.keys(speciesData).length === 0 && (
+          <div className="vt-ai-note">
+            Nenhum achado configurado para esta espécie. Acesse <b>Configurações → Odontograma → Achados por Espécie</b> para adicionar.
           </div>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 640 }}>
-          {flags.map(f => {
-            const entry = wiz.anomalias[f] || { checked: false, note: '' };
-            return (
-              <div key={f} style={{ border: `1px solid ${entry.checked ? 'var(--teal)' : 'var(--line)'}`, borderRadius: 10,
-                background: entry.checked ? 'var(--teal-t, #e2f4f3)' : 'var(--card)', overflow: 'hidden', transition: 'all .15s' }}>
-                <button onClick={() => toggleFlag(f)}
-                  style={{ width: '100%', textAlign: 'left', padding: '12px 16px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 20, height: 20, borderRadius: 4, border: `2px solid ${entry.checked ? 'var(--teal)' : 'var(--muted)'}`,
-                    background: entry.checked ? 'var(--teal)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, flexShrink: 0 }}>
-                    {entry.checked ? '✓' : ''}
-                  </div>
-                  <span style={{ fontWeight: entry.checked ? 600 : 400, fontSize: 14, color: entry.checked ? 'var(--teal)' : 'var(--ink)' }}>{f}</span>
-                </button>
-                {entry.checked && (
-                  <div style={{ padding: '0 16px 12px' }}>
-                    <input className="vt-input" placeholder={`Notas sobre ${f}…`} value={entry.note}
-                      onChange={e => setNote(f, e.target.value)}
-                      style={{ width: '100%', fontSize: 13 }} />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        <div style={{ marginTop: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Observações gerais</div>
-          <textarea className="vt-input" rows={3} placeholder="Notas gerais sobre tratamento realizado…"
+        <div style={{ marginTop:20 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:8 }}>Observações gerais</div>
+          <textarea className="vt-input" rows={3} placeholder="Notas gerais sobre tratamentos realizados…"
             value={wiz.anomaliasObs} onChange={e => setW({ anomaliasObs: e.target.value })}
-            style={{ width: '100%', maxWidth: 640, resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }} />
+            style={{ width:'100%', maxWidth:680, resize:'vertical', fontFamily:'inherit', fontSize:13 }} />
         </div>
       </div>
     );
@@ -750,7 +819,21 @@
 
   /* ─── PASSO 5: Notas & Prévia PDF multi-página ──────────── */
   function Step5Notas({ wiz, setW }) {
-    const checkedAnomalias = Object.entries(wiz.anomalias || {}).filter(([, v]) => v && v.checked);
+    const checkedAnomalias = [
+      ...Object.entries(wiz.findings || {}).filter(([,v]) => v && v.checked).map(([k,v]) => {
+        const [cat, id] = k.split(':');
+        const dxCfg = window.vtOdontoDxCfg ? window.vtOdontoDxCfg() : {};
+        const isHorse = /equi|caval/i.test(wiz.species||'');
+        const isGato = /gato|felin/i.test(wiz.species||'');
+        const spKey = isHorse?'equino':isGato?'gatos':'caes';
+        const items = (dxCfg[spKey]||{})[cat]||[];
+        const item = items.find(i=>i.id===id);
+        const name = item ? item.name : id;
+        const note = v.note || (v.price > 0 ? `R$ ${parseFloat(v.price).toFixed(2)}` : '');
+        return [name, { checked:true, note }];
+      }),
+      ...Object.entries(wiz.anomalias || {}).filter(([, v]) => v && v.checked),
+    ];
     const clinic = window.vtClinic ? window.vtClinic() : {};
     const clinicName  = clinic.name     || 'Dentalis Vet';
     const clinicAddr  = clinic.address  || '';
@@ -1031,35 +1114,45 @@
             )}
 
             {/* Passo 3 — Gráfico Odontológico */}
-            <SecDiv label="Gráfico Odontológico — Passo 3" />
-            <div style={{ border: '1px dashed #ccc', borderRadius: 4, padding: '14px 12px', marginBottom: 8, background: '#f9f9f9', textAlign: 'center', color: '#bbb', fontSize: 11, minHeight: 120 }}>
-              [ Gráfico odontológico do Passo 3 será incorporado aqui no PDF exportado ]
-            </div>
+            <SecDiv label="Gráfico Odontológico" />
+            {wiz.chartImage
+              ? <img src={wiz.chartImage} alt="Gráfico odontológico" style={{ width:'100%', maxHeight:220, objectFit:'contain', border:'1px solid #eee', borderRadius:4, marginBottom:8 }} />
+              : <div style={{ border:'1px dashed #ccc', borderRadius:4, padding:'14px 12px', marginBottom:8, background:'#f9f9f9', textAlign:'center', color:'#bbb', fontSize:11, minHeight:80 }}>
+                  [ Use o botão 📸 Capturar para PDF no Passo 3 para incluir o gráfico ]
+                </div>
+            }
 
-            {/* Passo 6 — Faturamento e Próximo Retorno */}
-            {(wiz.charges || wiz.callout || wiz.callbackDays > 0) && (
-              <>
-                <SecDiv label="Faturamento e Próximo Retorno — Passo 6" />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px', marginBottom: 8 }}>
-                  <div style={{ fontSize: 10 }}>
-                    {wiz.charges && <div style={{ marginBottom: 3 }}><b>Cobranças de Tratamento:</b> R$ {parseFloat(wiz.charges || 0).toFixed(2)}</div>}
-                    {wiz.callout && <div style={{ marginBottom: 3 }}><b>Chamada / Visita:</b> R$ {parseFloat(wiz.callout || 0).toFixed(2)}</div>}
-                    {(wiz.charges || wiz.callout) && (
-                      <div style={{ borderTop: '1px solid #eee', paddingTop: 4, marginTop: 4, fontWeight: 700, fontSize: 12 }}>
-                        Total: R$ {((parseFloat(wiz.charges || 0) + parseFloat(wiz.callout || 0)) * (1 + (parseFloat(wiz.taxRate || 0) / 100))).toFixed(2)}
+            {/* Faturamento e Próximo Retorno — sempre visível */}
+            <SecDiv label="Faturamento e Próximo Retorno" />
+            {(() => {
+              const findingsTotal = Object.values(wiz.findings||{}).filter(f=>f.checked).reduce((s,f)=>s+(parseFloat(f.price)||0),0);
+              const charges = parseFloat(wiz.charges||0);
+              const callout = parseFloat(wiz.callout||0);
+              const tax = parseFloat(wiz.taxRate||0);
+              const total = (charges + callout) * (1 + tax/100);
+              return (
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0 20px', marginBottom:8 }}>
+                  <div style={{ fontSize:10 }}>
+                    {findingsTotal > 0 && <div style={{ marginBottom:3 }}><b>Tratamentos (Passo 4):</b> R$ {findingsTotal.toFixed(2)}</div>}
+                    {charges > 0 && <div style={{ marginBottom:3 }}><b>Cobranças adicionais:</b> R$ {charges.toFixed(2)}</div>}
+                    {callout > 0 && <div style={{ marginBottom:3 }}><b>Chamada / Visita:</b> R$ {callout.toFixed(2)}</div>}
+                    {(findingsTotal > 0 || charges > 0 || callout > 0) && (
+                      <div style={{ borderTop:'1px solid #eee', paddingTop:4, marginTop:4, fontWeight:700, fontSize:12 }}>
+                        Total: R$ {(findingsTotal + total).toFixed(2)}
                       </div>
                     )}
-                    {wiz.paid && <div style={{ color: '#14a8a0', fontWeight: 700 }}>✔ PAGO — {wiz.paidType}</div>}
-                    {wiz.refNum && <div style={{ color: '#888', fontSize: 9 }}>Ref: {wiz.refNum}</div>}
+                    {!(findingsTotal > 0 || charges > 0 || callout > 0) && <div style={{ color:'#aaa', fontStyle:'italic' }}>A preencher no Passo 6.</div>}
+                    {wiz.paid && <div style={{ color:'#14a8a0', fontWeight:700, marginTop:4 }}>✔ PAGO — {wiz.paidType}</div>}
+                    {wiz.refNum && <div style={{ color:'#888', fontSize:9 }}>Ref: {wiz.refNum}</div>}
                   </div>
-                  <div style={{ borderLeft: '1px solid #eee', paddingLeft: 12, fontSize: 10 }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .8, color: '#999', marginBottom: 4 }}>Próximo Retorno</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#16395f' }}>{CB_SLOTS_LOCAL[wiz.callbackDays] || 'Nenhum'}</div>
-                    {wiz.callbackObs && <div style={{ fontSize: 10, color: '#777', marginTop: 4 }}>{wiz.callbackObs}</div>}
+                  <div style={{ borderLeft:'1px solid #eee', paddingLeft:12, fontSize:10 }}>
+                    <div style={{ fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:.8, color:'#999', marginBottom:4 }}>Próximo Retorno</div>
+                    <div style={{ fontSize:14, fontWeight:700, color:'#16395f' }}>{CB_SLOTS_LOCAL[wiz.callbackDays] || 'Nenhum'}</div>
+                    {wiz.callbackObs && <div style={{ fontSize:10, color:'#777', marginTop:4 }}>{wiz.callbackObs}</div>}
                   </div>
                 </div>
-              </>
-            )}
+              );
+            })()}
 
             <PdfFooter />
           </div>
@@ -1071,11 +1164,11 @@
             <PdfHeader pageNum={2} />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr', gap: '0 20px', flex: 1 }}>
 
-              {/* Esquerda: Passo 4 — Achados/Anomalias */}
+              {/* Esquerda: Achados/Anomalias */}
               <div>
-                <SecDiv label="Achados e Anomalias — Passo 4" />
+                <SecDiv label="Achados e Tratamentos" />
                 {checkedAnomalias.length === 0
-                  ? <div style={{ fontSize: 10, color: '#aaa', fontStyle: 'italic' }}>Nenhum achado registrado no Passo 4.</div>
+                  ? <div style={{ fontSize: 10, color: '#aaa', fontStyle: 'italic' }}>Nenhum achado registrado.</div>
                   : (
                     <ul style={{ margin: 0, paddingLeft: 14, fontSize: 10, lineHeight: 2 }}>
                       {checkedAnomalias.map(([f, v]) => (
@@ -1097,12 +1190,12 @@
               {/* Divisor */}
               <div style={{ background: '#ddd' }} />
 
-              {/* Direita: Passo 5 — Anotações */}
+              {/* Direita: Anotações */}
               <div>
-                <SecDiv label="Anotações Clínicas — Passo 5" />
+                <SecDiv label="Anotações" />
                 {wiz.chartNotes
                   ? <div style={{ fontSize: 10, lineHeight: 1.9, whiteSpace: 'pre-wrap', color: '#222' }}>{wiz.chartNotes}</div>
-                  : <div style={{ fontSize: 10, color: '#aaa', fontStyle: 'italic' }}>Nenhuma anotação registrada no Passo 5.</div>
+                  : <div style={{ fontSize: 10, color: '#aaa', fontStyle: 'italic' }}>Nenhuma anotação registrada.</div>
                 }
               </div>
             </div>
@@ -1140,8 +1233,7 @@
                             }}>{m.letter}</div>
                           ))}
                         </div>
-                        <div style={{ fontSize: 9, fontWeight: 700, color: '#333' }}>{img.label}</div>
-                        {img.description && <div style={{ fontSize: 9, color: '#666', lineHeight: 1.5 }}>{img.description}</div>}
+                        {img.description && <div style={{ fontSize: 9, color: '#444', lineHeight: 1.5, marginTop: 3 }}>{img.description}</div>}
                         {(img.markers || []).length > 0 && (
                           <div style={{ fontSize: 9 }}>
                             {img.markers.map((m, mIdx) => (
@@ -1177,10 +1269,11 @@
   const CB_SLOTS = ['Nenhum', '1 Semana', '2 Meses', '3 Meses', '6 Meses', '9 Meses', '1 Ano', '18 Meses', '24 Meses'];
 
   function Step6Faturamento({ wiz, setW, onSave, onClose, onPrev }) {
+    const findingsTotal = Object.values(wiz.findings||{}).filter(f=>f.checked).reduce((s,f)=>s+(parseFloat(f.price)||0),0);
     const charges = Number(wiz.charges) || 0;
     const callout = Number(wiz.callout) || 0;
     const tax     = Number(wiz.taxRate) || 0;
-    const total   = (charges + callout) * (1 + tax / 100);
+    const total   = (findingsTotal + charges + callout) * (1 + tax / 100);
     const refNum  = wiz.refNum || '';
 
     /* ── campo de valor com reset ── */
@@ -1211,8 +1304,22 @@
             Cobrança e Notificações de Ligar de Volta
           </h2>
 
-          <MoneyField label="Cobranças de Tratamento"
-            desc="Cobranças total dos tratamentos no gráfico. Digite o valor a descontar."
+          {findingsTotal > 0 && (
+            <div style={{ background: '#fff', borderRadius: 16, padding: '14px 20px', marginBottom: 14, boxShadow: '0 1px 4px rgba(0,0,0,.07)', border: '1px solid var(--teal-t,#e2f4f3)' }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--navy, #16395f)', marginBottom: 2 }}>Tratamentos selecionados (Passo 4)</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
+                {Object.entries(wiz.findings||{}).filter(([,v])=>v.checked).length} item(ns) selecionado(s)
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <span style={{ fontWeight: 800, fontSize: 20, color: 'var(--teal)' }}>
+                  R$ {findingsTotal.toLocaleString('pt-BR',{minimumFractionDigits:2})}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <MoneyField label="Cobranças adicionais"
+            desc="Valores adicionais além dos tratamentos do Passo 4."
             fieldKey="charges" />
 
           <MoneyField label="Chamar Cobrança"
@@ -1226,9 +1333,12 @@
                 <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy, #16395f)' }}>Total</div>
                 <div style={{ fontSize: 12, color: 'var(--muted)' }}>Total cobrança ao cliente. Imposto sera adicionado automaticamente se selecionado.</div>
               </div>
-              <span style={{ fontWeight: 800, fontSize: 22, color: 'var(--navy, #16395f)' }}>
-                {total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-              </span>
+              <div style={{ textAlign: 'right' }}>
+                {findingsTotal > 0 && <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>Tratamentos: R$ {findingsTotal.toFixed(2)} + Extras: R$ {(charges+callout).toFixed(2)}</div>}
+                <span style={{ fontWeight: 800, fontSize: 22, color: 'var(--navy, #16395f)' }}>
+                  {total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </span>
+              </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTop: '1px solid var(--line)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1339,7 +1449,8 @@
       propertyName: '', propertyCity: '', propertyPhone: '',
       condScore: null, lastTreatment: '', clinicalNotes: '',
       sedVet: '', sedTipo: '', sedDose: '', sedVia: '', sedObs: '',
-      anomalias: {}, anomaliasObs: '', chartNotes: '',
+      anomalias: {}, anomaliasObs: '', chartNotes: '', chartImage: '',
+      findings: {},
       charges: '', callout: '', taxRate: '', paid: false, paidType: 'Dinheiro', refNum: '',
       callbackDays: 0, callbackObs: '', images: [],
     });
@@ -1348,6 +1459,7 @@
 
     const goNext = () => setStep(s => Math.min(s + 1, 6));
     const goPrev = () => setStep(s => Math.max(s - 1, 1));
+    const goStep = (n) => { if (n === 1 || wiz.patientId) setStep(n); };
 
     const saveExam = () => {
       if (!wiz.patientId) { window.vtToast && window.vtToast('Selecione um paciente antes de salvar.', 'err'); return; }
@@ -1364,8 +1476,10 @@
         clinicalNotes: wiz.clinicalNotes,
         sedacao: { vet: wiz.sedVet, tipo: wiz.sedTipo, dose: wiz.sedDose, via: wiz.sedVia, obs: wiz.sedObs },
         anomalias: checkedFlags,
+        findings: wiz.findings,
         anomaliasObs: wiz.anomaliasObs,
         chartNotes: wiz.chartNotes,
+        chartImage: wiz.chartImage,
         billing: { charges: wiz.charges, callout: wiz.callout, taxRate: wiz.taxRate, paid: wiz.paid, paidType: wiz.paidType, refNum: wiz.refNum },
         callback: { period: CB_SLOTS[wiz.callbackDays] || 'Nenhum', obs: wiz.callbackObs },
         source: 'wizard',
@@ -1393,20 +1507,16 @@
             onClose={() => setShowImgModal(false)} />
         )}
         <WizHeader step={step} onClose={onClose} date={date} setDate={setDate}
-          images={wiz.images}
-          onOpenModal={() => setShowImgModal(true)} />
+          images={wiz.images} onOpenModal={() => setShowImgModal(true)}
+          onGoStep={goStep} patientSelected={!!wiz.patientId} />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {step === 1 && <Step1Patient wiz={wizWithDate} setW={setW} onNext={goNext} />}
           {step === 2 && <Step2Avaliacao wiz={wizWithDate} setW={setW} />}
-          {step === 3 && <Step3Odontograma wiz={wizWithDate} date={date} />}
+          {step === 3 && <Step3Odontograma wiz={wizWithDate} date={date} setW={setW} />}
           {step === 4 && <Step4Tratamentos wiz={wizWithDate} setW={setW} />}
           {step === 5 && <Step5Notas wiz={wizWithDate} setW={setW} />}
           {step === 6 && <Step6Faturamento wiz={wizWithDate} setW={setW} onSave={saveExam} onClose={onClose} onPrev={goPrev} />}
         </div>
-        {step < 6 && (
-          <WizNav step={step} onPrev={goPrev} onNext={handleNext}
-            nextDisabled={step === 1 && !wiz.patientId} />
-        )}
       </div>
     );
   }
