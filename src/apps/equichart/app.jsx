@@ -32,6 +32,7 @@ const EMPTY = {
   severity: {},     // { toothId: 1..4 }
   strokes: [],
   drops: [],
+  toothFills: {},   // { toothId: '#cor' } — preenchimento integral da peça
   examDate: new Date().toISOString().slice(0, 10),
   odSpecies: '',     // Passo 1 — espécie escolhida (canino|felino|equino)
   arch: 'both',      // Passo 1 — arcada (upper|lower|both)
@@ -135,7 +136,7 @@ function App() {
       if (window.VtStore && chart.patientName) {
         const d = window.VtStore.getData() || {};
         const hist = { ...(d.odontoHistory || {}) };
-        const snap = { date: chart.examDate || new Date().toISOString().slice(0, 10), savedAt: new Date().toISOString(), data: { marks: chart.marks, status: chart.status, severity: chart.severity, notes: chart.notes, preExam: chart.preExam, postExam: chart.postExam, findings5: chart.findings5, findingsOther: chart.findingsOther, sedationLog: chart.sedationLog, clinicalNotes: chart.clinicalNotes, achados: chart.achados, billing: chart.billing } };
+        const snap = { date: chart.examDate || new Date().toISOString().slice(0, 10), savedAt: new Date().toISOString(), data: { marks: chart.marks, status: chart.status, severity: chart.severity, notes: chart.notes, toothFills: chart.toothFills || {}, preExam: chart.preExam, postExam: chart.postExam, findings5: chart.findings5, findingsOther: chart.findingsOther, sedationLog: chart.sedationLog, clinicalNotes: chart.clinicalNotes, achados: chart.achados, billing: chart.billing } };
         hist[chart.patientName] = [snap, ...(hist[chart.patientName] || [])].slice(0, 10);
         window.VtStore.setData({ odontoHistory: hist });
       }

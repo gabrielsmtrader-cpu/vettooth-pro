@@ -142,8 +142,15 @@ button { font-family: inherit; cursor: pointer; }
 .anat-stage { position: relative; width: 100%; display: block; }
 .anat-base { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
 .anat-hit { position: absolute; inset: 0; width: 100%; height: 100%; }
-.anat-zone-hover { transition: fill .12s; }
-.anat-zone:hover .anat-zone-hover { fill: rgba(20,168,160,.16); }
+.anat-zone-hit { transition: fill .18s ease, stroke .18s ease, fill-opacity .18s ease, filter .18s ease; }
+.anat-zone:hover .anat-zone-hit { fill:rgba(20,168,160,.10); stroke:rgba(15,143,136,.46); }
+.anat-zone:focus { outline: none; }
+.anat-zone:focus .anat-zone-hit, .anat-zone.is-selected .anat-zone-hit { fill:rgba(20,168,160,.12); stroke:#0f8f88; stroke-width:2; filter:drop-shadow(0 1px 2px rgba(15,143,136,.22)); animation:anatToothSelect 1.8s ease-in-out infinite; }
+.anat-tooth-fill { transition: fill-opacity .22s ease, stroke-width .22s ease, filter .22s ease; animation: anatPaintIn .28s ease-out both; }
+.anat-tooth-fill.is-selected { filter: drop-shadow(0 2px 3px rgba(15,143,136,.32)); }
+@keyframes anatPaintIn { from { opacity:.25; fill-opacity:.12; } to { opacity:1; } }
+@keyframes anatToothSelect { 0%,100% { fill-opacity:.42; stroke-opacity:.62; } 50% { fill-opacity:.72; stroke-opacity:1; } }
+@media (prefers-reduced-motion: reduce) { .anat-tooth-fill, .anat-zone-hit { animation:none !important; transition:none; } }
 
 /* ===================== Odontograma (layout VetTooth Pro) ===================== */
 :root { --od-navy:#1a2e44; --od-teal:#00c9a7; --od-teal-d:#00a98c; --od-teal-t:#e0f7f2; --od-bg:#eef1f5; --od-line:#e7ebf0; --od-ink:#15293d; --od-muted:#67788c; --od-faint:#97a4b3; }
@@ -872,7 +879,7 @@ button { font-family: inherit; cursor: pointer; }
 .gx-pill.teal { background:var(--od-teal); color:#fff; }
 .gx-pill:hover { filter:brightness(1.06); }
 .gx-chart { position:relative; flex:1; min-height:340px; display:flex; align-items:center; justify-content:center; padding:16px; background:#fff; }
-.gx-stage { position:relative; width:100%; max-width:1060px; }
+.gx-stage { position:relative; width:100%; max-width:1260px; }
 .gx-stage > svg.sp-arch-svg { position:absolute; inset:0; width:100%; height:100%; }
 .gx-stage .anat-stage { position:absolute; inset:0; height:100%; }
 .gx-stage .anat-base { height:100%; width:100%; object-fit:contain; }
@@ -924,14 +931,14 @@ button { font-family: inherit; cursor: pointer; }
 <script type="text/babel" src="src/apps/equichart/chart-svg.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/chart-components.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/chart-anatomical.jsx"></script>
-<script type="text/babel" src="src/apps/equichart/chart-base-svg.jsx"></script>
+<script type="text/babel" src="src/apps/equichart/chart-base-svg.jsx?v=20260719g"></script>
 <script type="text/babel" src="src/apps/equichart/vt-species-arch.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/odonto-ui.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/vt-odonto-especie.jsx"></script>
-<script type="text/babel" src="src/apps/equichart/vt-odonto-steps.jsx"></script>
+<script type="text/babel" src="src/apps/equichart/vt-odonto-steps.jsx?v=20260719d"></script>
 <script type="text/babel" src="src/apps/equichart/ui-components.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/panels.jsx"></script>
-<script type="text/babel" src="src/apps/equichart/app.jsx"></script>
+<script type="text/babel" src="src/apps/equichart/app.jsx?v=20260719c"></script>
 
 <style id="__om-edit-overrides"></style>
 </body>

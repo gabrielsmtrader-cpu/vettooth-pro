@@ -749,6 +749,7 @@ function OdCondicoesStep({ chart, setChart, go }) {
 const GX_TOOLS = [
   { id: 'pencil', g: '✏️', label: 'Pencil · Lápis' },
   { id: 'eraser', g: '◇', label: 'Eraser · Borracha' },
+  { id: 'tooth-fill', g: '🪣', label: 'Balde · Pintar dente inteiro' },
   { id: 'fcircle', g: '●', label: 'Fill · Preenchido' },
   { id: 'circle', g: '○', label: 'Circle · Círculo' },
   { id: 'line', g: '╱', label: 'Line · Linha' },
@@ -793,8 +794,8 @@ function gxSaveStore(name, url) {
 }
 
 function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, BaseSvgChart, selectedId, onToothClick, selectedTooth, setStatus, toggleFinding, setNote, setSeverity, onClosePanel, layers, setLayers, go }) {
-  const CW = useSpeciesArch ? 880 : 976;
-  const CH = useSpeciesArch ? 560 : 393;
+  const CW = useSpeciesArch ? 880 : 1390;
+  const CH = useSpeciesArch ? 560 : 511;
   const canvasRef = React.useRef(null);
   const ctxRef = React.useRef(null);
   const undoRef = React.useRef([]);
@@ -830,6 +831,11 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
     const a = actionsRef.current.pop();
     if (!a) { const s = undoRef.current.pop(); if (s) restore(s); setCanUndo(false); return; }
     if (a.t === 'mark') { removeMark(a.id); }
+    else if (a.t === 'fill') { restoreToothFill(a.toothId, a.previous); }
+    else if (a.t === 'clear') {
+      const s = undoRef.current.pop(); if (s) restore(s);
+      setChart((c) => ({ ...c, gmarks: a.gmarks, toothFills: a.toothFills }));
+    }
     else { const s = undoRef.current.pop(); if (s) restore(s); }
     setCanUndo(actionsRef.current.length > 0);
   };
@@ -847,6 +853,21 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
       }
     } catch (e) {}
     return null;
+  };
+  const restoreToothFill = (toothId, value) => setChart((c) => {
+    const toothFills = { ...(c.toothFills || {}) };
+    if (value) toothFills[toothId] = value; else delete toothFills[toothId];
+    return { ...c, toothFills };
+  });
+  const paintTooth = (toothId) => {
+    const previous = (chart.toothFills || {})[toothId] || null;
+    const next = previous === color ? null : color;
+    actionsRef.current.push({ t: 'fill', toothId, previous });
+    setCanUndo(true);
+    restoreToothFill(toothId, next);
+    const numericId = Number(toothId);
+    const tooth = (window.SpeciesTeeth && window.SpeciesTeeth[toothId]) || window.EquiData.makeTooth(Math.floor(numericId / 100), numericId % 100);
+    onToothClick(tooth);
   };
 
   const stamp = (ctx, t, x, y) => {
@@ -866,6 +887,11 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
     e.preventDefault();
     const { x, y } = getPos(e); const ctx = ctxRef.current;
     ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = size; ctx.globalCompositeOperation = 'source-over';
+    if (tool === 'tooth-fill') {
+      const hit = toothAtPoint(e.clientX, e.clientY);
+      if (hit) paintTooth(hit.toothId); else ogToast('Clique diretamente sobre um dente para pintá-lo.', 'err');
+      return;
+    }
     if (gxIsStamp(tool)) {
       const hit = toothAtPoint(e.clientX, e.clientY);
       const cr = canvasRef.current.getBoundingClientRect();
@@ -903,7 +929,7 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
   };
   const onUp = () => { const ctx = ctxRef.current; if (ctx) ctx.globalCompositeOperation = 'source-over'; draftRef.current = null; };
 
-  const clearAll = () => { if (window.confirm('Limpar todo o gráfico? Esta ação pode ser desfeita com Desfazer.')) { pushUndo(); ctxRef.current.clearRect(0, 0, CW, CH); actionsRef.current = []; setChart((c) => ({ ...c, gmarks: [] })); setCanUndo(false); ogToast('Gráfico limpo.'); } };
+  const clearAll = () => { if (window.confirm('Limpar todo o gráfico? Esta ação pode ser desfeita com Desfazer.')) { pushUndo(); actionsRef.current.push({ t: 'clear', gmarks: [...(chart.gmarks || [])], toothFills: { ...(chart.toothFills || {}) } }); ctxRef.current.clearRect(0, 0, CW, CH); setChart((c) => ({ ...c, gmarks: [], toothFills: {} })); setCanUndo(true); ogToast('Gráfico limpo.'); } };
   const saveChart = () => {
     const base = canvasRef.current;
     const off = document.createElement('canvas'); off.width = CW; off.height = CH;
@@ -950,7 +976,7 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
           <div className="gx-stage" style={{ aspectRatio: `${CW} / ${CH}` }}>
             {useSpeciesArch
               ? <window.SpeciesArch species={species} marksByTooth={(layers && layers.achados) ? chart.marks : {}} selectedId={selectedId} onToothClick={onToothClick} />
-              : (BaseSvgChart ? <BaseSvgChart marksByTooth={(layers && layers.achados) ? chart.marks : {}} selectedId={selectedId} onToothClick={onToothClick} /> : null)}
+              : (BaseSvgChart ? <BaseSvgChart marksByTooth={(layers && layers.achados) ? chart.marks : {}} fillsByTooth={chart.toothFills || {}} selectedId={selectedId} onToothClick={onToothClick} /> : null)}
             <canvas ref={canvasRef} className="gx-canvas" style={{ pointerEvents: tool === 'select' ? 'none' : 'auto', cursor: tool === 'select' ? 'default' : 'crosshair' }}
               onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp} />
             <svg className="gx-marks" viewBox={`0 0 ${CW} ${CH}`} preserveAspectRatio="xMidYMid meet" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
@@ -984,7 +1010,7 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
         <div className="gx-toolbar">
           <div className="gx-mod">
             <span className="gx-mod-badge">1</span>
-            {GX_TOOLS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} onClick={() => setTool(t.id)}>{t.g}</button>)}
+            {GX_TOOLS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} onClick={() => setTool(t.id)}>{t.g}</button>)}
           </div>
           <div className="gx-mod">
             <span className="gx-mod-badge">2</span>
@@ -1004,7 +1030,7 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
             {GX_COLORS.map((c) => <button key={c} className={`gx-color${color === c ? ' on' : ''}`} style={{ background: c }} onClick={() => setColor(c)} />)}
           </div>
           <div className="gx-espessura"><span>Espessura · {size}px</span><input type="range" min="1" max="8" step="1" value={size} onChange={(e) => setSize(Number(e.target.value))} /></div>
-          <span className="gx-tip">Marcadores/Status: clique no dente para carimbar · use <b>Selecionar Dente</b> e clique no símbolo para remover</span>
+          <span className="gx-tip"><b>🪣 Pintar dente:</b> escolha uma cor e clique na peça · ela será pintada e selecionada para as demais ferramentas</span>
         </div>
       </div>
 
