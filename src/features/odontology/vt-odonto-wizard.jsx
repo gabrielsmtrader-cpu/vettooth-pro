@@ -1172,37 +1172,91 @@
       return groups;
     })();
 
+    /* Achados do Passo 4 agrupados por categoria para exibir no painel esquerdo */
+    const dxCfg = window.vtOdontoDxCfg ? window.vtOdontoDxCfg() : {};
+    const isHorse5 = /equi|caval/i.test(wiz.species||'');
+    const isGato5  = /gato|felin/i.test(wiz.species||'');
+    const spKey5   = isHorse5?'equino':isGato5?'gatos':'caes';
+    const CAT_LABELS5 = { incisivos:'Incisivos', caninos:'Caninos', denteslobo:'Dente de Lobo', premolares:'Pré-molares', molares:'Molares', outros:'Outros' };
+    const findingsByCat = (() => {
+      const map = {};
+      Object.entries(wiz.findings||{}).forEach(([k,v]) => {
+        if (!v || !v.checked) return;
+        const [cat, id] = k.split(':');
+        const items = ((dxCfg[spKey5]||{})[cat])||[];
+        const item  = items.find(i=>i.id===id);
+        if (!map[cat]) map[cat] = [];
+        map[cat].push({ name: item?item.name:id, note: v.note||'', price: v.price||0 });
+      });
+      return map;
+    })();
+    const catOrder5 = isHorse5
+      ? ['incisivos','caninos','denteslobo','premolares','molares','outros']
+      : ['incisivos','caninos','premolares','molares','outros'];
+
     return (
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
         {/* ── Coluna esquerda: Anotações ── */}
-        <div style={{ width: 280, minWidth: 200, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--line)', background: 'var(--bg)', padding: '14px 12px', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-            <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--ink)' }}>Anotações Clínicas</span>
-            <button onClick={loadPrev} className="vt-btn-primary"
-              style={{ fontSize: 11, padding: '4px 10px' }}>
-              ↩ Carregar
+        <div style={{ width: 300, minWidth: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--line)', background: 'var(--card)', overflow: 'hidden' }}>
+
+          {/* Header do painel */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px 10px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>Anotações</span>
+            <button onClick={loadPrev}
+              style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, padding:'6px 14px',
+                border:'2px solid var(--teal)', borderRadius:20, background:'transparent',
+                color:'var(--teal)', cursor:'pointer', fontWeight:700, fontFamily:'inherit' }}>
+              + LOAD PREVIOUS
             </button>
           </div>
-          <textarea
-            value={wiz.chartNotes}
-            onChange={e => setW({ chartNotes: e.target.value })}
-            placeholder="Achados clínicos, observações por região dentária, recomendações pós-procedimento…"
-            className="vt-input"
-            style={{ flex: 1, resize: 'none', fontSize: 12, lineHeight: 1.7 }}
-          />
-          {images.length > 0 && (
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: 1 }}>{images.length} imagens adicionadas</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                {images.slice(0, 12).map((img, i) => (
-                  <img key={i} src={img.url} alt={img.label} title={img.label}
-                    style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, border: '1.5px solid var(--line)' }} />
+
+          {/* Achados por categoria */}
+          <div style={{ flex:1, overflowY:'auto', padding:'14px 18px' }}>
+            {catOrder5.filter(c => findingsByCat[c]).map(cat => (
+              <div key={cat} style={{ marginBottom:16 }}>
+                <div style={{ fontWeight:800, fontSize:13, color:'var(--ink)', textTransform:'uppercase', letterSpacing:'.04em', marginBottom:6 }}>
+                  {CAT_LABELS5[cat]||cat}
+                </div>
+                {findingsByCat[cat].map((f,i) => (
+                  <div key={i} style={{ display:'flex', gap:6, fontSize:13, color:'var(--ink)', lineHeight:1.6, paddingLeft:4, marginBottom:2 }}>
+                    <span style={{ flexShrink:0, color:'var(--muted)' }}>•</span>
+                    <span>
+                      {f.name}{f.price>0 ? <span style={{ color:'var(--teal)', fontWeight:600 }}> — R$ {parseFloat(f.price).toFixed(2)}</span> : ''}{f.note ? <span style={{ color:'var(--muted)' }}>; {f.note}</span> : ''}
+                    </span>
+                  </div>
                 ))}
-                {images.length > 12 && <div style={{ width: 44, height: 44, borderRadius: 6, background: 'var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'var(--muted)', fontWeight: 700 }}>+{images.length - 12}</div>}
               </div>
-            </div>
-          )}
+            ))}
+
+            {/* Divisor só se houver achados */}
+            {Object.keys(findingsByCat).length > 0 && (
+              <div style={{ borderTop:'2px solid var(--line)', margin:'8px 0 14px', opacity:.5 }} />
+            )}
+
+            {/* Anotações livres */}
+            <textarea
+              value={wiz.chartNotes}
+              onChange={e => setW({ chartNotes: e.target.value })}
+              placeholder="Observações adicionais, recomendações pós-procedimento…"
+              className="vt-input"
+              style={{ width:'100%', minHeight:120, resize:'vertical', fontSize:13, lineHeight:1.7, fontFamily:'inherit' }}
+            />
+
+            {/* Miniaturas de imagens */}
+            {images.length > 0 && (
+              <div style={{ marginTop:12 }}>
+                <div style={{ fontSize:10, fontWeight:700, color:'var(--muted)', marginBottom:6, textTransform:'uppercase', letterSpacing:1 }}>{images.length} imagens</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
+                  {images.slice(0,12).map((img,i)=>(
+                    <img key={i} src={img.url} alt={img.label} title={img.label}
+                      style={{ width:44, height:44, objectFit:'cover', borderRadius:6, border:'1.5px solid var(--line)' }} />
+                  ))}
+                  {images.length>12 && <div style={{ width:44, height:44, borderRadius:6, background:'var(--line)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, color:'var(--muted)', fontWeight:700 }}>+{images.length-12}</div>}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── Coluna direita: Prévia PDF multi-página ── */}
