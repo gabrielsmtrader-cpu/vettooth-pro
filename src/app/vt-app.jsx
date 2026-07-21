@@ -824,12 +824,14 @@ function App() {
   // adicionar novo animal a partir da ficha do responsável/propriedade
   window.vtAddAnimalFor = (owner, propertyName) => { setFocusPatient({ newFor: { owner: owner || '', property: propertyName || '' } }); setActive('pacientes'); };
 
+  const isOdonto = active === 'odontograma';
+
   return (
     <div className="vt-app">
-      <Sidebar active={active} setActive={setActive} />
+      {!isOdonto && <Sidebar active={active} setActive={setActive} />}
       <div className="vt-main">
-        <TopBar user={user} onLogout={logout} onAvatar={(a) => setUser((u) => ({ ...u, avatar: a }))} onProfileUpdate={(p) => setUser((u) => ({ ...u, ...p }))} nav={navSearch} onLock={() => { const d = window.VtStore && window.VtStore.getData(); if (d && d.securityCfg && d.securityCfg.pin) setPinLocked(true); else window.vtToast('Configure um PIN em Configurações → Segurança para usar o bloqueio.', 'err'); }} />
-        <main className={`vt-content${flush ? ' flush' : ''}`}>
+        {!isOdonto && <TopBar user={user} onLogout={logout} onAvatar={(a) => setUser((u) => ({ ...u, avatar: a }))} onProfileUpdate={(p) => setUser((u) => ({ ...u, ...p }))} nav={navSearch} onLock={() => { const d = window.VtStore && window.VtStore.getData(); if (d && d.securityCfg && d.securityCfg.pin) setPinLocked(true); else window.vtToast('Configure um PIN em Configurações → Segurança para usar o bloqueio.', 'err'); }} />}
+        <main className={`vt-content${(flush || isOdonto) ? ' flush' : ''}`}>
           {active === 'dashboard' && <Dashboard key={'dash-'+dataVer} setActive={setActive} user={user} />}
           {active === 'pacientes' && <PacientesModule key={'pac-'+dataVer} openOdonto={openOdonto} goAgenda={() => setActive('agenda')} openAgendaNew={openAgendaNew} openAtendimento={openAtendimento} focusPatientId={focusPatient} clearFocus={() => setFocusPatient(null)} />}
           {active === 'clientes' && <ClientesModule key={'cli-'+dataVer} openPatient={openPatient} focusOwnerName={focusOwner} clearFocus={() => setFocusOwner(null)} />}
@@ -871,4 +873,4 @@ class VtAppErrorBoundary extends React.Component {
   }
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<VtAppErrorBoundary><App /></VtAppErrorBoundary>);
+if (!window.__vtMounted) { window.__vtMounted = true; ReactDOM.createRoot(document.getElementById('root')).render(<VtAppErrorBoundary><App /></VtAppErrorBoundary>); }
