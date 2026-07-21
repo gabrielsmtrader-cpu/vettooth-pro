@@ -235,29 +235,41 @@
   }
 
   /* ─── Cabeçalho do Wizard ─────────────────────────────── */
+  const STEP_PAGE_TITLES = {
+    1: 'Seleção de Paciente',
+    2: 'Avaliação Inicial',
+    3: 'Odontograma',
+    4: 'Tratamentos e Anormalidades',
+    5: 'Notas & Prévia',
+    6: 'Faturamento',
+  };
+
   function WizHeader({ step, onClose, date, setDate, images, onOpenModal, onGoStep, patientSelected, patientName, ownerName }) {
     const totalImgs = (images || []).length;
+    const pageTitle = STEP_PAGE_TITLES[step] || 'Odontograma';
     return (
-      <div style={{ background: 'var(--card)', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
-        {/* Linha 1 — Título da página + controles (padrão do VetTooth Pro) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px 10px' }}>
+      <div style={{ flexShrink: 0 }}>
+        {/* Linha 1 — Header navy */}
+        <div style={{ background: 'var(--navy)', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.1 }}>Odontograma</h1>
-            <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>{pageTitle}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {patientName
-                ? <><span style={{ fontWeight: 600, color: 'var(--navy-3)' }}>{patientName}</span>{ownerName ? <span> · {ownerName}</span> : null}</>
+                ? <><span style={{ fontWeight: 600, color: 'rgba(255,255,255,.85)' }}>{patientName}</span>{ownerName ? <span> · {ownerName}</span> : null}</>
                 : 'Novo exame dental — selecione o paciente'}
-            </p>
+            </div>
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--muted)', flexShrink: 0 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'rgba(255,255,255,.7)', flexShrink: 0 }}>
             📅 <input type="date" value={date} onChange={e => setDate(e.target.value)}
-              className="vt-input" style={{ padding: '4px 8px', fontSize: 12, width: 130 }} />
+              style={{ background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.25)', borderRadius: 6,
+                color: '#fff', padding: '4px 8px', fontSize: 12, width: 130, outline: 'none', fontFamily: 'inherit' }} />
           </label>
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <button onClick={step >= 2 ? onOpenModal : undefined} disabled={step < 2}
               title={step < 2 ? 'Selecione o paciente primeiro' : 'Adicionar fotos e radiografias'}
-              className="vt-btn-primary"
-              style={{ fontSize: 12, padding: '6px 12px', opacity: step < 2 ? .45 : 1, cursor: step < 2 ? 'not-allowed' : 'pointer' }}>
+              style={{ fontSize: 12, padding: '6px 14px', border: '1.5px solid rgba(255,255,255,.35)', borderRadius: 7,
+                background: 'rgba(255,255,255,.12)', color: '#fff', cursor: step < 2 ? 'not-allowed' : 'pointer',
+                fontWeight: 600, opacity: step < 2 ? .4 : 1, fontFamily: 'inherit' }}>
               📷 Fotos
             </button>
             {totalImgs > 0 && (
@@ -266,10 +278,14 @@
               </span>
             )}
           </div>
-          <button onClick={onClose} className="vt-btn-ghost" style={{ fontSize: 12, padding: '6px 12px', flexShrink: 0 }}>✕ Fechar</button>
+          <button onClick={onClose}
+            style={{ fontSize: 12, padding: '6px 14px', border: '1.5px solid rgba(255,255,255,.35)', borderRadius: 7,
+              background: 'rgba(255,255,255,.12)', color: '#fff', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', flexShrink: 0 }}>
+            ✕ Fechar
+          </button>
         </div>
-        {/* Linha 2 — Tabs de passo estilo pill */}
-        <div style={{ display: 'flex', alignItems: 'center', overflowX: 'auto', borderTop: '1px solid var(--line)', padding: '6px 14px', gap: 4, background: 'var(--card)' }}>
+        {/* Linha 2 — Tabs pill largura total */}
+        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--card)', borderBottom: '1px solid var(--line)', padding: '6px 8px' }}>
           {STEPS.map((s) => {
             const isActive = step === s.n;
             const isDone = step > s.n;
@@ -277,13 +293,13 @@
             return (
               <button key={s.n} onClick={() => canGo && onGoStep(s.n)}
                 title={!canGo ? 'Selecione o paciente primeiro' : s.label}
-                style={{ display: 'flex', alignItems: 'center', gap: 0, height: 34, padding: '0 20px',
-                  border: 'none', borderRadius: 20,
+                style={{ flex: 1, height: 36, padding: '0 4px', border: 'none', borderRadius: 18,
                   cursor: canGo ? 'pointer' : 'not-allowed',
                   background: isActive ? 'var(--teal)' : 'transparent',
-                  fontSize: 13, fontWeight: isActive ? 700 : 500,
+                  fontSize: 13, fontWeight: isActive ? 700 : 400,
                   color: isActive ? '#fff' : isDone ? 'var(--ink)' : 'var(--muted)',
-                  whiteSpace: 'nowrap', opacity: canGo ? 1 : .45, flexShrink: 0, transition: 'background .15s, color .15s' }}>
+                  opacity: canGo ? 1 : .45, transition: 'background .15s, color .15s',
+                  whiteSpace: 'nowrap', textAlign: 'center' }}>
                 Passo {s.n}
               </button>
             );
@@ -859,20 +875,18 @@
     return (
       <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
 
-        {/* ── Header navy ── */}
-        <div style={{ background:'var(--navy)', padding:'12px 20px', display:'flex', alignItems:'center', gap:14, flexShrink:0 }}>
-          <div style={{ flex:1 }}>
-            <div style={{ fontWeight:700, fontSize:15, color:'#fff', letterSpacing:'.01em' }}>Tratamentos e Anormalidades</div>
-            <div style={{ fontSize:11, color:'rgba(255,255,255,.55)', marginTop:1 }}>
-              {wiz.species || 'Selecione espécie'} — {checkedItems.length} item(ns) selecionado(s)
-            </div>
+        {/* ── Barra de info/total ── */}
+        {(checkedItems.length > 0 || total > 0) && (
+          <div style={{ background:'var(--card)', borderBottom:'1px solid var(--line)', padding:'7px 18px', display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
+            <span style={{ fontSize:12, color:'var(--teal)', fontWeight:600 }}>{checkedItems.length} item(ns) selecionado(s)</span>
+            {wiz.species && <span style={{ fontSize:12, color:'var(--muted)' }}>· {wiz.species}</span>}
+            {total > 0 && (
+              <div style={{ marginLeft:'auto', background:'var(--teal)', borderRadius:16, padding:'4px 14px', fontSize:13, fontWeight:700, color:'#fff' }}>
+                Total: R$ {total.toLocaleString('pt-BR',{minimumFractionDigits:2})}
+              </div>
+            )}
           </div>
-          {total > 0 && (
-            <div style={{ background:'var(--teal)', borderRadius:20, padding:'5px 16px', fontSize:13, fontWeight:700, color:'#fff', flexShrink:0 }}>
-              R$ {total.toLocaleString('pt-BR',{minimumFractionDigits:2})}
-            </div>
-          )}
-        </div>
+        )}
 
         {/* ── Layout two-column ── */}
         <div style={{ flex:1, display:'flex', overflow:'hidden' }}>
