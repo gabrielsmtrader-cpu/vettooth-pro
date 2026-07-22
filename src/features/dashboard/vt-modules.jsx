@@ -2376,6 +2376,11 @@ window.VT_ODONTO_CFG_DEFAULT = {
     { stage: 'III', label: 'Estágio III – Periodontite moderada', pocketMax: 7,  desc: '25–50 % de perda de inserção' },
     { stage: 'IV',  label: 'Estágio IV – Periodontite avançada',  pocketMax: 99, desc: '> 50 % de perda de inserção' },
   ],
+  farmacos: ['Detomidina','Butorfanol','Iombina','Dexmedetomidina','Acepromazina','Midazolam','Propofol','Ketamina','Xilazina','Morfina','Tramadol','Outro'],
+  consultorios: [],
+  veterinarios: [],
+  odonto_num_start: 1,
+  odonto_num_next: 1,
 };
 window.vtOdontoCfg = function () { const d = window.VtStore && window.VtStore.getData(); return Object.assign({}, window.VT_ODONTO_CFG_DEFAULT, (d && d.odontoCfg) || {}); };
 window.vtSaveOdontoCfg = function (c) { if (window.VtStore) window.VtStore.setData({ odontoCfg: c }); if (c.conds && c.conds.length) window.OD_CONDS = c.conds; window.dispatchEvent(new CustomEvent('vtCfgChanged')); };
@@ -4686,6 +4691,127 @@ function OdontogramaTab() {
           </div>
         );
       })()}
+
+      {/* ── Numeração sequencial ── */}
+      <div style={sec}>
+        <div style={labelStyle}>Numeração sequencial de odontogramas</div>
+        <p style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 10px' }}>O número sequencial aparece no cabeçalho do PDF. Configure abaixo o número inicial e o próximo a ser usado.</p>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Número inicial</div>
+            <input type="number" min="1" className="vt-input" style={{ width: 120 }}
+              value={cfg.odonto_num_start || 1}
+              onChange={e => setCfg({ ...cfg, odonto_num_start: Math.max(1, Number(e.target.value) || 1) })}
+              onBlur={() => { const s = cfg.odonto_num_start || 1; saveCfg({ odonto_num_start: s, odonto_num_next: Math.max(cfg.odonto_num_next || 1, s) }); }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Próximo número a usar</div>
+            <input type="number" min="1" className="vt-input" style={{ width: 120 }}
+              value={cfg.odonto_num_next || cfg.odonto_num_start || 1}
+              onChange={e => setCfg({ ...cfg, odonto_num_next: Math.max(1, Number(e.target.value) || 1) })}
+              onBlur={() => saveCfg({ odonto_num_next: cfg.odonto_num_next || 1 })} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Fármacos de sedação ── */}
+      {(() => {
+        const [newFarm, setNewFarm] = vtUseState('');
+        const farms = cfg.farmacos || window.VT_ODONTO_CFG_DEFAULT.farmacos;
+        const addFarm = () => {
+          if (!newFarm.trim()) return;
+          const next = [...farms, newFarm.trim()];
+          saveCfg({ farmacos: next }); setCfg(c => ({ ...c, farmacos: next })); setNewFarm('');
+        };
+        const removeFarm = (i) => {
+          const next = farms.filter((_, j) => j !== i);
+          saveCfg({ farmacos: next }); setCfg(c => ({ ...c, farmacos: next }));
+        };
+        return (
+          <div style={sec}>
+            <div style={labelStyle}>Fármacos de sedação (Passo 2)</div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+              <input className="vt-input" value={newFarm} placeholder="Ex: Propofol" onChange={e => setNewFarm(e.target.value)} onKeyDown={e => e.key === 'Enter' && addFarm()} />
+              <button className="vt-btn-primary" style={{ flexShrink: 0 }} onClick={addFarm}>+ Adicionar</button>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {farms.map((f, i) => (
+                <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 20, padding: '3px 10px', fontSize: 13 }}>
+                  {f}
+                  <button onClick={() => removeFarm(i)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: '0 0 0 4px', fontSize: 15, lineHeight: 1 }}>×</button>
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Consultórios ── */}
+      {(() => {
+        const [newC, setNewC] = vtUseState('');
+        const cons = cfg.consultorios || [];
+        const addC = () => {
+          if (!newC.trim()) return;
+          const next = [...cons, newC.trim()];
+          saveCfg({ consultorios: next }); setCfg(c => ({ ...c, consultorios: next })); setNewC('');
+        };
+        const removeC = (i) => {
+          const next = cons.filter((_, j) => j !== i);
+          saveCfg({ consultorios: next }); setCfg(c => ({ ...c, consultorios: next }));
+        };
+        return (
+          <div style={sec}>
+            <div style={labelStyle}>Consultórios (aparece no Passo 2 — campo de Consultório)</div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+              <input className="vt-input" value={newC} placeholder="Nome do consultório" onChange={e => setNewC(e.target.value)} onKeyDown={e => e.key === 'Enter' && addC()} />
+              <button className="vt-btn-primary" style={{ flexShrink: 0 }} onClick={addC}>+ Adicionar</button>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {cons.length === 0 && <span style={{ fontSize: 13, color: 'var(--muted)' }}>Nenhum consultório cadastrado.</span>}
+              {cons.map((c, i) => (
+                <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 20, padding: '3px 10px', fontSize: 13 }}>
+                  {c}
+                  <button onClick={() => removeC(i)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: '0 0 0 4px', fontSize: 15, lineHeight: 1 }}>×</button>
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Veterinários ── */}
+      {(() => {
+        const [newV, setNewV] = vtUseState('');
+        const vets = cfg.veterinarios || [];
+        const addV = () => {
+          if (!newV.trim()) return;
+          const next = [...vets, newV.trim()];
+          saveCfg({ veterinarios: next }); setCfg(c => ({ ...c, veterinarios: next })); setNewV('');
+        };
+        const removeV = (i) => {
+          const next = vets.filter((_, j) => j !== i);
+          saveCfg({ veterinarios: next }); setCfg(c => ({ ...c, veterinarios: next }));
+        };
+        return (
+          <div style={sec}>
+            <div style={labelStyle}>Veterinários (aparece no Passo 2 — campo de Nome do Veterinário)</div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+              <input className="vt-input" value={newV} placeholder="Dr(a). Nome" onChange={e => setNewV(e.target.value)} onKeyDown={e => e.key === 'Enter' && addV()} />
+              <button className="vt-btn-primary" style={{ flexShrink: 0 }} onClick={addV}>+ Adicionar</button>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {vets.length === 0 && <span style={{ fontSize: 13, color: 'var(--muted)' }}>Nenhum veterinário cadastrado.</span>}
+              {vets.map((v, i) => (
+                <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 20, padding: '3px 10px', fontSize: 13 }}>
+                  {v}
+                  <button onClick={() => removeV(i)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: '0 0 0 4px', fontSize: 15, lineHeight: 1 }}>×</button>
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
     </div>
   );
 }

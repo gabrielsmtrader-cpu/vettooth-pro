@@ -686,7 +686,7 @@ function Dashboard({ setActive }) {
 }
 
 /* ----------------------- Odontograma (módulo nativo OdontogramaModule) ----------------------- */
-function Odontograma({ patientId, onClose }) {
+function Odontograma({ patientId, examId, initialData, onClose }) {
   if (!window.OdontogramaWizard) return (
     <div className="vt-frame-wrap" style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12, color:'var(--muted)' }}>
       <div style={{ width:32, height:32, border:'3px solid var(--line)', borderTopColor:'var(--teal)', borderRadius:'50%', animation:'vtspin .7s linear infinite' }} />
@@ -695,7 +695,7 @@ function Odontograma({ patientId, onClose }) {
   );
   return (
     <div className="vt-frame-wrap od-embed" style={{ padding:0, overflow:'hidden' }}>
-      <window.OdontogramaWizard onClose={onClose} />
+      <window.OdontogramaWizard onClose={onClose} initialData={initialData} examId={examId} />
     </div>
   );
 }
@@ -765,6 +765,7 @@ function App() {
   const [focusOwner, setFocusOwner] = useState(null);
   const [focusAgenda, setFocusAgenda] = useState(null);
   const [odontoPatient, setOdontoPatient] = useState(null);
+  const [odontoEdit, setOdontoEdit] = useState(null); // { examId, initialData }
   const [focusIA, setFocusIA] = useState(null);
   const [dataVer, setDataVer] = useState(0);
   const [pinLocked, setPinLocked] = useState(false);
@@ -817,7 +818,8 @@ function App() {
   const openIA = (prompt, patientId) => { setFocusIA({ prompt: prompt || '', patientId: patientId || null }); setActive('ia'); };
   const openOwner = (name) => { setFocusOwner(name); setActive('clientes'); };
   const openAtendimento = (patientId, atendimentoId) => { setFocusAtend({ patientId, atendimentoId: atendimentoId || null }); setActive('atendimentos'); };
-  const openOdonto = (pid) => { setOdontoPatient(pid || null); setActive('odontograma'); };
+  const openOdonto = (pid) => { setOdontoEdit(null); setOdontoPatient(pid || null); setActive('odontograma'); };
+  window._vtOpenOdontoEdit = (pid, examId, data) => { setOdontoEdit({ examId, initialData: data }); setOdontoPatient(pid || null); setActive('odontograma'); };
   const openAgendaNew = (patientName) => { setFocusAgenda(patientName || ''); setActive('agenda'); };
   const iniciarAtendimentoFromAgenda = (appt) => { setFocusAtend({ fromAgenda: appt }); setActive('atendimentos'); };
   const navSearch = { patient: openPatient, owner: openOwner, atendimento: openAtendimento, setActive };
@@ -836,7 +838,7 @@ function App() {
           {active === 'pacientes' && <PacientesModule key={'pac-'+dataVer} openOdonto={openOdonto} goAgenda={() => setActive('agenda')} openAgendaNew={openAgendaNew} openAtendimento={openAtendimento} focusPatientId={focusPatient} clearFocus={() => setFocusPatient(null)} />}
           {active === 'clientes' && <ClientesModule key={'cli-'+dataVer} openPatient={openPatient} focusOwnerName={focusOwner} clearFocus={() => setFocusOwner(null)} />}
           {active === 'agenda' && <AgendaModule key={'ag-'+dataVer} focusNewPatient={focusAgenda} clearAgendaFocus={() => setFocusAgenda(null)} onIniciarAtendimento={iniciarAtendimentoFromAgenda} />}
-          {active === 'odontograma' && <Odontograma patientId={odontoPatient} onClose={() => setActive('atendimentos')} />}
+          {active === 'odontograma' && <Odontograma patientId={odontoPatient} examId={odontoEdit?.examId} initialData={odontoEdit?.initialData} onClose={() => { setOdontoEdit(null); setActive('atendimentos'); }} />}
           {active === 'atendimentos' && <AtendimentosModule key={'at-'+dataVer} openPatient={openPatient} openOdonto={openOdonto} focus={focusAtend} clearFocus={() => setFocusAtend(null)} />}
           {active === 'insumos' && <EstoqueModule3 key={'est-'+dataVer} />}
           {active === 'financas' && <FinancasModuleV4 key={'fin-'+dataVer} />}

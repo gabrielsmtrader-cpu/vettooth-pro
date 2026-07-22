@@ -7,41 +7,87 @@ const { useState: lUse, useRef: lRef, useEffect: lEff } = React;
 const taStyle = { width: '100%', fontFamily: 'inherit', fontSize: 14, color: 'var(--ink)', background: '#fff', border: '1px solid var(--line)', borderRadius: 9, padding: '8px 11px', minHeight: 48, resize: 'vertical', lineHeight: 1.5, marginTop: 6 };
 
 /* ---------- Odontologia ---------- */
-function PrOdonto({ at, patch, patient, chartOpen, setChartOpen }) {
-  const editing = chartOpen; // string id | 'new' | false
+function PrOdonto({ at, patch, patient }) {
+  const { useState: useS, useEffect: useE } = React;
   const flags = at.odonto.flags;
-  const charts = at.odonto.charts || [];
   const toggle = (f) => patch({ odonto: { ...at.odonto, flags: { ...flags, [f]: !flags[f] } } });
   const setField = (k, v) => patch({ odonto: { ...at.odonto, [k]: v } });
   const active = Object.keys(flags).filter((f) => flags[f]);
-  const saveNew = () => {
-    const entry = { id: 'OG' + Date.now().toString(36), date: window.PR.todayBR(), vet: (at.vet || '').replace('M.V. ', ''), summary: at.motivo || 'Odontograma' };
-    patch({ odonto: { ...at.odonto, charts: [entry, ...charts] } });
-    setChartOpen(false);
-    window.vtToast('Odontograma salvo no prontuário.', 'ok');
+
+  const [wizExams, setWizExams] = useS(() => {
+    if (!patient || !patient.id) return [];
+    try { return JSON.parse(localStorage.getItem(`vt-odonto-hist:${patient.id}`) || '[]'); } catch(e) { return []; }
+  });
+
+  useE(() => {
+    const refresh = () => {
+      if (!patient || !patient.id) return;
+      try { setWizExams(JSON.parse(localStorage.getItem(`vt-odonto-hist:${patient.id}`) || '[]')); } catch(e) {}
+    };
+    window.addEventListener('vt-odonto-saved', refresh);
+    return () => window.removeEventListener('vt-odonto-saved', refresh);
+  }, [patient && patient.id]);
+
+  const openNew = () => {
+    if (window._vtOpenOdontoEdit) window._vtOpenOdontoEdit(patient.id, null, null);
+    else if (window._vtSetActive) window._vtSetActive('odontograma');
   };
+
+  const openEdit = (exam) => {
+    if (window._vtOpenOdontoEdit) window._vtOpenOdontoEdit(patient.id, exam.id, exam);
+    else if (window._vtSetActive) window._vtSetActive('odontograma');
+  };
+
+  const latestTreatments = wizExams.length > 0 ? (wizExams[0].treatments || []) : [];
+
   return (
     <div>
       <div className="pr-sec-head">
-        <div><h2 className="pr-h">Odontograma</h2><p className="pr-h-sub">Odontogramas realizados neste paciente · abra um novo para registrar</p></div>
-        <button className="pr-qbtn primary" onClick={() => setChartOpen('new')}><VtIcon name="tooth" size={16} /> Novo odontograma</button>
+        <div><h2 className="pr-h">Odontograma</h2><p className="pr-h-sub">Odontogramas realizados por este paciente · clique em um para editar</p></div>
+        <button className="pr-qbtn primary" onClick={openNew}><VtIcon name="tooth" size={16} /> Novo odontograma</button>
       </div>
 
       <div className="pr-block">
         <div className="pr-charts">
-          <button className="pr-chart-new" onClick={() => setChartOpen('new')}>
+          <button className="pr-chart-new" onClick={openNew}>
             <span className="ic"><VtIcon name="plus" size={22} /></span>
-            Abrir novo odontograma
+            Novo odontograma
           </button>
-          {charts.map((c) => (
-            <button key={c.id} className="pr-chart-card" onClick={() => setChartOpen(c.id)}>
-              <span className="pr-chart-thumb"><VtIcon name="tooth" size={40} /></span>
-              <span className="pr-chart-meta"><b>{c.summary}</b><i>{c.date} · {c.vet}</i></span>
-            </button>
-          ))}
+          {wizExams.map((exam) => {
+            const numLabel = exam.examNum ? `#${String(exam.examNum).padStart(3,'0')}` : exam.id;
+            const treatCount = (exam.treatments || []).length || Object.values(exam.findings||{}).filter(f=>f.checked).length;
+            return (
+              <div key={exam.id} className="pr-chart-card" style={{ cursor: 'default', position: 'relative' }}>
+                <span className="pr-chart-thumb"><VtIcon name="tooth" size={36} /></span>
+                <span className="pr-chart-meta">
+                  <b>{numLabel} · {exam.date}</b>
+                  <i>{exam.vet || 'Equipe'}{treatCount ? ` · ${treatCount} tratamento(s)` : ''}</i>
+                </span>
+                <button onClick={() => openEdit(exam)}
+                  style={{ position: 'absolute', top: 6, right: 6, fontSize: 11, padding: '3px 10px', borderRadius: 10, border: '1px solid var(--teal)', background: 'transparent', color: 'var(--teal)', cursor: 'pointer', fontWeight: 700 }}>
+                  Editar
+                </button>
+              </div>
+            );
+          })}
         </div>
-        {charts.length === 0 && <p className="pr-empty" style={{ paddingTop: 4 }}>Nenhum odontograma registrado ainda.</p>}
+        {wizExams.length === 0 && <p className="pr-empty" style={{ paddingTop: 4 }}>Nenhum odontograma registrado ainda.</p>}
       </div>
+
+      {latestTreatments.length > 0 && (
+        <div className="pr-block">
+          <p className="pr-block-title"><VtIcon name="tooth" size={15} /> Tratamentos realizados (último exame)</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {latestTreatments.map((t, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: i < latestTreatments.length - 1 ? '1px solid var(--line)' : 'none', fontSize: 13 }}>
+                <span style={{ flex: 1 }}>{t.name}</span>
+                {t.note && <span style={{ color: 'var(--muted)', fontSize: 12 }}>{t.note}</span>}
+                {t.price > 0 && <span style={{ fontWeight: 700, color: 'var(--teal)' }}>R$ {parseFloat(t.price).toFixed(2)}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="pr-block">
         <p className="pr-block-title"><VtIcon name="tooth" size={15} /> Achados clínicos {active.length ? `(${active.length})` : ''}</p>
@@ -64,21 +110,6 @@ function PrOdonto({ at, patch, patient, chartOpen, setChartOpen }) {
           <textarea style={{ ...taStyle, marginTop: 0, minHeight: 120 }} value={at.odonto.plano} onChange={(e) => setField('plano', e.target.value)} placeholder="Ex.: Profilaxia, exodontia do elemento 108, controle em 6 meses..." />
         </div>
       </div>
-
-      {editing && (
-        <div className="fin-modal-bg" onClick={() => setChartOpen(false)} style={{ padding: 0 }}>
-          <div className="fin-modal" style={{ width: '100vw', height: '100vh', maxWidth: 'none', borderRadius: 0, padding: 0, display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid var(--line)', flex: 'none' }}>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>Odontograma · {patient.name} {editing === 'new' ? '· novo' : ''}</h3>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {editing === 'new' && <button className="vt-btn-primary" onClick={saveNew}>Salvar odontograma</button>}
-                <button className="vt-btn-ghost" onClick={() => setChartOpen(false)}>Fechar ✕</button>
-              </div>
-            </div>
-            {(() => { const OApp = window.OdontoApp; return OApp ? <div style={{ flex: 1, position: 'relative' }} className="od-embed"><OApp initPatient={patient.name || ''} initOwner={patient.owner || ''} initSpecies={patient.species || ''} /></div> : <iframe src={`EquiChart.html?patient=${encodeURIComponent(patient.name || '')}&owner=${encodeURIComponent(patient.owner || '')}`} title="Odontograma" style={{ flex: 1, border: 'none', width: '100%' }} />; })()}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

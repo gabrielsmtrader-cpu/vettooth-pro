@@ -279,9 +279,9 @@
             )}
           </div>
           <button onClick={onClose}
-            style={{ fontSize: 12, padding: '6px 14px', border: '1.5px solid rgba(255,255,255,.35)', borderRadius: 7,
-              background: 'rgba(255,255,255,.12)', color: '#fff', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', flexShrink: 0 }}>
-            ✕ Fechar
+            style={{ fontSize: 12, padding: '6px 14px', border: '1.5px solid rgba(255,255,255,.25)', borderRadius: 7,
+              background: 'transparent', color: 'rgba(255,255,255,.7)', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', flexShrink: 0 }}>
+            ← Voltar
           </button>
         </div>
         {/* Linha 2 — Tabs pill largura total */}
@@ -300,7 +300,7 @@
                   color: isActive ? '#fff' : isDone ? 'var(--ink)' : 'var(--muted)',
                   opacity: canGo ? 1 : .45, transition: 'background .15s, color .15s',
                   whiteSpace: 'nowrap', textAlign: 'center' }}>
-                Passo {s.n}
+                {s.icon} {s.label}
               </button>
             );
           })}
@@ -379,97 +379,152 @@
 
     const select = (p) => {
       const sp = speciesLabel(p);
-      setW({ patientId: p.id, patientName: p.name, ownerName: p.owner || '', species: sp.label });
+      const d2 = window.VtStore && window.VtStore.getData();
+      const ow = ((d2 && d2.owners) || []).find(o => o.name === p.owner) || {};
+      const addr = ow.address ? [ow.address.street, ow.address.num, ow.address.city, ow.address.state].filter(Boolean).join(', ') : (ow.city || '');
+      setW({
+        patientId: p.id, patientName: p.name, ownerName: p.owner || '',
+        species: sp.label, breed: p.breed || '', age: p.age || '', sex: p.sex || '', color: p.color || '', weight: p.weight || '',
+        ownerPhone: ow.phone || ow.whats || '',
+        ownerEmail: ow.email || '',
+        ownerAddress: addr,
+      });
       onNext();
     };
 
-    const renderOwnerRow = (owner) => {
+    /* ── Gera cor de avatar a partir do nome ── */
+    const avatarColor = (name) => {
+      const colors = ['#1f8a5b','#0e7490','#7c3aed','#b45309','#be185d','#0f766e','#1d4ed8','#9333ea'];
+      let h = 0; for (let i = 0; i < (name||'').length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+      return colors[h % colors.length];
+    };
+
+    const renderOwnerCard = (owner) => {
       const isSelected = selectedOwner === owner;
+      const count = (ownerMap[owner] || []).length;
+      const initial = (owner || '?')[0].toUpperCase();
+      const color = avatarColor(owner);
       return (
         <button key={owner} onClick={() => { setSelectedOwner(owner); setPatientQuery(''); }}
-          style={{ width: '100%', textAlign: 'left', padding: '11px 16px', background: isSelected ? 'var(--teal-t)' : 'transparent',
-            border: 'none', borderBottom: '1px solid var(--line)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 14 }}>👤</span>
-          <span style={{ flex: 1, fontWeight: isSelected ? 700 : 500, fontSize: 13.5, color: isSelected ? 'var(--teal)' : 'var(--ink)' }}>{owner}</span>
-          <span style={{ fontSize: 11, color: 'var(--muted)', marginRight: 4 }}>{(ownerMap[owner] || []).length}</span>
-          <span style={{ color: 'var(--muted)', fontSize: 15 }}>›</span>
+          style={{ textAlign: 'left', background: 'var(--card)', border: isSelected ? '2px solid var(--teal)' : '1.5px solid var(--line)',
+            borderRadius: 12, padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+            boxShadow: isSelected ? '0 0 0 3px rgba(31,138,91,.12)' : '0 1px 3px rgba(0,0,0,.05)',
+            transition: 'border-color .15s, box-shadow .15s' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: color, color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 800, fontSize: 16, flexShrink: 0 }}>{initial}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: isSelected ? 'var(--teal)' : 'var(--ink)',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{owner}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+              {count} {count === 1 ? 'animal' : 'animais'}
+            </div>
+          </div>
+          {isSelected && <span style={{ color: 'var(--teal)', fontSize: 16, fontWeight: 700, flexShrink: 0 }}>✓</span>}
         </button>
       );
     };
 
     return (
-      <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', height: '100%', overflow: 'hidden', background: 'var(--bg)' }}>
         {/* Coluna Esquerda – Tutores */}
-        <div style={{ width: '44%', minWidth: 180, borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ padding: '13px 16px 10px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ width: '42%', minWidth: 220, borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 16px 10px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: 'var(--card)' }}>
             <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>Tutores</span>
-            <button className="vt-btn-ghost" style={{ fontSize: 11, padding: '3px 8px' }}>Adicionar Tutor +</button>
+            <span style={{ fontSize: 11, color: 'var(--muted)', background: 'var(--bg)', borderRadius: 20, padding: '2px 8px' }}>{filteredOwners.length}</span>
           </div>
-          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+          <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)', flexShrink: 0, background: 'var(--card)' }}>
             <input className="vt-input" placeholder="🔍 Buscar tutor…" value={ownerQuery} onChange={e => setOwnerQuery(e.target.value)}
               style={{ width: '100%', fontSize: 13 }} />
           </div>
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 12px' }}>
             {recentOwners.length > 0 && !ownerQuery && (
               <>
-                <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>Recentes</div>
-                {recentOwners.filter(o => allOwners.includes(o)).map(renderOwnerRow)}
-                <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>Todos os Tutores</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>Recentes</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                  {recentOwners.filter(o => allOwners.includes(o)).map(renderOwnerCard)}
+                </div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>Todos os Tutores</div>
               </>
             )}
             {filteredOwners.length === 0
               ? <div style={{ padding: 24, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Nenhum tutor encontrado.</div>
-              : filteredOwners.map(renderOwnerRow)
+              : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{filteredOwners.map(renderOwnerCard)}</div>
             }
           </div>
         </div>
 
         {/* Coluna Direita – Pacientes */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ padding: '13px 16px 10px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>Paciente</span>
-            <button className="vt-btn-ghost" style={{ fontSize: 11, padding: '3px 8px' }}>Adicionar Paciente +</button>
+          <div style={{ padding: '12px 16px 10px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: 'var(--card)' }}>
+            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>
+              {selectedOwner ? `Pacientes de ${selectedOwner}` : 'Paciente'}
+            </span>
+            {selectedOwner && <span style={{ fontSize: 11, color: 'var(--muted)', background: 'var(--bg)', borderRadius: 20, padding: '2px 8px' }}>{ownerPatients.length}</span>}
           </div>
-          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+          <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)', flexShrink: 0, background: 'var(--card)' }}>
             <input className="vt-input" placeholder="🔍 Buscar animal…" value={patientQuery} onChange={e => setPatientQuery(e.target.value)}
               style={{ width: '100%', fontSize: 13 }} disabled={!selectedOwner} />
           </div>
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
             {!selectedOwner
               ? <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 32 }}>
                   <div style={{ textAlign: 'center', color: 'var(--muted)' }}>
-                    <div style={{ fontSize: 38, marginBottom: 10 }}>🐾</div>
-                    <div style={{ fontSize: 13 }}>Selecione um tutor para ver os pacientes</div>
+                    <div style={{ fontSize: 40, marginBottom: 12 }}>🐾</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>Selecione um tutor</div>
+                    <div style={{ fontSize: 13 }}>Os pacientes aparecerão aqui</div>
                   </div>
                 </div>
               : ownerPatients.length === 0
                 ? <div style={{ padding: 24, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Nenhum animal encontrado.</div>
-                : ownerPatients.map(p => {
-                    const sp = speciesLabel(p);
-                    const isSelected = wiz.patientId === p.id;
-                    const lastVisit = getLastVisit(p.id);
-                    return (
-                      <button key={p.id} onClick={() => select(p)}
-                        style={{ width: '100%', textAlign: 'left', padding: '12px 16px',
-                          background: isSelected ? 'var(--teal-t)' : 'transparent',
-                          border: 'none', borderBottom: '1px solid var(--line)', cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: 24 }}>{sp.emoji}</span>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, fontSize: 14, color: isSelected ? 'var(--teal)' : 'var(--ink)' }}>{p.name}</div>
-                          {lastVisit
-                            ? <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                                ATEND. ANTERIOR: <span style={{ color: 'var(--red)', fontWeight: 700 }}>{formatDate(lastVisit)}</span>
-                              </div>
-                            : <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                                {p.species || sp.label}{p.breed ? ' · ' + p.breed : ''}{p.sex ? ' · ' + p.sex : ''}
-                              </div>
-                          }
-                        </div>
-                        <span style={{ color: 'var(--muted)', fontSize: 16 }}>›</span>
-                      </button>
-                    );
-                  })
+                : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+                    {ownerPatients.map(p => {
+                      const sp = speciesLabel(p);
+                      const isSelected = wiz.patientId === p.id;
+                      const lastVisit = getLastVisit(p.id);
+                      const initial = (p.name || '?')[0].toUpperCase();
+                      const color = avatarColor(p.name);
+                      const status = (p.status || 'Ativo');
+                      return (
+                        <button key={p.id} onClick={() => select(p)}
+                          style={{ textAlign: 'left', background: 'var(--card)', cursor: 'pointer',
+                            border: isSelected ? '2px solid var(--teal)' : '1.5px solid var(--line)',
+                            borderRadius: 14, padding: 0, overflow: 'hidden',
+                            boxShadow: isSelected ? '0 0 0 3px rgba(31,138,91,.12)' : '0 1px 4px rgba(0,0,0,.06)',
+                            transition: 'border-color .15s, box-shadow .15s' }}>
+                          {/* Topo colorido */}
+                          <div style={{ background: color, padding: '14px 14px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,.25)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 20, fontWeight: 900, color: '#fff', flexShrink: 0 }}>{initial}</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 800, fontSize: 15, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.8)', marginTop: 1 }}>{sp.emoji} {sp.label}{p.breed ? ' · ' + p.breed : ''}</div>
+                            </div>
+                            <span style={{ fontSize: 10, fontWeight: 700, background: status === 'Óbito' ? '#e74c3c' : 'rgba(255,255,255,.25)',
+                              color: '#fff', borderRadius: 20, padding: '2px 7px', flexShrink: 0 }}>{status}</span>
+                          </div>
+                          {/* Corpo */}
+                          <div style={{ padding: '10px 14px 12px' }}>
+                            <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 700, letterSpacing: 0.3, marginBottom: 6 }}>{p.id || ''}</div>
+                            <div style={{ fontSize: 12, color: 'var(--ink)', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                              {p.age && <span style={{ color: 'var(--muted)' }}>🗓 {p.age}</span>}
+                              {p.sex && <span style={{ color: 'var(--muted)' }}>⚥ {p.sex}</span>}
+                              {lastVisit
+                                ? <span>📅 Últ. visita: <b style={{ color: '#e74c3c' }}>{formatDate(lastVisit)}</b></span>
+                                : <span style={{ color: 'var(--muted)' }}>📅 Sem atendimentos</span>}
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <div style={{ background: 'var(--teal)', color: '#fff', fontSize: 11, fontWeight: 700,
+                              textAlign: 'center', padding: '6px', letterSpacing: 0.3 }}>
+                              ✓ SELECIONADO
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
             }
           </div>
         </div>
@@ -482,7 +537,7 @@
     const bcsMax = 9;
     const bcsScore = wiz.condScore || 5;
     const MAX_NOTES = 270;
-    const FARMACOS = ['Detomidina', 'Butorfanol', 'Iombina', 'Dexmedetomidina', 'Acepromazina', 'Midazolam', 'Propofol', 'Ketamina', 'Xilazina', 'Morfina', 'Tramadol', 'Outro'];
+    const FARMACOS = (window.vtOdontoCfg && window.vtOdontoCfg().farmacos) || ['Detomidina', 'Butorfanol', 'Iombina', 'Dexmedetomidina', 'Acepromazina', 'Midazolam', 'Propofol', 'Ketamina', 'Xilazina', 'Morfina', 'Tramadol', 'Outro'];
 
     const sedAtiva = wiz.sedAtiva || false;
     const sedRows = wiz.sedRows || [
@@ -514,8 +569,7 @@
 
     return (
       <div style={{ padding: 24, flex: 1, overflowY: 'auto' }}>
-        <h2 style={{ margin: '0 0 4px', fontSize: 20, color: 'var(--ink)' }}>📋 Avaliação Inicial</h2>
-        <p style={{ margin: '0 0 20px', color: 'var(--muted)', fontSize: 13 }}>Paciente: <b>{wiz.patientName}</b> — {wiz.ownerName}</p>
+        <h2 style={{ margin: '0 0 20px', fontSize: 20, color: 'var(--ink)' }}>📋 Avaliação Inicial</h2>
 
         {/* BCS Slider */}
         <div className="vt-card vt-sec vt-form" style={{ marginBottom: 16 }}>
@@ -572,11 +626,17 @@
                 <div className="vt-form-row">
                   <label className="vtf" style={{ flex: 1 }}>
                     <span className="vtf-label">Consultório</span>
-                    <span className="vtf-inputwrap"><input className="vtf-input" placeholder="Nome do consultório" value={wiz.sedVetConsultorio || ''} onChange={e => setW({ sedVetConsultorio: e.target.value })} /></span>
+                    <span className="vtf-inputwrap">
+                      <input className="vtf-input" placeholder="Nome do consultório" list="vt-consult-list" value={wiz.sedVetConsultorio || ''} onChange={e => setW({ sedVetConsultorio: e.target.value })} />
+                      <datalist id="vt-consult-list">{((window.vtOdontoCfg && window.vtOdontoCfg().consultorios) || []).map((c,i) => <option key={i} value={c} />)}</datalist>
+                    </span>
                   </label>
                   <label className="vtf" style={{ flex: 1 }}>
                     <span className="vtf-label">Nome do Veterinário</span>
-                    <span className="vtf-inputwrap"><input className="vtf-input" placeholder="Dr(a)." value={wiz.sedVetNome || ''} onChange={e => setW({ sedVetNome: e.target.value, sedVet: e.target.value })} /></span>
+                    <span className="vtf-inputwrap">
+                      <input className="vtf-input" placeholder="Dr(a)." list="vt-vet-list" value={wiz.sedVetNome || ''} onChange={e => setW({ sedVetNome: e.target.value, sedVet: e.target.value })} />
+                      <datalist id="vt-vet-list">{((window.vtOdontoCfg && window.vtOdontoCfg().veterinarios) || []).map((v,i) => <option key={i} value={v} />)}</datalist>
+                    </span>
                   </label>
                 </div>
               </div>
@@ -1004,6 +1064,47 @@
 
   /* ─── PASSO 5: Notas & Prévia PDF multi-página ──────────── */
   function Step5Notas({ wiz, setW }) {
+    const sigRef = useRef(null);
+    const [isSigning, setIsSigning] = useState(false);
+    const startSign = (e) => {
+      setIsSigning(true);
+      const canvas = sigRef.current; if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const ctx = canvas.getContext('2d');
+      const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+      const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+      ctx.beginPath(); ctx.moveTo(cx, cy);
+    };
+    const drawSign = (e) => {
+      if (!isSigning) return;
+      const canvas = sigRef.current; if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const ctx = canvas.getContext('2d');
+      const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+      const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+      ctx.strokeStyle = '#0e2c4d'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.lineTo(cx, cy); ctx.stroke();
+    };
+    const endSign = () => {
+      setIsSigning(false);
+      const canvas = sigRef.current; if (!canvas) return;
+      setW({ signatureData: canvas.toDataURL() });
+    };
+    const clearSig = () => {
+      const canvas = sigRef.current; if (!canvas) return;
+      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+      setW({ signatureData: '' });
+    };
+    const printPDF = () => {
+      const el = document.querySelector('.vt-pdf-preview');
+      if (!el) { window.print(); return; }
+      const style = document.createElement('style');
+      style.id = 'vt-print-override';
+      style.innerHTML = `@media print{body>*{display:none!important}.vt-pdf-preview{display:block!important;position:fixed!important;top:0;left:0;width:100%;background:#c0c0c0;overflow:auto;padding:20px}}`;
+      document.head.appendChild(style);
+      window.print();
+      setTimeout(() => { const s = document.getElementById('vt-print-override'); if (s) s.remove(); }, 1500);
+    };
     const checkedAnomalias = [
       ...Object.entries(wiz.findings || {}).filter(([,v]) => v && v.checked).map(([k,v]) => {
         const [cat, id] = k.split(':');
@@ -1054,9 +1155,9 @@
     };
 
     const histNum = (() => {
-      if (!wiz.patientId) return '---';
-      const hist = JSON.parse(localStorage.getItem(`vt-odonto-hist:${wiz.patientId}`) || '[]');
-      return String(hist.length + 1).padStart(3, '0');
+      if (wiz.examNum) return String(wiz.examNum).padStart(3, '0');
+      const cfg2 = window.vtOdontoCfg ? window.vtOdontoCfg() : {};
+      return String(cfg2.odonto_num_next || cfg2.odonto_num_start || 1).padStart(3, '0');
     })();
 
     const CB_SLOTS_LOCAL = ['Nenhum', '1 Semana', '2 Meses', '3 Meses', '6 Meses', '9 Meses', '1 Ano', '18 Meses', '24 Meses'];
@@ -1207,7 +1308,7 @@
               style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, padding:'6px 14px',
                 border:'2px solid var(--teal)', borderRadius:20, background:'transparent',
                 color:'var(--teal)', cursor:'pointer', fontWeight:700, fontFamily:'inherit' }}>
-              + LOAD PREVIOUS
+              + Carregar anterior
             </button>
           </div>
 
@@ -1243,6 +1344,20 @@
               style={{ width:'100%', minHeight:120, resize:'vertical', fontSize:13, lineHeight:1.7, fontFamily:'inherit' }}
             />
 
+            {/* Assinatura Digital */}
+            <div style={{ marginTop: 14, borderTop: '1px solid var(--line)', paddingTop: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>Assinatura Digital</div>
+              <canvas ref={sigRef} width={240} height={70}
+                style={{ border: '1.5px solid var(--line)', borderRadius: 6, width: '100%', maxWidth: 240, cursor: 'crosshair', background: '#fff', touchAction: 'none', display: 'block' }}
+                onMouseDown={startSign} onMouseMove={drawSign} onMouseUp={endSign} onMouseLeave={endSign}
+                onTouchStart={startSign} onTouchMove={drawSign} onTouchEnd={endSign}
+              />
+              <div style={{ display: 'flex', gap: 6, marginTop: 5 }}>
+                <button onClick={clearSig} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 8, border: '1px solid var(--line)', background: 'transparent', cursor: 'pointer', color: 'var(--muted)' }}>Limpar</button>
+                {wiz.signatureData && <span style={{ fontSize: 11, color: 'var(--teal)', alignSelf: 'center' }}>✓ Capturada</span>}
+              </div>
+            </div>
+
             {/* Miniaturas de imagens */}
             {images.length > 0 && (
               <div style={{ marginTop:12 }}>
@@ -1260,7 +1375,13 @@
         </div>
 
         {/* ── Coluna direita: Prévia PDF multi-página ── */}
-        <div style={{ flex: 1, overflowY: 'auto', background: '#c0c0c0', padding: '20px' }}>
+        <div className="vt-pdf-preview" style={{ flex: 1, overflowY: 'auto', background: '#c0c0c0', padding: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+            <button onClick={printPDF}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', borderRadius: 20, border: 'none', background: '#0e2c4d', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+              🖨️ Imprimir / Salvar PDF
+            </button>
+          </div>
 
           {/* ════════════════════════════════════════
               FOLHA 1 — Paciente · Avaliação · Odontograma · Faturamento
@@ -1331,7 +1452,7 @@
             {/* Examinação Pré-Atendimento (Gauges) */}
             {wiz.condScore && (
               <div style={{ border: '1px solid #ddd', borderRadius: 4, padding: '8px 12px', marginBottom: 8, background: '#fafafa' }}>
-                <div style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#555', marginBottom: 8 }}>Examinação Pré-Atendimento</div>
+                <div style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#555', marginBottom: 8 }}>Avaliação — Condição Dentária</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2px 1fr' }}>
                   <div>
                     <div style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Direita</div>
@@ -1441,6 +1562,17 @@
                 }
               </div>
             </div>
+            {/* Assinatura no PDF */}
+            {wiz.signatureData && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
+                <div style={{ textAlign: 'center', width: 200 }}>
+                  <img src={wiz.signatureData} alt="Assinatura" style={{ height: 50, maxWidth: 200, objectFit: 'contain' }} />
+                  <div style={{ borderTop: '1px solid #333', paddingTop: 4, marginTop: 4, fontSize: 9, color: '#555' }}>
+                    {clinicVet}{clinicCrmv ? ` · ${clinicCrmv}` : ''}
+                  </div>
+                </div>
+              </div>
+            )}
             <PdfFooter />
           </div>
 
@@ -1672,24 +1804,29 @@
   }
 
   /* ─── Componente Principal ────────────────────────────────── */
-  function OdontogramaWizard({ onClose }) {
+  const WIZ_DEFAULTS = {
+    patientId: null, patientName: '', ownerName: '', species: 'Cão',
+    breed: '', age: '', sex: '', color: '', weight: '', height: '',
+    ownerPhone: '', ownerEmail: '', ownerAddress: '',
+    propertyName: '', propertyCity: '', propertyPhone: '',
+    condScore: 5, lastTreatment: '', clinicalNotes: '',
+    sedVet: '', sedTipo: '', sedDose: '', sedVia: '', sedObs: '',
+    sedAtiva: false, sedVetConsultorio: '', sedVetNome: '',
+    sedRows: [{ tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' }],
+    anomalias: {}, anomaliasObs: '', chartNotes: '', chartImage: '',
+    findings: {}, signatureData: '', examNum: null, examId: null,
+    charges: '', callout: '', taxRate: '', paid: false, paidType: 'Dinheiro', refNum: '',
+    callbackDays: 0, callbackObs: '', images: [],
+  };
+
+  function OdontogramaWizard({ onClose, initialData, examId }) {
     const today = new Date().toISOString().slice(0, 10);
-    const [step, setStep] = useState(1);
-    const [date, setDate] = useState(today);
+    const [step, setStep] = useState(initialData ? 5 : 1);
+    const [date, setDate] = useState(initialData ? (initialData.date || today) : today);
     const [showImgModal, setShowImgModal] = useState(false);
-    const [wiz, setWizRaw] = useState({
-      patientId: null, patientName: '', ownerName: '', species: 'Cão',
-      breed: '', age: '', sex: '', color: '', weight: '', height: '',
-      ownerPhone: '', ownerEmail: '', ownerAddress: '',
-      propertyName: '', propertyCity: '', propertyPhone: '',
-      condScore: 5, lastTreatment: '', clinicalNotes: '',
-      sedVet: '', sedTipo: '', sedDose: '', sedVia: '', sedObs: '',
-      sedAtiva: false, sedVetConsultorio: '', sedVetNome: '',
-      sedRows: [{ tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' }],
-      anomalias: {}, anomaliasObs: '', chartNotes: '', chartImage: '',
-      findings: {},
-      charges: '', callout: '', taxRate: '', paid: false, paidType: 'Dinheiro', refNum: '',
-      callbackDays: 0, callbackObs: '', images: [],
+    const [wiz, setWizRaw] = useState(() => {
+      if (initialData) return { ...WIZ_DEFAULTS, ...initialData, examId: examId || initialData.id || null };
+      return { ...WIZ_DEFAULTS };
     });
     const setW = (patch) => setWizRaw(p => ({ ...p, ...patch }));
     const wizWithDate = { ...wiz, date };
@@ -1712,31 +1849,62 @@
 
     const saveExam = () => {
       if (!wiz.patientId) { window.vtToast && window.vtToast('Selecione um paciente antes de salvar.', 'err'); return; }
+      const odontoCfg = window.vtOdontoCfg ? window.vtOdontoCfg() : {};
+      const examNum = wiz.examNum || odontoCfg.odonto_num_next || odontoCfg.odonto_num_start || 1;
       const checkedFlags = Object.entries(wiz.anomalias).filter(([, v]) => v.checked).map(([k, v]) => ({ flag: k, note: v.note }));
+      const findingsTotal = Object.values(wiz.findings||{}).filter(f=>f.checked).reduce((s,f)=>s+(parseFloat(f.price)||0),0);
+      const treatments = Object.entries(wiz.findings||{}).filter(([,v])=>v.checked).map(([k,v]) => {
+        const [cat, id] = k.split(':');
+        const dxCfg = window.vtOdontoDxCfg ? window.vtOdontoDxCfg() : {};
+        const isHorse = /equi|caval/i.test(wiz.species||''); const isGato = /gato|felin/i.test(wiz.species||'');
+        const spKey = isHorse?'equino':isGato?'gatos':'caes';
+        const item = ((dxCfg[spKey]||{})[cat]||[]).find(i=>i.id===id);
+        return { name: item?item.name:id, price: v.price||0, note: v.note||'' };
+      });
       const entry = {
-        id: 'WZ-' + Date.now().toString(36),
+        id: wiz.examId || ('WZ-' + Date.now().toString(36)),
+        examNum,
         date: date,
-        vet: window.vtCurrentVet ? window.vtCurrentVet() : 'Equipe',
+        vet: wiz.sedVetNome || (window.vtCurrentVet ? window.vtCurrentVet() : 'Equipe'),
         species: wiz.species,
         patientName: wiz.patientName,
         ownerName: wiz.ownerName,
+        ownerPhone: wiz.ownerPhone, ownerEmail: wiz.ownerEmail, ownerAddress: wiz.ownerAddress,
+        breed: wiz.breed, age: wiz.age, sex: wiz.sex, color: wiz.color, weight: wiz.weight,
         condScore: wiz.condScore,
         lastTreatment: wiz.lastTreatment,
         clinicalNotes: wiz.clinicalNotes,
-        sedacao: { vet: wiz.sedVet, tipo: wiz.sedTipo, dose: wiz.sedDose, via: wiz.sedVia, obs: wiz.sedObs },
+        sedacao: { vet: wiz.sedVet, tipo: wiz.sedTipo, dose: wiz.sedDose, via: wiz.sedVia, obs: wiz.sedObs, consultorio: wiz.sedVetConsultorio, rows: wiz.sedRows },
         anomalias: checkedFlags,
         findings: wiz.findings,
+        treatments,
+        findingsTotal,
         anomaliasObs: wiz.anomaliasObs,
         chartNotes: wiz.chartNotes,
         chartImage: wiz.chartImage,
+        signatureData: wiz.signatureData || '',
+        images: wiz.images || [],
         billing: { charges: wiz.charges, callout: wiz.callout, taxRate: wiz.taxRate, paid: wiz.paid, paidType: wiz.paidType, refNum: wiz.refNum },
         callback: { period: CB_SLOTS[wiz.callbackDays] || 'Nenhum', obs: wiz.callbackObs },
+        sedAtiva: wiz.sedAtiva, sedVetConsultorio: wiz.sedVetConsultorio, sedVetNome: wiz.sedVetNome, sedRows: wiz.sedRows,
+        callbackDays: wiz.callbackDays, callbackObs: wiz.callbackObs,
+        charges: wiz.charges, callout: wiz.callout, taxRate: wiz.taxRate, paid: wiz.paid, paidType: wiz.paidType, refNum: wiz.refNum,
+        anomaliasObs: wiz.anomaliasObs,
         source: 'wizard',
       };
       const key = `vt-odonto-hist:${wiz.patientId}`;
       const hist = JSON.parse(localStorage.getItem(key) || '[]');
-      hist.unshift(entry);
+      if (wiz.examId) {
+        const idx = hist.findIndex(h => h.id === wiz.examId);
+        if (idx >= 0) hist[idx] = entry; else hist.unshift(entry);
+      } else {
+        hist.unshift(entry);
+        if (window.vtSaveOdontoCfg) {
+          window.vtSaveOdontoCfg({ ...odontoCfg, odonto_num_next: examNum + 1 });
+        }
+      }
       localStorage.setItem(key, JSON.stringify(hist));
+      window.dispatchEvent(new CustomEvent('vt-odonto-saved', { detail: { patientId: wiz.patientId } }));
       window.vtToast && window.vtToast('Exame salvo com sucesso!', 'ok');
       onClose && onClose();
     };
