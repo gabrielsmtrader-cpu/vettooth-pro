@@ -1217,7 +1217,7 @@
         </div>
       );
     };
-    const condPct = wiz.condScore ? (wiz.condScore / 5) * 100 : 0;
+    const condPct = wiz.condScore ? (wiz.condScore / 10) * 100 : 0;
 
     const SecDiv = ({ label }) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '10px 0 6px' }}>
@@ -1467,8 +1467,8 @@
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 10px' }}>
                 <PCell label="Veterinário Responsável" value={clinicVet + (clinicCrmv ? ' · ' + clinicCrmv : '')} span />
                 <PCell label="Data do Exame" value={fmtDateBR(wiz.date)} />
-                {wiz.condScore !== null && wiz.condScore !== undefined && <PCell label="Score Condição Dentária" value={`${wiz.condScore}/5`} />}
-                {wiz.lastTreatment && <PCell label="Último Tratamento" value={fmtDateBR(wiz.lastTreatment)} />}
+                {wiz.condScore !== null && wiz.condScore !== undefined && <PCell label="Score Condição Dentária" value={`${wiz.condScore}/10`} />}
+                {wiz.lastTreatment && <PCell label="Último Tratamento" value={wiz.lastTreatment} />}
                 {wiz.clinicalNotes && <PCell label="Notas Clínicas" value={wiz.clinicalNotes} span />}
               </div>
               <div style={{ borderLeft: '1px solid #eee', paddingLeft: 12 }}>
