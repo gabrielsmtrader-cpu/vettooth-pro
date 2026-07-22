@@ -888,7 +888,10 @@
     const dxCfg = useMemo(() => window.vtOdontoDxCfg ? window.vtOdontoDxCfg() : {}, []);
     const speciesData = dxCfg[speciesKey] || {};
 
-    const CAT_LABELS = { incisivos:'Incisivos', caninos:'Caninos', denteslobo:'Dente de Lobo', premolares:'Pré-molares', molares:'Molares', outros:'Outros' };
+    const CAT_LABELS = {
+      incisivos:'Incisivos', caninos:'Caninos', denteslobo:'Dente de Lobo',
+      premolares:'Pré-molares e Molares', molares:'Molares', outros:'Outros',
+    };
     const catOrder = isHorse
       ? ['incisivos','caninos','denteslobo','premolares','molares','outros']
       : ['incisivos','caninos','premolares','molares','outros'];
@@ -903,7 +906,7 @@
 
     const toggle = (cat, item) => {
       const k = key(cat, item.id); const cur = getF(cat, item);
-      setW({ findings: { ...findings, [k]: { ...cur, checked: !cur.checked, price: cur.price || item.price || 0 } } });
+      setW({ findings: { ...findings, [k]: { ...cur, checked: !cur.checked, price: cur.price !== undefined ? cur.price : (item.price || 0) } } });
     };
     const setPrice = (cat, item, val) => {
       const k = key(cat, item.id); const cur = getF(cat, item);
@@ -916,12 +919,7 @@
 
     const checkedItems = Object.entries(findings).filter(([,v]) => v.checked);
     const total = checkedItems.reduce((s,[,v]) => s + (parseFloat(v.price)||0), 0);
-
-    const catCheckedCount = (cat) => {
-      const items = speciesData[cat] || [];
-      return items.filter(item => (findings[key(cat, item.id)] || {}).checked).length;
-    };
-
+    const catCheckedCount = (cat) => (speciesData[cat] || []).filter(item => (findings[key(cat, item.id)] || {}).checked).length;
     const activeItems = speciesData[activeCat] || [];
 
     if (Object.keys(speciesData).length === 0) return (
@@ -933,130 +931,148 @@
     );
 
     return (
-      <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+      <div style={{ flex:1, display:'flex', overflow:'hidden' }}>
 
-        {/* ── Barra de info/total ── */}
-        {(checkedItems.length > 0 || total > 0) && (
-          <div style={{ background:'var(--card)', borderBottom:'1px solid var(--line)', padding:'7px 18px', display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
-            <span style={{ fontSize:12, color:'var(--teal)', fontWeight:600 }}>{checkedItems.length} item(ns) selecionado(s)</span>
-            {wiz.species && <span style={{ fontSize:12, color:'var(--muted)' }}>· {wiz.species}</span>}
-            {total > 0 && (
-              <div style={{ marginLeft:'auto', background:'var(--teal)', borderRadius:16, padding:'4px 14px', fontSize:13, fontWeight:700, color:'#fff' }}>
-                Total: R$ {total.toLocaleString('pt-BR',{minimumFractionDigits:2})}
-              </div>
-            )}
-          </div>
-        )}
+        {/* ── Sidebar esquerda escura ── */}
+        <div style={{ width:220, flexShrink:0, background:'#1e2b3c', overflowY:'auto', display:'flex', flexDirection:'column' }}>
+          {availCats.map(cat => {
+            const isActive = cat === activeCat;
+            const cnt = catCheckedCount(cat);
+            return (
+              <button key={cat} onClick={() => setActiveCat(cat)}
+                style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between',
+                  padding:'22px 22px', border:'none', cursor:'pointer', textAlign:'left',
+                  background: isActive ? 'rgba(255,255,255,.07)' : 'transparent',
+                  borderLeft: isActive ? '3px solid #4a9fd4' : '3px solid transparent',
+                  fontSize: 16, fontWeight: isActive ? 600 : 400,
+                  color: isActive ? '#fff' : 'rgba(255,255,255,.65)',
+                  transition:'all .12s' }}>
+                <span>{CAT_LABELS[cat] || cat}</span>
+                {cnt > 0 && (
+                  <span style={{ background:'#4a9fd4', color:'#fff', borderRadius:12, padding:'2px 9px', fontSize:12, fontWeight:700, flexShrink:0 }}>{cnt}</span>
+                )}
+              </button>
+            );
+          })}
+          <button onClick={() => setActiveCat('__obs__')}
+            style={{ width:'100%', padding:'22px 22px', border:'none', borderTop:'1px solid rgba(255,255,255,.08)',
+              cursor:'pointer', textAlign:'left',
+              background: activeCat === '__obs__' ? 'rgba(255,255,255,.07)' : 'transparent',
+              borderLeft: activeCat === '__obs__' ? '3px solid #4a9fd4' : '3px solid transparent',
+              fontSize:16, fontWeight: activeCat === '__obs__' ? 600 : 400,
+              color: activeCat === '__obs__' ? '#fff' : 'rgba(255,255,255,.5)', marginTop:'auto' }}>
+            Observações
+          </button>
+        </div>
 
-        {/* ── Layout two-column ── */}
-        <div style={{ flex:1, display:'flex', overflow:'hidden' }}>
+        {/* ── Painel direito ── */}
+        <div style={{ flex:1, overflowY:'auto', background:'#f4f6f8' }}>
 
-          {/* Sidebar — categorias */}
-          <div style={{ width:200, flexShrink:0, borderRight:'1px solid var(--line)', background:'var(--card)', overflowY:'auto' }}>
-            {availCats.map(cat => {
-              const isActive = cat === activeCat;
-              const cnt = catCheckedCount(cat);
-              return (
-                <button key={cat} onClick={() => setActiveCat(cat)}
-                  style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between',
-                    padding:'18px 16px', border:'none', cursor:'pointer', textAlign:'left',
-                    background: 'var(--card)',
-                    borderLeft: isActive ? '4px solid var(--teal)' : '4px solid transparent',
-                    fontWeight: isActive ? 600 : 400, fontSize:14,
-                    color: 'var(--ink)', transition:'border-color .1s' }}>
-                  <span>{CAT_LABELS[cat] || cat}</span>
-                  {cnt > 0 && (
-                    <span style={{ background:'var(--teal)', color:'#fff', borderRadius:10, padding:'2px 8px', fontSize:11, fontWeight:700, flexShrink:0 }}>{cnt}</span>
-                  )}
-                </button>
-              );
-            })}
-            <button onClick={() => setActiveCat('__obs__')}
-              style={{ width:'100%', display:'flex', alignItems:'center', padding:'18px 16px', border:'none', cursor:'pointer', textAlign:'left',
-                background: 'var(--card)',
-                borderLeft: activeCat === '__obs__' ? '4px solid var(--teal)' : '4px solid transparent',
-                borderTop: '1px solid var(--line)',
-                fontWeight: activeCat === '__obs__' ? 600 : 400, fontSize:14,
-                color: 'var(--muted)', transition:'border-color .1s' }}>
-              Observações
-            </button>
-          </div>
+          {/* Barra de total flutuante */}
+          {checkedItems.length > 0 && (
+            <div style={{ position:'sticky', top:0, zIndex:10, background:'#fff', borderBottom:'1px solid #e0e4ea',
+              padding:'8px 24px', display:'flex', alignItems:'center', gap:10 }}>
+              <span style={{ fontSize:13, color:'#4a9fd4', fontWeight:600 }}>{checkedItems.length} selecionado(s)</span>
+              {total > 0 && (
+                <span style={{ marginLeft:'auto', background:'#4a9fd4', color:'#fff', borderRadius:14, padding:'4px 14px', fontSize:13, fontWeight:700 }}>
+                  Total: R$ {total.toLocaleString('pt-BR',{minimumFractionDigits:2})}
+                </span>
+              )}
+            </div>
+          )}
 
-          {/* Painel direito */}
-          <div style={{ flex:1, overflowY:'auto', background:'var(--bg)', padding:'14px' }}>
-            {activeCat === '__obs__' ? (
-              <div style={{ background:'var(--card)', borderRadius:12, padding:20 }}>
-                <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.07em', marginBottom:12 }}>Observações Gerais</div>
+          {activeCat === '__obs__' ? (
+            <div style={{ padding:24 }}>
+              <div style={{ background:'#fff', borderRadius:12, padding:20, boxShadow:'0 1px 4px rgba(0,0,0,.06)' }}>
+                <div style={{ fontSize:11, fontWeight:700, color:'#8a9ab0', textTransform:'uppercase', letterSpacing:'.07em', marginBottom:12 }}>Observações Gerais</div>
                 <textarea className="vt-input" rows={6} placeholder="Notas gerais sobre tratamentos realizados…"
                   value={wiz.anomaliasObs || ''} onChange={e => setW({ anomaliasObs: e.target.value })}
                   style={{ width:'100%', resize:'vertical', fontFamily:'inherit', fontSize:13 }} />
               </div>
-            ) : (
-              <div style={{ background:'var(--card)', borderRadius:12, overflow:'hidden' }}>
-                {activeItems.map((item, idx) => {
-                  const f = getF(activeCat, item);
-                  const nk = key(activeCat, item.id);
-                  const noteOpen = openNotes[nk];
-                  return (
-                    <div key={item.id}>
-                      <div style={{ display:'flex', alignItems:'center', gap:14, padding:'15px 18px',
-                        borderBottom: idx < activeItems.length - 1 ? '1px solid var(--line)' : 'none' }}>
+            </div>
+          ) : (
+            <div style={{ background:'#fff' }}>
+              {activeItems.map((item, idx) => {
+                const f = getF(activeCat, item);
+                const nk = key(activeCat, item.id);
+                const noteOpen = openNotes[nk];
+                const isLast = idx === activeItems.length - 1;
+                return (
+                  <div key={item.id} style={{ borderBottom: isLast ? 'none' : '1px solid #e8edf2' }}>
+                    {/* Linha principal */}
+                    <div style={{ display:'flex', alignItems:'center', gap:0, padding:'16px 20px 16px 20px', minHeight:64 }}>
 
-                        {/* Checkbox quadrado teal grande */}
-                        <button onClick={() => toggle(activeCat, item)}
-                          style={{ width:34, height:34, borderRadius:8, flexShrink:0, cursor:'pointer',
-                            border: f.checked ? 'none' : '2px solid var(--line)',
-                            background: f.checked ? 'var(--teal)' : 'transparent',
-                            display:'flex', alignItems:'center', justifyContent:'center', transition:'all .12s' }}>
-                          {f.checked && <span style={{ color:'#fff', fontSize:16, fontWeight:800, lineHeight:1 }}>✓</span>}
-                        </button>
+                      {/* Checkbox circular */}
+                      <button onClick={() => toggle(activeCat, item)}
+                        style={{ width:36, height:36, borderRadius:'50%', flexShrink:0, cursor:'pointer',
+                          border: f.checked ? 'none' : '2px solid #c8d0dc',
+                          background: f.checked ? '#4a9fd4' : '#fff',
+                          display:'flex', alignItems:'center', justifyContent:'center',
+                          boxShadow: f.checked ? '0 2px 6px rgba(74,159,212,.35)' : '0 1px 3px rgba(0,0,0,.08)',
+                          transition:'all .15s', marginRight:18 }}>
+                        {f.checked && (
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <polyline points="3,8 6.5,12 13,4" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </button>
 
-                        {/* Nome UPPERCASE */}
-                        <span style={{ flex:1, fontSize:14, fontWeight:600,
-                          letterSpacing:'.05em', textTransform:'uppercase',
-                          color: 'var(--ink)' }}>
-                          {item.name}
-                        </span>
-
-                        {/* R$ + input pill */}
-                        <span style={{ fontSize:13, fontWeight:600, color:'var(--muted)', flexShrink:0 }}>R$</span>
-                        <input type="number" min="0" step="0.01" value={f.price}
-                          onChange={e => setPrice(activeCat, item, parseFloat(e.target.value)||0)}
-                          style={{ width:96, background:'var(--teal)',
-                            color:'#fff', border:'none',
-                            borderRadius:22, padding:'7px 14px', fontSize:13, fontWeight:700,
-                            textAlign:'center', outline:'none', fontFamily:'inherit',
-                            opacity: f.checked ? 1 : 0.4 }}
-                          disabled={!f.checked} />
-
-                        {/* Botão círculo + */}
-                        <button onClick={() => { if (!f.checked) toggle(activeCat, item); else setOpenNotes(n => ({...n, [nk]: !n[nk]})); }}
-                          style={{ width:34, height:34, borderRadius:'50%', border:'none', cursor:'pointer', flexShrink:0,
-                            background:'var(--teal)', color:'#fff', fontSize:22, fontWeight:300,
-                            display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>
-                          {f.checked && noteOpen ? '−' : '+'}
-                        </button>
+                      {/* Nome + nota inline */}
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:15, color:'#1a2e42', fontWeight:400, lineHeight:1.3 }}>{item.name}</div>
+                        {f.checked && f.note && !noteOpen && (
+                          <div style={{ fontSize:12.5, color:'#6b7a8d', marginTop:3 }}>{f.note}</div>
+                        )}
                       </div>
 
-                      {/* Nota expandida */}
-                      {f.checked && noteOpen && (
-                        <div style={{ padding:'8px 18px 14px 66px', background:'var(--bg)', borderBottom: idx < activeItems.length - 1 ? '1px solid var(--line)' : 'none' }}>
-                          <textarea className="vt-input" rows={2} placeholder={`Anotação sobre ${item.name}…`} value={f.note}
-                            onChange={e => setNote(activeCat, item, e.target.value)}
-                            style={{ width:'100%', maxWidth:500, fontSize:13, resize:'vertical', fontFamily:'inherit' }} />
-                        </div>
-                      )}
+                      {/* R$ + input cinza pill */}
+                      <span style={{ fontSize:16, color:'#8a9ab0', fontWeight:300, marginRight:8, flexShrink:0 }}>R$</span>
+                      <div style={{ background:'#eaecf0', borderRadius:8, padding:'7px 12px', minWidth:90, flexShrink:0, marginRight:16 }}>
+                        <input type="number" min="0" step="0.01" value={f.price !== undefined ? f.price : 0}
+                          onChange={e => setPrice(activeCat, item, parseFloat(e.target.value)||0)}
+                          style={{ border:'none', outline:'none', background:'transparent', width:'100%',
+                            fontSize:15, textAlign:'right', color: f.checked ? '#1a2e42' : '#9aa3af',
+                            fontFamily:'inherit', cursor: f.checked ? 'text' : 'default' }}
+                          disabled={!f.checked} />
+                      </div>
+
+                      {/* ⊕ Add Note */}
+                      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, flexShrink:0, cursor:'pointer', minWidth:52 }}
+                        onClick={() => {
+                          if (!f.checked) toggle(activeCat, item);
+                          setOpenNotes(n => ({ ...n, [nk]: !n[nk] }));
+                        }}>
+                        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                          <circle cx="14" cy="14" r="12.5" stroke={noteOpen ? '#4a9fd4' : '#b0bac8'} strokeWidth="1.5" fill="none"/>
+                          <line x1="14" y1="8" x2="14" y2="20" stroke={noteOpen ? '#4a9fd4' : '#b0bac8'} strokeWidth="1.5" strokeLinecap="round"/>
+                          <line x1="8" y1="14" x2="20" y2="14" stroke={noteOpen ? '#4a9fd4' : '#b0bac8'} strokeWidth="1.5" strokeLinecap="round"/>
+                        </svg>
+                        <span style={{ fontSize:10, color: noteOpen ? '#4a9fd4' : '#9aa8b5', fontWeight:500, lineHeight:1, whiteSpace:'nowrap' }}>
+                          {noteOpen ? 'Fechar' : 'Add Note'}
+                        </span>
+                      </div>
                     </div>
-                  );
-                })}
-                {activeItems.length === 0 && (
-                  <div style={{ padding:32, textAlign:'center', color:'var(--muted)', fontSize:13 }}>
-                    Nenhum item nesta categoria.
+
+                    {/* Nota expandida */}
+                    {noteOpen && (
+                      <div style={{ padding:'0 20px 14px 74px', background:'#f9fafb' }}>
+                        <textarea rows={2} placeholder={`Anotação sobre ${item.name}…`} value={f.note}
+                          onChange={e => setNote(activeCat, item, e.target.value)}
+                          style={{ width:'100%', border:'1.5px solid #d0d7e3', borderRadius:8, padding:'8px 12px',
+                            fontSize:13, resize:'vertical', fontFamily:'inherit', outline:'none',
+                            background:'#fff', color:'#1a2e42' }} />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
-          </div>
+                );
+              })}
+              {activeItems.length === 0 && (
+                <div style={{ padding:48, textAlign:'center', color:'#9aa8b5', fontSize:13 }}>
+                  Nenhum item nesta categoria.
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
