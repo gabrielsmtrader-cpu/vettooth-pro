@@ -373,7 +373,9 @@
 
     const formatDate = (d) => {
       if (!d) return null;
+      if (d.includes('/')) return d; // already dd/mm/yyyy
       const [y, m, day] = d.split('-');
+      if (!y || !m || !day) return d;
       return day + '/' + m + '/' + y;
     };
 
@@ -1098,6 +1100,23 @@
     );
   }
 
+  /* ─── helper compartilhado de impressão ─────────────────── */
+  function printPDF() {
+    const el = document.querySelector('.vt-pdf-preview');
+    if (!el) { window.print(); return; }
+    const style = document.createElement('style');
+    style.id = 'vt-print-override';
+    style.innerHTML = `@media print{
+      *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;box-sizing:border-box}
+      body>*{display:none!important}
+      .vt-pdf-preview{display:block!important;position:static!important;overflow:visible!important;background:transparent!important;padding:0!important;margin:0!important;width:100%!important}
+    }`;
+    document.head.appendChild(style);
+    window.print();
+    setTimeout(() => { const s = document.getElementById('vt-print-override'); if (s) s.remove(); }, 2000);
+  }
+  window.vtPrintOdontoPDF = printPDF;
+
   /* ─── PASSO 5: Notas & Prévia PDF multi-página ──────────── */
   function Step5Notas({ wiz, setW }) {
     const sigRef = useRef(null);
@@ -1131,16 +1150,7 @@
       canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
       setW({ signatureData: '' });
     };
-    const printPDF = () => {
-      const el = document.querySelector('.vt-pdf-preview');
-      if (!el) { window.print(); return; }
-      const style = document.createElement('style');
-      style.id = 'vt-print-override';
-      style.innerHTML = `@media print{body>*{display:none!important}.vt-pdf-preview{display:block!important;position:fixed!important;top:0;left:0;width:100%;background:#c0c0c0;overflow:auto;padding:20px}}`;
-      document.head.appendChild(style);
-      window.print();
-      setTimeout(() => { const s = document.getElementById('vt-print-override'); if (s) s.remove(); }, 1500);
-    };
+    // printPDF defined at module level
     const checkedAnomalias = [
       ...Object.entries(wiz.findings || {}).filter(([,v]) => v && v.checked).map(([k,v]) => {
         const [cat, id] = k.split(':');
@@ -1820,7 +1830,7 @@
             {
               label: 'Imprimir',
               icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
-              action: () => window.print(),
+              action: () => { onPreview(); setTimeout(printPDF, 400); },
             },
           ].map((item, i) => (
             <button key={i} onClick={item.action}

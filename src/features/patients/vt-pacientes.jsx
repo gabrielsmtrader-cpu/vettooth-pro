@@ -357,6 +357,14 @@ function OdoHistModal({ patient, onClose, onNewOdonto }) {
     try { return JSON.parse(localStorage.getItem('vt-odonto-hist:' + patient.id) || '[]'); } catch(e) { return []; }
   }, [patient.id]);
   const printEntry = (entry) => {
+    // Exames salvos pelo wizard: abre no Step 5 e imprime o PDF fiel ao preview
+    if (entry.source === 'wizard' && window._vtOpenOdontoEdit) {
+      onClose();
+      window._vtOpenOdontoEdit(patient.id, entry.id, entry);
+      setTimeout(() => { window.vtPrintOdontoPDF && window.vtPrintOdontoPDF(); }, 800);
+      return;
+    }
+    // Legado: gera HTML simples para odontogramas antigos
     const w = window.open('', '_blank');
     if (!w) return;
     const rows = (entry.marks || []).map((m) => `<tr><td>${m.tooth || '—'}</td><td>${m.label || '—'}</td><td>${m.obs || ''}</td></tr>`).join('');

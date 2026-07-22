@@ -63,10 +63,16 @@ function PrOdonto({ at, patch, patient }) {
                   <b>{numLabel} · {exam.date}</b>
                   <i>{exam.vet || 'Equipe'}{treatCount ? ` · ${treatCount} tratamento(s)` : ''}</i>
                 </span>
-                <button onClick={() => openEdit(exam)}
-                  style={{ position: 'absolute', top: 6, right: 6, fontSize: 11, padding: '3px 10px', borderRadius: 10, border: '1px solid var(--teal)', background: 'transparent', color: 'var(--teal)', cursor: 'pointer', fontWeight: 700 }}>
-                  Editar
-                </button>
+                <div style={{ position: 'absolute', top: 6, right: 6, display: 'flex', gap: 6 }}>
+                  <button onClick={() => { openEdit(exam); setTimeout(() => { window.vtPrintOdontoPDF && window.vtPrintOdontoPDF(); }, 800); }}
+                    style={{ fontSize: 11, padding: '3px 10px', borderRadius: 10, border: '1px solid #888', background: 'transparent', color: '#555', cursor: 'pointer', fontWeight: 700 }}>
+                    🖨 PDF
+                  </button>
+                  <button onClick={() => openEdit(exam)}
+                    style={{ fontSize: 11, padding: '3px 10px', borderRadius: 10, border: '1px solid var(--teal)', background: 'transparent', color: 'var(--teal)', cursor: 'pointer', fontWeight: 700 }}>
+                    Editar
+                  </button>
+                </div>
               </div>
             );
           })}
