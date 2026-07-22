@@ -367,7 +367,11 @@ function OdoHistModal({ patient, onClose, onNewOdonto }) {
     // Legado: gera HTML simples para odontogramas antigos
     const w = window.open('', '_blank');
     if (!w) return;
-    const rows = (entry.marks || []).map((m) => `<tr><td>${m.tooth || '—'}</td><td>${m.label || '—'}</td><td>${m.obs || ''}</td></tr>`).join('');
+    // marks pode ser array [{tooth,label,obs}] ou objeto {toothId:{cond}} dependendo da versão
+    const marksArr = Array.isArray(entry.marks)
+      ? entry.marks
+      : Object.entries(entry.marks || {}).map(([tooth, v]) => ({ tooth, label: v.cond || '—', obs: v.obs || '' }));
+    const rows = marksArr.map((m) => `<tr><td>${m.tooth || '—'}</td><td>${m.label || '—'}</td><td>${m.obs || ''}</td></tr>`).join('');
     w.document.write(`<!DOCTYPE html><html><head><title>Odontograma – ${patient.name} – ${entry.date || ''}</title>
 <style>body{font-family:Arial,sans-serif;padding:24px;color:#1a1a2e}h2{margin:0 0 4px}p{margin:2px 0 8px;color:#555}table{border-collapse:collapse;width:100%;margin-top:12px}th,td{border:1px solid #ccc;padding:6px 10px;text-align:left}th{background:#f0f4f8}.footer{margin-top:24px;font-size:11px;color:#999}</style>
 </head><body>

@@ -1104,16 +1104,26 @@
   function printPDF() {
     const el = document.querySelector('.vt-pdf-preview');
     if (!el) { window.print(); return; }
+    // Move o elemento para filho direto de body para que o CSS de print funcione
+    const placeholder = document.createElement('div');
+    placeholder.id = 'vt-print-placeholder';
+    el.parentNode.insertBefore(placeholder, el);
+    document.body.appendChild(el);
     const style = document.createElement('style');
     style.id = 'vt-print-override';
     style.innerHTML = `@media print{
       *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;box-sizing:border-box}
-      body>*{display:none!important}
-      .vt-pdf-preview{display:block!important;position:static!important;overflow:visible!important;background:transparent!important;padding:0!important;margin:0!important;width:100%!important}
+      body>*:not(.vt-pdf-preview){display:none!important}
+      .vt-pdf-preview{display:block!important;position:static!important;overflow:visible!important;background:white!important;padding:0!important;margin:0!important;width:100%!important;flex:none!important;height:auto!important}
     }`;
     document.head.appendChild(style);
     window.print();
-    setTimeout(() => { const s = document.getElementById('vt-print-override'); if (s) s.remove(); }, 2000);
+    setTimeout(() => {
+      const s = document.getElementById('vt-print-override');
+      if (s) s.remove();
+      const ph = document.getElementById('vt-print-placeholder');
+      if (ph) { ph.parentNode.insertBefore(el, ph); ph.remove(); }
+    }, 2000);
   }
   window.vtPrintOdontoPDF = printPDF;
 
