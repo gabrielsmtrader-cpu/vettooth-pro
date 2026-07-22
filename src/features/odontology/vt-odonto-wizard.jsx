@@ -1488,7 +1488,7 @@
             {/* Examinação Pré-Atendimento (Gauges) */}
             {wiz.condScore && (
               <div style={{ border: '1px solid #ddd', borderRadius: 4, padding: '8px 12px', marginBottom: 8, background: '#fafafa' }}>
-                <div style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#555', marginBottom: 8 }}>Avaliação — Condição Dentária</div>
+                <div style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#555', marginBottom: 8 }}>Score de Condição — {wiz.condScore}/10</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2px 1fr' }}>
                   <div>
                     <div style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Direita</div>
