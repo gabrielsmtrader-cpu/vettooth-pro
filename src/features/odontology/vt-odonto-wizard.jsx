@@ -1642,160 +1642,166 @@
   /* ─── PASSO 6: Cobrança & Notificações ────────────────────── */
   const CB_SLOTS = ['Nenhum', '1 Semana', '2 Meses', '3 Meses', '6 Meses', '9 Meses', '1 Ano', '18 Meses', '24 Meses'];
 
-  function Step6Faturamento({ wiz, setW, onSave, onClose, onPrev }) {
+  function Step6Faturamento({ wiz, setW, onSave, onClose, onPrev, onPreview }) {
     const findingsTotal = Object.values(wiz.findings||{}).filter(f=>f.checked).reduce((s,f)=>s+(parseFloat(f.price)||0),0);
-    const charges = Number(wiz.charges) || 0;
-    const callout = Number(wiz.callout) || 0;
-    const tax     = Number(wiz.taxRate) || 0;
-    const total   = (findingsTotal + charges + callout) * (1 + tax / 100);
-    const refNum  = wiz.refNum || '';
+    /* Treatment Charges: use wiz.charges as override; if empty, default to findingsTotal */
+    const treatCharge = wiz.charges !== '' && wiz.charges !== undefined ? Number(wiz.charges) : findingsTotal;
+    const callout     = Number(wiz.callout) || 0;
+    const tax         = Number(wiz.taxRate) || 0;
+    const subtotal    = treatCharge + callout;
+    const taxAmt      = subtotal * tax / 100;
+    const total       = subtotal + taxAmt;
+    const sliderIdx   = typeof wiz.callbackDays === 'number' ? wiz.callbackDays : 0;
 
-    /* ── campo de valor com reset ── */
-    const MoneyField = ({ label, desc, fieldKey }) => (
-      <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', padding: '18px 20px', marginBottom: 14, border: '1px solid var(--line)', boxShadow: 'var(--shadow)' }}>
-        <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 4 }}>{label}</div>
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>{desc}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', flexShrink: 0 }}>R$</span>
-          <input type="number" min="0" step="0.01" placeholder="0.00" value={wiz[fieldKey]}
-            onChange={e => setW({ [fieldKey]: e.target.value })}
-            style={{ flex: 1, border: '1.5px solid var(--line)', borderRadius: 10, padding: '8px 14px', fontSize: 15, fontFamily: 'inherit', textAlign: 'right', outline: 'none' }} />
-          <button onClick={() => setW({ [fieldKey]: '' })}
-            style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'var(--teal)', color: '#fff', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>↺</button>
+    const MoneyField = ({ label, desc, fieldKey, placeholder }) => (
+      <div style={{ display: 'flex', alignItems: 'center', padding: '20px 28px', borderBottom: '1px solid var(--line)', gap: 16, background: 'var(--bg)' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 3 }}>{label}</div>
+          <div style={{ fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.4 }}>{desc}</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <span style={{ fontSize: 18, color: 'var(--muted)', fontWeight: 300 }}>R$</span>
+          <div style={{ background: '#fff', border: '1.5px solid var(--line)', borderRadius: 40, padding: '9px 18px', boxShadow: '0 2px 8px rgba(0,0,0,.07)', minWidth: 130 }}>
+            <input type="number" min="0" step="0.01"
+              placeholder={placeholder !== undefined ? String(placeholder) : '0.00'}
+              value={wiz[fieldKey] !== undefined ? wiz[fieldKey] : ''}
+              onChange={e => setW({ [fieldKey]: e.target.value })}
+              style={{ border: 'none', outline: 'none', width: '100%', fontSize: 20, textAlign: 'right', background: 'transparent', fontFamily: 'inherit' }} />
+          </div>
+          <button onClick={() => setW({ [fieldKey]: '' })} title="Restaurar"
+            style={{ width: 36, height: 36, borderRadius: '50%', border: '1.5px solid var(--line)', background: 'transparent', cursor: 'pointer', fontSize: 18, color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, lineHeight: 1 }}>↺</button>
         </div>
       </div>
     );
 
-    /* ── slider de retorno ── */
-    const sliderIdx = typeof wiz.callbackDays === 'number' ? wiz.callbackDays : 0;
-
     return (
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-        {/* coluna esquerda — conteúdo */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', background: 'var(--bg)' }}>
-          <h2 style={{ margin: '0 0 18px', fontSize: 18, color: 'var(--ink)', fontWeight: 700 }}>
-            Cobrança e Notificações de Ligar de Volta
-          </h2>
+        {/* ── coluna esquerda ── */}
+        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--bg)' }}>
 
-          {findingsTotal > 0 && (
-            <div style={{ background: 'var(--teal-t)', borderRadius: 'var(--radius)', padding: '14px 20px', marginBottom: 14, border: '1px solid var(--teal)', boxShadow: 'var(--shadow)' }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>Tratamentos selecionados (Passo 4)</div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
-                {Object.entries(wiz.findings||{}).filter(([,v])=>v.checked).length} item(ns) selecionado(s)
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <span style={{ fontWeight: 800, fontSize: 20, color: 'var(--teal)' }}>
-                  R$ {findingsTotal.toLocaleString('pt-BR',{minimumFractionDigits:2})}
-                </span>
-              </div>
+          <MoneyField
+            label="Cobranças de Tratamento"
+            desc={findingsTotal > 0 ? `Total dos tratamentos registrados (R$ ${findingsTotal.toFixed(2)}). Digite para substituir.` : 'Total dos tratamentos registrados. Digite um valor para substituir.'}
+            fieldKey="charges"
+            placeholder={findingsTotal > 0 ? findingsTotal.toFixed(2) : '0.00'} />
+
+          <MoneyField
+            label="Chamada / Visita"
+            desc="Se taxa padrão estiver definida, será exibida. Digite para substituir."
+            fieldKey="callout"
+            placeholder="0.00" />
+
+          {/* Tax row */}
+          <div style={{ display: 'flex', alignItems: 'center', padding: '20px 28px', borderBottom: '1px solid var(--line)', gap: 16, background: 'var(--bg)' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 3 }}>Imposto</div>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>Percentual sobre o subtotal. Digite para substituir.</div>
             </div>
-          )}
-
-          <MoneyField label="Cobranças adicionais"
-            desc="Valores adicionais além dos tratamentos do Passo 4."
-            fieldKey="charges" />
-
-          <MoneyField label="Chamar Cobrança"
-            desc="Se taxa normal é definido, este será exibido. Digite o valor a descontar."
-            fieldKey="callout" />
-
-          {/* Total + Pago */}
-          <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', padding: '18px 20px', marginBottom: 14, border: '1px solid var(--line)', boxShadow: 'var(--shadow)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>Total</div>
-                <div style={{ fontSize: 12, color: 'var(--muted)' }}>Total cobrança ao cliente. Imposto sera adicionado automaticamente se selecionado.</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+              <div style={{ background: '#fff', border: '1.5px solid var(--line)', borderRadius: 40, padding: '9px 14px', boxShadow: '0 2px 8px rgba(0,0,0,.07)', display: 'flex', alignItems: 'center', gap: 4, minWidth: 100 }}>
+                <input type="number" min="0" max="100" step="0.1" placeholder="0" value={wiz.taxRate}
+                  onChange={e => setW({ taxRate: e.target.value })}
+                  style={{ border: 'none', outline: 'none', width: 52, fontSize: 20, textAlign: 'right', background: 'transparent', fontFamily: 'inherit' }} />
+                <span style={{ fontSize: 18, color: 'var(--muted)', fontWeight: 300 }}>%</span>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                {findingsTotal > 0 && <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>Tratamentos: R$ {findingsTotal.toFixed(2)} + Extras: R$ {(charges+callout).toFixed(2)}</div>}
-                <span style={{ fontWeight: 800, fontSize: 22, color: 'var(--ink)' }}>
-                  {total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </span>
-              </div>
+              <span style={{ fontSize: 18, color: 'var(--muted)', fontWeight: 300 }}>R$</span>
+              <span style={{ fontSize: 20, minWidth: 80, textAlign: 'right', color: 'var(--ink)' }}>{taxAmt.toFixed(2)}</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTop: '1px solid var(--line)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--ink)' }}>Pago?</span>
-                {wiz.paid && (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--teal)', fontSize: 13 }}>
-                    <span style={{ fontSize: 16 }}>✔</span>
-                    <span style={{ fontFamily: 'monospace', fontSize: 13 }}>{refNum}</span>
-                  </span>
-                )}
-              </div>
-              {/* iOS-style toggle */}
-              <button onClick={() => {
-                const newPaid = !wiz.paid;
-                const ref = newPaid ? (Date.now().toString().slice(-11)) : '';
-                setW({ paid: newPaid, refNum: ref });
-              }} style={{ width: 52, height: 30, borderRadius: 15, border: 'none', cursor: 'pointer', position: 'relative', padding: 0, flexShrink: 0,
-                background: wiz.paid ? 'var(--teal)' : '#ccc', transition: 'background .2s' }}>
-                <div style={{ position: 'absolute', top: 3, left: wiz.paid ? 24 : 3, width: 24, height: 24, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.3)', transition: 'left .2s' }} />
-              </button>
-            </div>
-            {wiz.paid && (
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
-                {PAID_TYPES.map(t => (
-                  <button key={t} onClick={() => setW({ paidType: t })}
-                    style={{ padding: '5px 13px', borderRadius: 20, border: `2px solid ${wiz.paidType === t ? 'var(--teal)' : 'var(--line)'}`,
-                      background: wiz.paidType === t ? 'var(--teal)' : 'transparent', color: wiz.paidType === t ? '#fff' : 'var(--ink)',
-                      cursor: 'pointer', fontSize: 13 }}>{t}</button>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* Slider de retorno */}
-          <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', padding: '18px 20px', border: '1px solid var(--line)', boxShadow: 'var(--shadow)' }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 4 }}>Notificação de ligar de volta</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 20 }}>Período selecionado: <b style={{ color: 'var(--teal)' }}>{CB_SLOTS[sliderIdx]}</b></div>
-
-            {/* labels acima do slider */}
-            <div style={{ position: 'relative', paddingBottom: 28 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                {CB_SLOTS.map((l, i) => (
-                  <span key={i} style={{ fontSize: 10, color: i === sliderIdx ? 'var(--teal)' : 'var(--muted)', fontWeight: i === sliderIdx ? 700 : 400,
-                    flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l}</span>
-                ))}
+          {/* Total box */}
+          <div style={{ margin: '0', background: '#b8c4d0', padding: '22px 28px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 17, color: '#1a2e42', marginBottom: 4 }}>Total</div>
+                <div style={{ fontSize: 11.5, color: '#3a506a', maxWidth: 320, lineHeight: 1.4 }}>Total cobrança ao cliente. Imposto será adicionado automaticamente se selecionado.</div>
               </div>
-              <input type="range" min="0" max={CB_SLOTS.length - 1} step="1" value={sliderIdx}
-                onChange={e => setW({ callbackDays: Number(e.target.value) })}
-                style={{ width: '100%', accentColor: 'var(--teal)', height: 6, cursor: 'pointer' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                <span style={{ fontSize: 20, color: '#3a506a', fontWeight: 300 }}>R$</span>
+                <span style={{ fontWeight: 800, fontSize: 28, color: '#1a2e42' }}>{total.toFixed(2)}</span>
+              </div>
             </div>
+            {/* Paid row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 700, fontSize: 15, color: '#1a2e42' }}>Pago?</span>
+              <button onClick={() => setW({ paid: !wiz.paid, refNum: !wiz.paid ? Date.now().toString().slice(-11) : '' })}
+                style={{ width: 38, height: 38, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,.9)', background: wiz.paid ? '#fff' : 'rgba(255,255,255,.3)',
+                  cursor: 'pointer', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: wiz.paid ? '#16a085' : 'transparent', fontWeight: 700, boxShadow: '0 2px 6px rgba(0,0,0,.15)', flexShrink: 0 }}>✓</button>
+              {PAID_TYPES.map(t => (
+                <button key={t} onClick={() => setW({ paidType: t })}
+                  style={{ padding: '7px 18px', borderRadius: 24, border: '2px solid rgba(255,255,255,.8)',
+                    background: wiz.paidType === t ? '#fff' : 'rgba(255,255,255,.25)',
+                    color: wiz.paidType === t ? '#1a2e42' : '#1a2e42',
+                    cursor: 'pointer', fontSize: 13, fontWeight: wiz.paidType === t ? 700 : 500 }}>{t}</button>
+              ))}
+            </div>
+          </div>
 
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
-              <span style={{ fontSize: 12, color: 'var(--muted)' }}>Observações de retorno</span>
-              <input className="vt-input" placeholder="Ex: retornar para avaliação de cicatrização"
-                value={wiz.callbackObs} onChange={e => setW({ callbackObs: e.target.value })}
-                style={{ fontSize: 13 }} />
-            </label>
+          {/* Callback slider */}
+          <div style={{ padding: '22px 28px', background: 'var(--bg)' }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 18 }}>Notificação de Retorno</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              {CB_SLOTS.map((l, i) => (
+                <span key={i} style={{ fontSize: 9.5, color: i === sliderIdx ? 'var(--teal)' : 'var(--muted)',
+                  fontWeight: i === sliderIdx ? 700 : 400, flex: 1, textAlign: 'center',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l}</span>
+              ))}
+            </div>
+            <input type="range" min="0" max={CB_SLOTS.length - 1} step="1" value={sliderIdx}
+              onChange={e => setW({ callbackDays: Number(e.target.value) })}
+              style={{ width: '100%', accentColor: 'var(--teal)', cursor: 'pointer', height: 6 }} />
+            <input className="vt-input" placeholder="Ex: retornar para avaliação de cicatrização"
+              value={wiz.callbackObs} onChange={e => setW({ callbackObs: e.target.value })}
+              style={{ marginTop: 16, fontSize: 13 }} />
           </div>
         </div>
 
-        {/* coluna direita — ações */}
-        <div style={{ width: 190, flexShrink: 0, background: 'var(--card)', borderLeft: '1px solid var(--line)', padding: '24px 14px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
-          <button onClick={onSave}
-            className="vt-btn-primary"
-            style={{ padding: '12px 10px', fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>
-            ✓ Concluir Exame
-          </button>
-          <button onClick={() => {
-            if (!wiz.patientId) { window.vtToast && window.vtToast('Selecione um paciente.', 'err'); return; }
-            const key = `vt-odonto-draft:${wiz.patientId}`;
-            localStorage.setItem(key, JSON.stringify({ ...wiz, date: wiz.date, _draft: true }));
-            window.vtToast && window.vtToast('Rascunho salvo.', 'ok');
-          }} className="vt-btn-ghost" style={{ padding: '10px', fontSize: 12 }}>
-            Salvar rascunho
-          </button>
-          <button onClick={() => { window._vtSetActive && window._vtSetActive('agenda'); onClose && onClose(); }}
-            className="vt-btn-ghost" style={{ padding: '10px', fontSize: 12 }}>
-            Agendar retorno
-          </button>
-
+        {/* ── sidebar direita escura ── */}
+        <div style={{ width: 200, flexShrink: 0, background: '#2c3e50', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+          {[
+            {
+              label: 'Preview do Exame',
+              icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+              action: onPreview,
+            },
+            {
+              label: 'Agendar Retorno',
+              icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+              action: () => { window._vtSetActive && window._vtSetActive('agenda'); onClose && onClose(); },
+            },
+            {
+              label: 'Salvar Exame',
+              icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+              action: onSave,
+            },
+            {
+              label: 'Enviar',
+              icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+              action: () => window.vtToast && window.vtToast('Função de envio em breve.', 'ok'),
+            },
+            {
+              label: 'Imprimir',
+              icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
+              action: () => window.print(),
+            },
+          ].map((item, i) => (
+            <button key={i} onClick={item.action}
+              style={{ padding: '22px 12px', background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,.08)',
+                color: '#ecf0f1', cursor: 'pointer', textAlign: 'center', fontSize: 14, fontWeight: 500,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                transition: 'background .15s' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.07)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
           <div style={{ flex: 1 }} />
           <button onClick={onPrev}
-            style={{ padding: '10px', borderRadius: 12, border: '1.5px solid var(--line)', background: 'transparent', color: 'var(--muted)', fontSize: 13, cursor: 'pointer' }}>
+            style={{ padding: '16px 12px', background: 'transparent', border: 'none', borderTop: '1px solid rgba(255,255,255,.08)',
+              color: 'rgba(255,255,255,.45)', cursor: 'pointer', fontSize: 13, textAlign: 'center' }}>
             ← Voltar
           </button>
         </div>
@@ -1933,7 +1939,7 @@
           {step === 3 && <Step3Odontograma wiz={wizWithDate} date={date} setW={setW} />}
           {step === 4 && <Step4Tratamentos wiz={wizWithDate} setW={setW} />}
           {step === 5 && <Step5Notas wiz={wizWithDate} setW={setW} />}
-          {step === 6 && <Step6Faturamento wiz={wizWithDate} setW={setW} onSave={saveExam} onClose={onClose} onPrev={goPrev} />}
+          {step === 6 && <Step6Faturamento wiz={wizWithDate} setW={setW} onSave={saveExam} onClose={onClose} onPrev={goPrev} onPreview={() => goStep(5)} />}
         </div>
       </div>
     );
