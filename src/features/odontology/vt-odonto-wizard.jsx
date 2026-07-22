@@ -534,22 +534,26 @@
 
   /* ─── PASSO 2: Avaliação Inicial ─────────────────────────── */
   function Step2Avaliacao({ wiz, setW }) {
-    const bcsMax = 9;
-    const bcsScore = wiz.condScore || 5;
-    const MAX_NOTES = 270;
-    const FARMACOS = (window.vtOdontoCfg && window.vtOdontoCfg().farmacos) || ['Detomidina', 'Butorfanol', 'Iombina', 'Dexmedetomidina', 'Acepromazina', 'Midazolam', 'Propofol', 'Ketamina', 'Xilazina', 'Morfina', 'Tramadol', 'Outro'];
-
+    const FARMACOS = (window.vtOdontoCfg && window.vtOdontoCfg().farmacos) || ['Detomidina','Butorfanol','Iombina','Dexmedetomidina','Acepromazina','Midazolam','Propofol','Ketamina','Xilazina','Morfina','Tramadol','Outro'];
     const sedAtiva = wiz.sedAtiva || false;
-    const sedRows = wiz.sedRows || [
-      { tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' },
-      { tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' },
+    const sedRows  = wiz.sedRows || [
+      { tempo:'', tipo:'', quantidade:'' }, { tempo:'', tipo:'', quantidade:'' },
+      { tempo:'', tipo:'', quantidade:'' }, { tempo:'', tipo:'', quantidade:'' },
     ];
+
+    /* Condition Score: 1-10 + n/a (stored as null) → slider 1-11 */
+    const COND_LABELS = ['1','2','3','4','5','6','7','8','9','10','n/a'];
+    const condSlider  = (wiz.condScore == null || wiz.condScore > 10) ? 11 : (wiz.condScore || 11);
+    const setCondScore = v => setW({ condScore: v >= 11 ? null : v });
+
+    /* Last Treatment: categorical slots */
+    const LT_SLOTS = ['1 Semana','1 Mês','3 Meses','6 Meses','9 Meses','12 Meses','Nunca','Desconhecido','n/a'];
+    const ltIdx = (() => { const i = LT_SLOTS.indexOf(wiz.lastTreatment); return i >= 0 ? i : LT_SLOTS.length - 1; })();
 
     const updateSedRow = (i, field, val) => {
       const rows = sedRows.map((r, idx) => idx === i ? { ...r, [field]: val } : r);
       setW({ sedRows: rows, sedTipo: rows.filter(r => r.tipo).map(r => r.tipo).join(', ') });
     };
-
     const loadPrevNotes = () => {
       const hist = JSON.parse(localStorage.getItem('vt-odonto-hist:' + wiz.patientId) || '[]');
       if (!hist.length) return;
@@ -557,110 +561,126 @@
       if (hist[0].clinicalNotes) setW({ clinicalNotes: hist[0].clinicalNotes });
     };
 
-    const bcsLabel = (n) => {
-      if (n <= 2) return 'Caquético / Muito magro';
-      if (n <= 4) return 'Abaixo do peso';
-      if (n === 5) return 'Peso ideal';
-      if (n <= 7) return 'Acima do peso';
-      return 'Obeso / Muito obeso';
-    };
-
-    const inputStyle = { width: '100%' };
+    /* Slider CSS injected once */
+    const S2_CSS = `
+      .vt-s2-range{-webkit-appearance:none;appearance:none;width:100%;height:3px;border-radius:2px;background:#3a7fc1;outline:none;cursor:pointer}
+      .vt-s2-range::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:#3a7fc1;cursor:pointer;box-shadow:0 2px 8px rgba(58,127,193,.45)}
+      .vt-s2-range::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:#3a7fc1;border:none;cursor:pointer;box-shadow:0 2px 8px rgba(58,127,193,.45)}
+      .vt-s2-range::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:#3a7fc1}
+      .vt-s2-range::-moz-range-track{height:3px;border-radius:2px;background:#3a7fc1}
+    `;
 
     return (
-      <div style={{ padding: 24, flex: 1, overflowY: 'auto' }}>
-        <h2 style={{ margin: '0 0 20px', fontSize: 20, color: 'var(--ink)' }}>📋 Avaliação Inicial</h2>
+      <div style={{ flex:1, overflowY:'auto', background:'#f0f2f5' }}>
+        <style>{S2_CSS}</style>
 
-        {/* BCS Slider */}
-        <div className="vt-card vt-sec vt-form" style={{ marginBottom: 16 }}>
-          <div className="vt-form-sec" style={{ marginBottom: 10 }}>Condição Corporal (BCS 1–9)</div>
-          <div style={{ userSelect: 'none' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2, padding: '0 1px' }}>
-              {Array.from({ length: bcsMax }, (_, i) => i + 1).map(n => (
-                <span key={n} style={{ fontSize: 11, color: n === bcsScore ? 'var(--teal)' : 'var(--muted)', fontWeight: n === bcsScore ? 800 : 400,
-                  width: (100 / bcsMax) + '%', textAlign: 'center', display: 'block' }}>{n}</span>
-              ))}
-            </div>
-            <input type="range" min={1} max={bcsMax} step={1} value={bcsScore}
-              onChange={e => setW({ condScore: Number(e.target.value) })}
-              style={{ width: '100%', accentColor: 'var(--teal)', cursor: 'pointer', height: 20, margin: '2px 0' }} />
-            <div style={{ textAlign: 'center', marginTop: 6 }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--teal)' }}>{bcsScore}/9</span>
-              <span style={{ fontSize: 12.5, color: 'var(--muted)', marginLeft: 8 }}>{bcsLabel(bcsScore)}</span>
-            </div>
+        {/* ── Condition Score ── */}
+        <div style={{ background:'#fff', padding:'28px 32px 36px' }}>
+          <div style={{ fontWeight:700, fontSize:19, color:'#111', marginBottom:28 }}>Score de Condição</div>
+          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:14, userSelect:'none' }}>
+            {COND_LABELS.map((l, i) => (
+              <span key={i} style={{ flex:1, textAlign:'center', fontSize:13, color: (condSlider === i+1) ? '#3a7fc1' : '#888',
+                fontWeight: (condSlider === i+1) ? 700 : 400 }}>{l}</span>
+            ))}
           </div>
+          <input type="range" min={1} max={11} step={1} value={condSlider}
+            onChange={e => setCondScore(Number(e.target.value))}
+            className="vt-s2-range" />
         </div>
 
-        {/* Notas de Histórico Clínico */}
-        <div className="vt-card vt-sec vt-form" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-            <div className="vt-form-sec" style={{ margin: 0, flex: 1 }}>Notas de Histórico Clínico</div>
-            <span style={{ fontSize: 12, color: 'var(--muted)', marginRight: 10 }}>({(wiz.clinicalNotes || '').length}/{MAX_NOTES})</span>
-            <button className="vt-btn-ghost" style={{ fontSize: 12, padding: '4px 10px', color: 'var(--teal)', borderColor: 'var(--teal)' }}
-              onClick={loadPrevNotes}>+ Carregar Anterior</button>
+        {/* ── Last Treatment ── */}
+        <div style={{ background:'#fff', padding:'28px 32px 36px', borderTop:'1px solid #e8ecf0' }}>
+          <div style={{ fontWeight:700, fontSize:19, color:'#111', marginBottom:28 }}>Último Tratamento</div>
+          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:14, userSelect:'none' }}>
+            {LT_SLOTS.map((l, i) => (
+              <span key={i} style={{ flex:1, textAlign:'center', fontSize:11.5, color: ltIdx === i ? '#3a7fc1' : '#888',
+                fontWeight: ltIdx === i ? 700 : 400, whiteSpace:'nowrap' }}>{l}</span>
+            ))}
           </div>
-          <textarea className="vt-input" rows={4} maxLength={MAX_NOTES}
-            placeholder="Adicione notas pré-tratamento, observações relevantes…"
-            value={wiz.clinicalNotes} onChange={e => setW({ clinicalNotes: e.target.value })}
-            style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }} />
+          <input type="range" min={0} max={LT_SLOTS.length - 1} step={1} value={ltIdx}
+            onChange={e => setW({ lastTreatment: LT_SLOTS[Number(e.target.value)] })}
+            className="vt-s2-range" />
         </div>
 
-        {/* Sedação — card com toggle */}
-        <div className="vt-card vt-sec vt-form">
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: sedAtiva ? 16 : 0 }}>
-            <div className="vt-form-sec" style={{ margin: 0, flex: 1 }}>Sedação</div>
-            <span style={{ fontSize: 12, color: 'var(--muted)', marginRight: 7 }}>{sedAtiva ? 'ON' : 'OFF'}</span>
-            <div onClick={() => setW({ sedAtiva: !sedAtiva })}
-              style={{ width: 44, height: 24, borderRadius: 12, background: sedAtiva ? 'var(--teal)' : 'var(--faint)',
-                position: 'relative', cursor: 'pointer', transition: 'background .2s', flexShrink: 0 }}>
-              <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute',
-                top: 3, left: sedAtiva ? 23 : 3, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.25)' }} />
+        {/* ── Clinical History Notes ── */}
+        <div style={{ height:1, background:'#dde1e8' }} />
+        <div style={{ background:'#fff', padding:'28px 32px 32px' }}>
+          <div style={{ display:'flex', alignItems:'center', marginBottom:16 }}>
+            <span style={{ fontWeight:700, fontSize:19, color:'#111', flex:1 }}>Notas de Histórico Clínico</span>
+            <button onClick={loadPrevNotes}
+              style={{ fontSize:12, padding:'5px 12px', border:'1.5px solid #3a7fc1', borderRadius:20, background:'transparent',
+                color:'#3a7fc1', cursor:'pointer', fontWeight:600 }}>+ Carregar Anterior</button>
+          </div>
+          <textarea placeholder="Adicione notas pré-tratamento, observações clínicas relevantes…"
+            value={wiz.clinicalNotes || ''} onChange={e => setW({ clinicalNotes: e.target.value })}
+            style={{ width:'100%', border:'none', outline:'none', resize:'none', fontFamily:'inherit',
+              fontSize:14, color:'#333', lineHeight:1.6, minHeight:110, background:'transparent' }} />
+        </div>
+
+        {/* ── Sedation pill ── */}
+        <div style={{ height:1, background:'#dde1e8' }} />
+        <div style={{ background:'#fff', padding:'20px 32px 28px' }}>
+          <div onClick={() => setW({ sedAtiva: !sedAtiva })}
+            style={{ background:'#8a9fb8', borderRadius:50, padding:'18px 24px', display:'flex',
+              alignItems:'center', cursor:'pointer', userSelect:'none',
+              boxShadow:'0 2px 10px rgba(0,0,0,.08)' }}>
+            <span style={{ fontWeight:700, fontSize:18, color:'#fff', flex:1 }}>Sedação</span>
+            {/* iOS toggle */}
+            <div style={{ width:52, height:30, borderRadius:15, position:'relative', flexShrink:0,
+              background: sedAtiva ? '#fff' : 'rgba(255,255,255,.35)', transition:'background .2s' }}>
+              <div style={{ position:'absolute', top:3, width:24, height:24, borderRadius:'50%', background:'#fff',
+                left: sedAtiva ? 25 : 3, transition:'left .2s',
+                boxShadow:'0 1px 4px rgba(0,0,0,.25)',
+                background: sedAtiva ? '#3a7fc1' : '#d0d8e2' }} />
             </div>
           </div>
 
+          {/* Sedation expanded */}
           {sedAtiva && (
-            <div>
-              {/* Veterinário Presente */}
-              <div style={{ padding: '12px 14px', background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 8, marginBottom: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Veterinário Presente</div>
+            <div style={{ marginTop:20 }}>
+              {/* Veterinário */}
+              <div style={{ background:'#f8f9fb', border:'1px solid #e0e4ec', borderRadius:10, padding:'14px 18px', marginBottom:16 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:'#8a9ab0', textTransform:'uppercase', letterSpacing:.6, marginBottom:12 }}>Veterinário Presente</div>
                 <div className="vt-form-row">
-                  <label className="vtf" style={{ flex: 1 }}>
+                  <label className="vtf" style={{ flex:1 }}>
                     <span className="vtf-label">Consultório</span>
                     <span className="vtf-inputwrap">
-                      <input className="vtf-input" placeholder="Nome do consultório" list="vt-consult-list" value={wiz.sedVetConsultorio || ''} onChange={e => setW({ sedVetConsultorio: e.target.value })} />
-                      <datalist id="vt-consult-list">{((window.vtOdontoCfg && window.vtOdontoCfg().consultorios) || []).map((c,i) => <option key={i} value={c} />)}</datalist>
+                      <input className="vtf-input" placeholder="Nome do consultório" list="vt-consult-list"
+                        value={wiz.sedVetConsultorio || ''} onChange={e => setW({ sedVetConsultorio: e.target.value })} />
+                      <datalist id="vt-consult-list">{((window.vtOdontoCfg && window.vtOdontoCfg().consultorios)||[]).map((c,i)=><option key={i} value={c}/>)}</datalist>
                     </span>
                   </label>
-                  <label className="vtf" style={{ flex: 1 }}>
+                  <label className="vtf" style={{ flex:1 }}>
                     <span className="vtf-label">Nome do Veterinário</span>
                     <span className="vtf-inputwrap">
-                      <input className="vtf-input" placeholder="Dr(a)." list="vt-vet-list" value={wiz.sedVetNome || ''} onChange={e => setW({ sedVetNome: e.target.value, sedVet: e.target.value })} />
-                      <datalist id="vt-vet-list">{((window.vtOdontoCfg && window.vtOdontoCfg().veterinarios) || []).map((v,i) => <option key={i} value={v} />)}</datalist>
+                      <input className="vtf-input" placeholder="Dr(a)." list="vt-vet-list"
+                        value={wiz.sedVetNome || ''} onChange={e => setW({ sedVetNome: e.target.value, sedVet: e.target.value })} />
+                      <datalist id="vt-vet-list">{((window.vtOdontoCfg && window.vtOdontoCfg().veterinarios)||[]).map((v,i)=><option key={i} value={v}/>)}</datalist>
                     </span>
                   </label>
                 </div>
               </div>
 
-              {/* Tabela de sedação */}
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Protocolo</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 110px', gap: 6, marginBottom: 5, padding: '0 2px' }}>
-                  <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>Tempo</span>
-                  <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>Fármaco</span>
-                  <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>Quantidade</span>
+              {/* Protocolo */}
+              <div style={{ background:'#f8f9fb', border:'1px solid #e0e4ec', borderRadius:10, padding:'14px 18px' }}>
+                <div style={{ fontSize:11, fontWeight:700, color:'#8a9ab0', textTransform:'uppercase', letterSpacing:.6, marginBottom:10 }}>Protocolo de Sedação</div>
+                <div style={{ display:'grid', gridTemplateColumns:'100px 1fr 110px', gap:6, marginBottom:6, padding:'0 2px' }}>
+                  {['Tempo','Fármaco','Qtd.'].map(h => (
+                    <span key={h} style={{ fontSize:11, color:'#8a9ab0', fontWeight:600 }}>{h}</span>
+                  ))}
                 </div>
                 {sedRows.map((row, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 110px', gap: 6, marginBottom: 6 }}>
-                    <input type="time" className="vtf-input" value={row.tempo} onChange={e => updateSedRow(i, 'tempo', e.target.value)} style={inputStyle} />
-                    <select className="vtf-input" value={row.tipo} onChange={e => updateSedRow(i, 'tipo', e.target.value)} style={inputStyle}>
+                  <div key={i} style={{ display:'grid', gridTemplateColumns:'100px 1fr 110px', gap:6, marginBottom:6 }}>
+                    <input type="time" className="vtf-input" value={row.tempo} onChange={e => updateSedRow(i,'tempo',e.target.value)} style={{ width:'100%' }} />
+                    <select className="vtf-input" value={row.tipo} onChange={e => updateSedRow(i,'tipo',e.target.value)} style={{ width:'100%' }}>
                       <option value="">— Fármaco —</option>
                       {FARMACOS.map(f => <option key={f} value={f}>{f}</option>)}
                     </select>
-                    <input className="vtf-input" placeholder="Ex: 5 mg" value={row.quantidade} onChange={e => updateSedRow(i, 'quantidade', e.target.value)} style={inputStyle} />
+                    <input className="vtf-input" placeholder="Ex: 5 mg" value={row.quantidade} onChange={e => updateSedRow(i,'quantidade',e.target.value)} style={{ width:'100%' }} />
                   </div>
                 ))}
-                <button className="vt-btn-ghost" onClick={() => setW({ sedRows: [...sedRows, { tempo: '', tipo: '', quantidade: '' }] })}
-                  style={{ fontSize: 12, padding: '5px 12px', marginTop: 4 }}>+ Adicionar linha</button>
+                <button className="vt-btn-ghost" onClick={() => setW({ sedRows:[...sedRows,{tempo:'',tipo:'',quantidade:''}] })}
+                  style={{ fontSize:12, padding:'5px 12px', marginTop:6 }}>+ Adicionar linha</button>
               </div>
             </div>
           )}
