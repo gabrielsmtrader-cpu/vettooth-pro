@@ -187,6 +187,7 @@ const PR_TABS = [];
 
 /* ---------- Cabeçalho ---------- */
 function PrHeader({ at, patient, saving, onBack, onAction, go, tab }) {
+  const [metaExpanded, setMetaExpanded] = pUse(false);
   const p = patient;
   const alerts = [];
   if (p.allergies && p.allergies.length) alerts.push(['red', 'Alergia: ' + p.allergies.join(', ')]);
@@ -234,9 +235,12 @@ function PrHeader({ at, patient, saving, onBack, onAction, go, tab }) {
         <div className="pr-id">
           <div className="pr-name">{p.name} <StatusPill status={p.status} /> {pesoAtual ? <span className="pr-wpill">{pesoAtual}</span> : null} <span className="pr-prot">Prontuário {p.id}</span></div>
           <div className="pr-idchips">{idChips.map((c, i) => <span key={i} className="pr-idchip">{c}</span>)}</div>
-          <div className="pr-metarow">
+          <div className="pr-metarow" style={metaExpanded ? {} : { maxHeight: '2.4em', overflow: 'hidden', maskImage: 'linear-gradient(to right, black 70%, transparent 100%)' }}>
             {meta.map(([l, v], i) => <span key={i} className="pr-meta"><i>{l}</i><b>{v || '—'}</b></span>)}
           </div>
+          <button onClick={() => setMetaExpanded((o) => !o)} style={{ fontSize: 11, color: 'var(--teal-d)', background: 'none', border: 'none', cursor: 'pointer', padding: '1px 0 0', fontWeight: 600, textDecoration: 'underline' }}>
+            {metaExpanded ? '▲ menos' : '▼ ver detalhes do paciente'}
+          </button>
         </div>
         <div className="pr-head-right">
           <span className={`pr-autosave${saving ? ' saving' : ''}`}><span className="dot" />{saving ? 'Salvando…' : 'Salvo automaticamente'}</span>

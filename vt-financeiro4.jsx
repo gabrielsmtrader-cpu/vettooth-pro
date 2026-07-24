@@ -583,6 +583,7 @@ function FluxoCaixaPrevistoReal({ fin }) {
    FinancasModuleV4 — wrapper que extende o módulo existente
    ============================================================ */
 function FinancasModuleV4() {
+  const FinancasModule = window.FinancasModule;
   const [tab, setTab] = vtUseState('visao');
   const [fin, setFin] = vtUseState(() => {
     const d = window.VtStore && window.VtStore.getData();

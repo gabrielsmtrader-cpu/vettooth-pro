@@ -198,7 +198,7 @@ function OdToothPanel({ tooth, entry, onChange, onClose, species }) {
 /* ============================================================
    Módulo principal
    ============================================================ */
-function OdontogramaModule({ initialPatientId }) {
+function OdontogramaModule({ initialPatientId, slim, moduleRef }) {
   const allPatients = (() => { const d = window.VtStore && window.VtStore.getData(); return (d && d.patients) || []; })();
   const owners = (() => { const d = window.VtStore && window.VtStore.getData(); return (d && d.owners) || []; })();
 
@@ -271,12 +271,38 @@ function OdontogramaModule({ initialPatientId }) {
   ];
   const drawColors = ['#14a8a0', '#ef4444', '#16395f', '#e2912a'];
 
+  /* expõe controles para o wizard via moduleRef */
+  React.useEffect(() => {
+    if (!moduleRef) return;
+    moduleRef.current = {
+      setTool,
+      setDrawColor,
+      clearShapes: () => setShapes([]),
+      undoShape: () => setShapes((s) => s.slice(0, -1)),
+      clearAll: () => { setMarks({}); setShapes([]); setSelected(null); },
+      applyCondToSelected: (condId) => {
+        if (!selected) { window.vtToast && window.vtToast('Clique em um dente primeiro.', 'err'); return; }
+        updateTooth(selected, condId === null ? null : { cond: condId });
+      },
+      markTreated: () => {
+        if (!selected) { window.vtToast && window.vtToast('Clique em um dente primeiro.', 'err'); return; }
+        const cur = marks[selected] || {};
+        updateTooth(selected, { ...cur, treated: !cur.treated });
+      },
+      getHistory: () => history,
+      loadExam,
+      novoExame,
+      getTool: () => tool,
+      getSelected: () => selected,
+    };
+  });
+
   const selTooth = selected ? layout.teeth.find((t) => t.num === selected) : null;
 
   return (
     <div className="odm">
       {/* ---- cabeçalho: paciente + espécie ---- */}
-      <div className="odm-top">
+      <div className="odm-top" style={slim ? { display: 'none' } : undefined}>
         <div className="odm-patient">
           <label className="vtf" style={{ minWidth: 230 }}>
             <span className="vtf-label">Paciente</span>
@@ -304,7 +330,7 @@ function OdontogramaModule({ initialPatientId }) {
       </div>
 
       {/* ---- resumo ---- */}
-      <div className="odm-summary">
+      <div className="odm-summary" style={slim ? { display: 'none' } : undefined}>
         <div className="odm-sum">
           <span className="odm-sum-ic teal"><VtIcon name="tooth" size={20} /></span>
           <div><span className="odm-sum-l">Dentes avaliados</span><span className="odm-sum-v">{total}<i>/ {window.OD_SPECIES[species].total}</i></span></div>
@@ -320,7 +346,7 @@ function OdontogramaModule({ initialPatientId }) {
       </div>
 
       {/* ---- toolbar ---- */}
-      <div className="odm-toolbar">
+      <div className="odm-toolbar" style={slim ? { display: 'none' } : undefined}>
         <div className="odm-tb-left">
           <button className="odm-tb-btn primary" onClick={novoExame}><VtIcon name="plus" size={16} /> Novo exame</button>
           <button className="odm-tb-btn" onClick={() => setHistOpen(true)}><VtIcon name="receipt" size={16} /> Histórico <span className="odm-tb-count">{history.length}</span></button>
