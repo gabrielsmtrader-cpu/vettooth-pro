@@ -747,36 +747,67 @@ function OdCondicoesStep({ chart, setChart, go }) {
    camada <canvas> para desenho livre, formas, marcadores e símbolos.
    ============================================================ */
 const GX_TOOLS = [
-  { id: 'pencil', g: '✏️', label: 'Pencil · Lápis' },
-  { id: 'eraser', g: '◇', label: 'Eraser · Borracha' },
-  { id: 'tooth-fill', g: '🪣', label: 'Balde · Pintar dente inteiro' },
-  { id: 'fcircle', g: '●', label: 'Fill · Preenchido' },
-  { id: 'circle', g: '○', label: 'Circle · Círculo' },
-  { id: 'line', g: '╱', label: 'Line · Linha' },
-  { id: 'arrow', g: '↗', label: 'Arrow · Seta' },
+  { id: 'pencil', g: '✎', label: 'Lápis' },
+  { id: 'eraser', g: '◇', label: 'Borracha' },
+  { id: 'tooth-fill', g: '▰', label: 'Pintar dente inteiro' },
+  { id: 'fcircle', g: '●', label: 'Preenchimento livre' },
+  { id: 'circle', g: '○', label: 'Círculo' },
+  { id: 'line', g: '╱', label: 'Linha' },
+  { id: 'arrow', g: '↗', label: 'Seta' },
 ];
 const GX_MARKERS = [
   { id: 'mk-atr', g: '◣', label: 'ATR / ETR' },
-  { id: 'mk-sharp', g: '∠', label: 'Sharp Edges' },
-  { id: 'mk-ramp', g: '▲', label: 'Ramps' },
-  { id: 'mk-hook', g: '◥', label: 'Hooks' },
-  { id: 'mk-protub', g: '≡', label: 'Protuberant' },
-  { id: 'mk-wave', g: '≈', label: 'Waves' },
-  { id: 'mk-incis', g: '⊕', label: 'Incisors' },
-  { id: 'mk-move', g: '✛', label: 'Move' },
-  { id: 'mk-frac', g: '⚡', label: 'Fracture' },
+  { id: 'mk-sharp', g: '∠', label: 'Bordas afiadas' },
+  { id: 'mk-ramp', g: '▲', label: 'Rampas' },
+  { id: 'mk-hook', g: '◥', label: 'Ganchos' },
+  { id: 'mk-protub', g: '≡', label: 'Protuberância / ausência' },
+  { id: 'mk-wave', g: '≈', label: 'Ondulações' },
+  { id: 'mk-incis', g: '⊕', label: 'Incisivos' },
+  { id: 'mk-move', g: '✛', label: 'Mover / rotacionar' },
+  { id: 'mk-frac', g: '⚡', label: 'Fratura' },
 ];
 const GX_STATUS = [
   { id: 'st-diastema', g: '‖', label: 'Diastema' },
-  { id: 'st-wolf', g: '⊙', label: 'Wolf tooth' },
-  { id: 'st-caps', g: '©', label: 'Caps' },
-  { id: 'st-ulcer', g: 'U', label: 'Ulceration' },
-  { id: 'st-tartar', g: 'T', label: 'Tartar' },
+  { id: 'st-wolf', g: '⊙', label: 'Dente de lobo' },
+  { id: 'st-caps', g: 'C', label: 'Capas' },
+  { id: 'st-ulcer', g: 'U', label: 'Ulceração' },
+  { id: 'st-tartar', g: 'T', label: 'Tártaro' },
 ];
 const GX_GLYPH = {};
 [...GX_MARKERS, ...GX_STATUS].forEach((s) => { GX_GLYPH[s.id] = s.g; });
 const GX_COLORS = ['#111111', '#ef4444', '#2a6fdb', '#1f8a5b', '#e8852b'];
 const gxIsStamp = (t) => t && (t.startsWith('mk-') || t.startsWith('st-'));
+
+/* Ícones vetoriais próprios, baseados na linguagem visual da barra clínica do Pimbury. */
+function GxToolIcon({ id }) {
+  const strokeProps = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  let icon = null;
+  switch (id) {
+    case 'pencil': icon = <><path d="M5 19l1.2-4.2L16.8 4.2l3 3L9.2 17.8 5 19Z" /><path d="m14.8 6.2 3 3M6.2 14.8l3 3" /></>; break;
+    case 'eraser': icon = <><path d="m5 15 8.7-10 5.3 4.6-8.1 9.3H7.7L5 16.5Z" /><path d="m10.8 8.4 5.2 4.5M10.9 18.9H20" /></>; break;
+    case 'tooth-fill': icon = <><path d="m7 5 9 9-5.7 5.7a2.1 2.1 0 0 1-3 0l-3-3a2.1 2.1 0 0 1 0-3L12 6" /><path d="M4.8 13.4h10.8" /><path d="M18.7 14.8c0 0-2.1 2.5-2.1 3.8a2.1 2.1 0 1 0 4.2 0c0-1.3-2.1-3.8-2.1-3.8Z" fill="currentColor" stroke="none" /></>; break;
+    case 'fcircle': icon = <><circle cx="12" cy="12" r="8" /><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" stroke="none" /></>; break;
+    case 'circle': icon = <circle cx="12" cy="12" r="8" />; break;
+    case 'line': icon = <path d="M5 19 19 5" />; break;
+    case 'arrow': icon = <><path d="M5 19 19 5" /><path d="M12 5h7v7" /></>; break;
+    case 'mk-atr': icon = <path d="M4 16h4v-5l3 2 3-2v5h6v3H4Z" fill="currentColor" stroke="none" />; break;
+    case 'mk-sharp': icon = <path d="m5 18 4.2-9 3.1 5 2.4-7 4.3 11Z" fill="currentColor" stroke="none" />; break;
+    case 'mk-ramp': icon = <path d="M5 18V8l14 10Z" fill="currentColor" stroke="none" />; break;
+    case 'mk-hook': icon = <path d="M5 8c1.2 6.3 5 10 14 10H5Z" fill="currentColor" stroke="none" />; break;
+    case 'mk-protub': icon = <><path d="M5 9h14v5H5Z" fill="currentColor" stroke="none" /><path d="M9 20v-4m0 4-2-2m2 2 2-2M15 20v-4m0 4-2-2m2 2 2-2" /></>; break;
+    case 'mk-wave': icon = <><path d="M3 9c2.2-2.5 4.5-2.5 6.7 0s4.5 2.5 6.7 0 3.8-2.2 5.6-.6" /><path d="M3 14c2.2-2.5 4.5-2.5 6.7 0s4.5 2.5 6.7 0 3.8-2.2 5.6-.6" /></>; break;
+    case 'mk-incis': icon = <><path d="M5 8c0 3 2 5 4.5 5S14 11 14 8" /><path d="M10 16c0-3 2-5 4.5-5S19 13 19 16" /></>; break;
+    case 'mk-move': icon = <><path d="M12 3v18M3 12h18" /><path d="m12 3-3 3m3-3 3 3m6 6-3-3m3 3-3 3m-6 6-3-3m3 3 3-3M3 12l3-3m-3 3 3 3" /></>; break;
+    case 'mk-frac': icon = <path d="m14 3-9 11h6l-1 7 9-11h-6Z" fill="currentColor" stroke="none" />; break;
+    case 'st-diastema': icon = <><path d="M8 4v16M14 4v16M5 7h3M5 12h3M14 7h4M14 12h4" /><path d="M11 4v16" strokeDasharray="1.5 2.5" /></>; break;
+    case 'st-wolf': icon = <><circle cx="12" cy="12" r="8" /><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" stroke="none" /></>; break;
+    case 'st-caps': icon = <><circle cx="12" cy="12" r="8" fill="currentColor" stroke="none" /><text x="12" y="15.3" textAnchor="middle" fontSize="10" fontWeight="900" fill="#1a2e44" stroke="none">C</text></>; break;
+    case 'st-ulcer': icon = <><circle cx="12" cy="12" r="8" fill="currentColor" stroke="none" /><text x="12" y="15.3" textAnchor="middle" fontSize="10" fontWeight="900" fill="#1a2e44" stroke="none">U</text></>; break;
+    case 'st-tartar': icon = <><path d="M4 14c1.5-5 14.5-5 16 0l-2 5H6Z" fill="currentColor" stroke="none" /><text x="12" y="17" textAnchor="middle" fontSize="9" fontWeight="900" fill="#1a2e44" stroke="none">T</text></>; break;
+    default: icon = <circle cx="12" cy="12" r="7" />;
+  }
+  return <svg className="gx-tool-icon" width="27" height="27" viewBox="0 0 24 24" aria-hidden="true" {...strokeProps}>{icon}</svg>;
+}
 
 function gxLoadStore(name) {
   try { const d = (window.VtStore && window.VtStore.getData()) || {}; return ((d.odontoGraficos || {})[name]) || { current: null, list: [] }; } catch (e) { return { current: null, list: [] }; }
@@ -1010,15 +1041,15 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
         <div className="gx-toolbar">
           <div className="gx-mod">
             <span className="gx-mod-badge">1</span>
-            {GX_TOOLS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} onClick={() => setTool(t.id)}>{t.g}</button>)}
+            {GX_TOOLS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} onClick={() => setTool(t.id)}><GxToolIcon id={t.id} /></button>)}
           </div>
           <div className="gx-mod">
             <span className="gx-mod-badge">2</span>
-            {GX_MARKERS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} onClick={() => setTool(t.id)}>{t.g}</button>)}
+            {GX_MARKERS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} onClick={() => setTool(t.id)}><GxToolIcon id={t.id} /></button>)}
           </div>
           <div className="gx-mod">
             <span className="gx-mod-badge">3</span>
-            {GX_STATUS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} onClick={() => setTool(t.id)}>{t.g}</button>)}
+            {GX_STATUS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} onClick={() => setTool(t.id)}><GxToolIcon id={t.id} /></button>)}
           </div>
         </div>
 

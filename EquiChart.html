@@ -890,9 +890,11 @@ button { font-family: inherit; cursor: pointer; }
 .gx-toolbar { display:flex; gap:8px; padding:20px 16px 12px; background:#eef1f5; flex-wrap:wrap; justify-content:center; }
 .gx-mod { position:relative; background:#1a2e44; border-radius:12px; padding:10px 16px; display:flex; align-items:center; gap:8px; }
 .gx-mod-badge { position:absolute; top:-10px; left:12px; width:24px; height:24px; border-radius:50%; background:var(--od-teal); color:#fff; font-size:12px; font-weight:800; display:grid; place-items:center; box-shadow:0 2px 6px rgba(0,0,0,.32); }
-.gx-tbtn { width:44px; height:44px; border-radius:8px; border:none; cursor:pointer; font-size:20px; line-height:1; color:#fff; background:transparent; display:grid; place-items:center; transition:background .12s; }
-.gx-tbtn:hover { background:rgba(255,255,255,.13); }
-.gx-tbtn.on { background:var(--od-teal); }
+.gx-tbtn { width:44px; height:44px; border-radius:8px; border:none; cursor:pointer; line-height:1; color:#fff; background:transparent; display:grid; place-items:center; transition:background .14s ease, transform .14s ease, color .14s ease; }
+.gx-tbtn:hover { background:rgba(255,255,255,.13); transform:translateY(-1px); }
+.gx-tbtn:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+.gx-tbtn.on { background:var(--od-teal); box-shadow:0 3px 10px rgba(0,201,167,.28); }
+.gx-tool-icon { display:block; overflow:visible; pointer-events:none; }
 /* cor + espessura */
 .gx-controls { display:flex; align-items:center; gap:22px; padding:8px 16px 16px; background:#eef1f5; flex-wrap:wrap; justify-content:center; }
 .gx-cursor { display:flex; align-items:center; gap:8px; border:1.5px solid var(--od-line); border-radius:999px; padding:9px 16px; background:#fff; font-weight:700; font-size:13px; cursor:pointer; color:var(--od-ink); }
@@ -935,7 +937,7 @@ button { font-family: inherit; cursor: pointer; }
 <script type="text/babel" src="src/apps/equichart/vt-species-arch.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/odonto-ui.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/vt-odonto-especie.jsx"></script>
-<script type="text/babel" src="src/apps/equichart/vt-odonto-steps.jsx?v=20260719d"></script>
+<script type="text/babel" src="src/apps/equichart/vt-odonto-steps.jsx?v=20260724a"></script>
 <script type="text/babel" src="src/apps/equichart/ui-components.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/panels.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/app.jsx?v=20260719c"></script>
