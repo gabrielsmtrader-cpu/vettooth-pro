@@ -895,6 +895,14 @@ button { font-family: inherit; cursor: pointer; }
 .gx-tbtn:focus-visible { outline:2px solid #fff; outline-offset:2px; }
 .gx-tbtn.on { background:var(--od-teal); box-shadow:0 3px 10px rgba(0,201,167,.28); }
 .gx-tool-icon { display:block; overflow:visible; pointer-events:none; }
+/* incorporação no passo 3 do wizard principal */
+body.od-wizard-embed { overflow:auto; background:var(--od-bg); }
+body.od-wizard-embed .od-app { height:auto; min-height:100%; }
+body.od-wizard-embed .gx-pane { max-width:none; margin:0; padding:0; }
+body.od-wizard-embed .gx-editor { border:0; border-radius:0; box-shadow:none; min-height:100vh; }
+body.od-wizard-embed .gx-head { grid-template-columns:1fr 1fr; }
+body.od-wizard-embed .gx-head-step,
+body.od-wizard-embed .gx-head-btns .gx-hbtn:last-child { display:none; }
 /* cor + espessura */
 .gx-controls { display:flex; align-items:center; gap:22px; padding:8px 16px 16px; background:#eef1f5; flex-wrap:wrap; justify-content:center; }
 .gx-cursor { display:flex; align-items:center; gap:8px; border:1.5px solid var(--od-line); border-radius:999px; padding:9px 16px; background:#fff; font-weight:700; font-size:13px; cursor:pointer; color:var(--od-ink); }
@@ -940,7 +948,7 @@ button { font-family: inherit; cursor: pointer; }
 <script type="text/babel" src="src/apps/equichart/vt-odonto-steps.jsx?v=20260724a"></script>
 <script type="text/babel" src="src/apps/equichart/ui-components.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/panels.jsx"></script>
-<script type="text/babel" src="src/apps/equichart/app.jsx?v=20260719c"></script>
+<script type="text/babel" src="src/apps/equichart/app.jsx?v=20260725a"></script>
 
 <style id="__om-edit-overrides"></style>
 </body>

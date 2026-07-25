@@ -721,9 +721,41 @@
 
   function Step3Odontograma({ wiz, date, setW }) {
     const odoRef = useRef(null);
+    const equiFrameRef = useRef(null);
     const [activeTool, setActiveTool] = useState('pencil');
     const [histPanelOpen, setHistPanelOpen] = useState(false);
     const [histList, setHistList] = useState([]);
+    const isHorse = /equi|caval|égua|egua|potr|muar/i.test(wiz.species || '');
+    const equiSrc = useMemo(() => {
+      const q = new URLSearchParams({
+        patient: wiz.patientName || '', owner: wiz.ownerName || '', species: wiz.species || 'Equino',
+        date: date || '', embed: 'wizard', step: 'odontograma', v: '20260725a',
+      });
+      return 'EquiChart.html?' + q.toString();
+    }, [wiz.patientName, wiz.ownerName, wiz.species, date]);
+
+    useEffect(() => {
+      if (!isHorse) return undefined;
+      const receive = (event) => {
+        if (event.origin !== location.origin || event.source !== (equiFrameRef.current && equiFrameRef.current.contentWindow)) return;
+        if (!event.data || event.data.type !== 'vettooth:equichart-change') return;
+        setW({ equiChart: event.data.chart || {} });
+      };
+      window.addEventListener('message', receive);
+      return () => window.removeEventListener('message', receive);
+    }, [isHorse]);
+
+    if (isHorse) return (
+      <div style={{ flex: 1, minHeight: 0, background: 'var(--bg)' }}>
+        <iframe
+          ref={equiFrameRef}
+          data-equi-chart="true"
+          title={`Odontograma equino de ${wiz.patientName || 'paciente'}`}
+          src={equiSrc}
+          style={{ display: 'block', width: '100%', height: '100%', border: 0, background: '#eef1f5' }}
+        />
+      </div>
+    );
 
 
     if (!window.OdontogramaModule) return (
@@ -1875,25 +1907,53 @@
     sedVet: '', sedTipo: '', sedDose: '', sedVia: '', sedObs: '',
     sedAtiva: false, sedVetConsultorio: '', sedVetNome: '',
     sedRows: [{ tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' }],
-    anomalias: {}, anomaliasObs: '', chartNotes: '', chartImage: '',
+    anomalias: {}, anomaliasObs: '', chartNotes: '', chartImage: '', equiChart: {},
     findings: {}, signatureData: '', examNum: null, examId: null,
     charges: '', callout: '', taxRate: '', paid: false, paidType: 'Dinheiro', refNum: '',
     callbackDays: 0, callbackObs: '', images: [],
   };
 
-  function OdontogramaWizard({ onClose, initialData, examId }) {
+  function patientSeed(patientId) {
+    if (!patientId || !window.VtStore) return {};
+    const d = window.VtStore.getData() || {};
+    const p = (d.patients || []).find(item => item.id === patientId);
+    if (!p) return {};
+    const ow = (d.owners || []).find(item => item.name === p.owner) || {};
+    const s = (p.species || '').toLowerCase();
+    const species = /cavalo|equi|égua|egua|potr|muar/.test(s) ? 'Equino' : /gato|felin/.test(s) ? 'Gato' : 'Cão';
+    const address = ow.address ? [ow.address.street, ow.address.num, ow.address.city, ow.address.state].filter(Boolean).join(', ') : (ow.city || '');
+    return {
+      patientId: p.id, patientName: p.name || '', ownerName: p.owner || '', species,
+      breed: p.breed || '', age: p.age || '', sex: p.sex || '', color: p.color || '', weight: p.weight || '',
+      ownerPhone: ow.phone || ow.whats || '', ownerEmail: ow.email || '', ownerAddress: address,
+    };
+  }
+
+  function OdontogramaWizard({ onClose, initialData, examId, initialPatientId }) {
     const today = new Date().toISOString().slice(0, 10);
-    const [step, setStep] = useState(initialData ? 5 : 1);
+    const [step, setStep] = useState(initialData ? 5 : initialPatientId ? 2 : 1);
     const [date, setDate] = useState(initialData ? (initialData.date || today) : today);
     const [showImgModal, setShowImgModal] = useState(false);
     const [wiz, setWizRaw] = useState(() => {
       if (initialData) return { ...WIZ_DEFAULTS, ...initialData, examId: examId || initialData.id || null };
-      return { ...WIZ_DEFAULTS };
+      return { ...WIZ_DEFAULTS, ...patientSeed(initialPatientId) };
     });
     const setW = (patch) => setWizRaw(p => ({ ...p, ...patch }));
     const wizWithDate = { ...wiz, date };
 
-    const captureStep3 = () => {
+    const captureStep3 = async () => {
+      const equiFrame = document.querySelector('iframe[data-equi-chart="true"]');
+      if (equiFrame && equiFrame.contentWindow) {
+        try {
+          const url = equiFrame.contentWindow.vtEquiChartCapture
+            ? await equiFrame.contentWindow.vtEquiChartCapture()
+            : null;
+          const raw = localStorage.getItem('equichart:v2');
+          const equiChart = raw ? JSON.parse(raw) : (wiz.equiChart || {});
+          setW({ ...(url ? { chartImage: url } : {}), equiChart });
+          return;
+        } catch (e) { console.warn('[VetTooth] Não foi possível capturar o gráfico equino.', e); }
+      }
       const svg = document.querySelector('.odm-svg, [class*="odm-wrap"] svg, .odm-chart svg');
       if (!svg) return;
       try {
@@ -1905,9 +1965,9 @@
       } catch(e) {}
     };
 
-    const goNext = () => { if (step === 3) captureStep3(); setStep(s => Math.min(s + 1, 6)); };
+    const goNext = async () => { if (step === 3) await captureStep3(); setStep(s => Math.min(s + 1, 6)); };
     const goPrev = () => setStep(s => Math.max(s - 1, 1));
-    const goStep = (n) => { if (n !== 3 && step === 3) captureStep3(); if (n === 1 || wiz.patientId) setStep(n); };
+    const goStep = async (n) => { if (n !== 3 && step === 3) await captureStep3(); if (n === 1 || wiz.patientId) setStep(n); };
 
     const saveExam = () => {
       if (!wiz.patientId) { window.vtToast && window.vtToast('Selecione um paciente antes de salvar.', 'err'); return; }
@@ -1944,6 +2004,7 @@
         anomaliasObs: wiz.anomaliasObs,
         chartNotes: wiz.chartNotes,
         chartImage: wiz.chartImage,
+        equiChart: wiz.equiChart || {},
         signatureData: wiz.signatureData || '',
         images: wiz.images || [],
         billing: { charges: wiz.charges, callout: wiz.callout, taxRate: wiz.taxRate, paid: wiz.paid, paidType: wiz.paidType, refNum: wiz.refNum },

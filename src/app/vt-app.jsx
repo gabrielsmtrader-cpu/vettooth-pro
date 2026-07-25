@@ -695,7 +695,7 @@ function Odontograma({ patientId, examId, initialData, onClose }) {
   );
   return (
     <div className="vt-frame-wrap od-embed" style={{ padding:0, overflow:'hidden' }}>
-      <window.OdontogramaWizard onClose={onClose} initialData={initialData} examId={examId} />
+      <window.OdontogramaWizard onClose={onClose} initialData={initialData} examId={examId} initialPatientId={patientId} />
     </div>
   );
 }

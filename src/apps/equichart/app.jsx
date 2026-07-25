@@ -84,6 +84,9 @@ function App() {
   const entryPatient = params.get('patient') || '';
   const entryOwner = params.get('owner') || '';
   const entrySpecies = params.get('species') || '';
+  const entryDate = params.get('date') || '';
+  const embedded = params.get('embed') === 'wizard';
+  const requestedStep = params.get('step') || '';
   const [chart, setChart] = useState(() => {
     let c = loadChart();
     // trocou de paciente em relação ao gráfico salvo → começa um exame novo (evita misturar marcações)
@@ -92,21 +95,45 @@ function App() {
       c.patientName = entryPatient;
       if (entryOwner) c.clientName = entryOwner;
       if (entrySpecies) c.patientSpecies = entrySpecies;
+      if (entryDate) c.examDate = entryDate;
     }
     return c;
   });
   const [past, setPast] = useState([]);
   const [future, setFuture] = useState([]);
-  // entrou pelo atendimento (paciente já definido) ou direto pelo odontograma:
-  // em ambos os casos começa no Passo 1 (espécie & arcada), que já vem pré-selecionado
-  const [step, setStep] = useState('especie');
+  // Quando incorporado ao wizard principal, abre diretamente no gráfico real.
+  const [step, setStep] = useState(embedded && requestedStep === 'odontograma' ? 'odontograma' : 'especie');
   const [tool, setTool] = useState('select');
   const [penColor] = useState('#e0533c');
   const [selectedId, setSelectedId] = useState(null);
   const [layers, setLayers] = useState({ anatomia: true, achados: true, tratamentos: true, anotacoes: false });
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => { try { localStorage.setItem(STORE_KEY, JSON.stringify(chart)); } catch (e) {} }, [chart]);
+  useEffect(() => {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(chart)); } catch (e) {}
+    if (embedded && window.parent !== window) {
+      window.parent.postMessage({
+        type: 'vettooth:equichart-change',
+        chart: {
+          marks: chart.marks || {}, status: chart.status || {}, notes: chart.notes || {},
+          severity: chart.severity || {}, toothFills: chart.toothFills || {},
+          gmarks: chart.gmarks || [], examDate: chart.examDate || entryDate,
+        },
+      }, location.origin);
+    }
+  }, [chart, embedded, entryDate]);
+
+  useEffect(() => {
+    document.body.classList.toggle('od-wizard-embed', embedded);
+    window.vtEquiChartCapture = async () => {
+      const renderer = window.html2canvas || (window.parent !== window && window.parent.html2canvas);
+      const target = document.querySelector('.gx-editor');
+      if (!renderer || !target) return null;
+      const canvas = await renderer(target, { backgroundColor: '#ffffff', scale: 1, useCORS: true, logging: false });
+      return canvas.toDataURL('image/png');
+    };
+    return () => { document.body.classList.remove('od-wizard-embed'); delete window.vtEquiChartCapture; };
+  }, [embedded]);
 
   const commit = (updater) => {
     setChart((prev) => { setPast((p) => [...p.slice(-80), prev]); setFuture([]); return typeof updater === 'function' ? updater(prev) : updater; });
@@ -176,7 +203,7 @@ function App() {
   };
   return (
     <div className="od-app">
-      <OdHeader step={step} setStep={gotoStep} onUndo={undo} onRedo={redo} canUndo={past.length > 0} canRedo={future.length > 0} onSave={onSave} saved={saved} chart={chart} examDate={chart.examDate} onExamDate={(v) => setChart((c) => ({ ...c, examDate: v }))} onExport={onExport} onLoadPrevious={onLoadPrevious} />
+      {!embedded && <OdHeader step={step} setStep={gotoStep} onUndo={undo} onRedo={redo} canUndo={past.length > 0} canRedo={future.length > 0} onSave={onSave} saved={saved} chart={chart} examDate={chart.examDate} onExamDate={(v) => setChart((c) => ({ ...c, examDate: v }))} onExport={onExport} onLoadPrevious={onLoadPrevious} />}
 
       {step === 'especie' && window.OdEspecieStep && (
         <window.OdEspecieStep chart={chart} setChart={setChart} go={gotoStep} entryPatient={!!entryPatient} />
