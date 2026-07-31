@@ -170,7 +170,9 @@
           const incoming = window.VtStore._normalizeData
             ? window.VtStore._normalizeData(payload)
             : payload;
-          db.data[email] = { ...current, ...incoming };
+          db.data[email] = window.VtStore._normalizeData
+            ? window.VtStore._normalizeData({ ...current, ...incoming })
+            : { ...current, ...incoming };
           localStorage.setItem('vettooth:db:v1', JSON.stringify(db));
         } catch (e) { console.warn('[vtSync] _setDataRaw error:', e.message); }
       };

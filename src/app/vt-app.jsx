@@ -866,7 +866,7 @@ class VtAppErrorBoundary extends React.Component {
           <div style={{ color: '#0e2c4d', fontSize: 21, fontWeight: 800, marginBottom: 8 }}>Não foi possível abrir o painel</div>
           <p style={{ color: '#657489', lineHeight: 1.55, margin: '0 0 20px' }}>Seus dados continuam salvos. Recarregue o sistema para concluir a atualização do formato da conta.</p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button onClick={() => window.location.reload()} style={{ border: 0, borderRadius: 10, padding: '11px 17px', background: '#0e8f88', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Recarregar sistema</button>
+            <button onClick={() => { try { window.VtStore && window.VtStore.repairData && window.VtStore.repairData(); } finally { window.location.reload(); } }} style={{ border: 0, borderRadius: 10, padding: '11px 17px', background: '#0e8f88', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Reparar e recarregar</button>
             <button onClick={() => { window.VtStore && window.VtStore.logout(); window.location.reload(); }} style={{ border: '1px solid #d5dde5', borderRadius: 10, padding: '11px 17px', background: '#fff', color: '#34465a', fontWeight: 700, cursor: 'pointer' }}>Voltar ao login</button>
           </div>
         </div>

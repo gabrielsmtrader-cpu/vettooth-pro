@@ -7,21 +7,107 @@ window.VtStore = (function () {
   const DB_KEY = 'vettooth:db:v1';
   const SESSION_KEY = 'vettooth:session';
 
+  const isObject = (value) => !!value && typeof value === 'object' && !Array.isArray(value);
+
   function loadDB() {
-    try { return JSON.parse(localStorage.getItem(DB_KEY)) || { users: {}, data: {} }; }
-    catch (e) { return { users: {}, data: {} }; }
+    try {
+      const parsed = JSON.parse(localStorage.getItem(DB_KEY));
+      if (!isObject(parsed)) return { users: {}, data: {} };
+      return {
+        ...parsed,
+        users: isObject(parsed.users) ? parsed.users : {},
+        data: isObject(parsed.data) ? parsed.data : {},
+      };
+    } catch (e) { return { users: {}, data: {} }; }
   }
   function saveDB(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
 
-  // Versões antigas da sincronização podiam salvar o workspace como uma
-  // string JSON dentro do JSONB. Decodifica sem descartar campos do usuário.
+  const CORE_ARRAY_FIELDS = [
+    'patients', 'owners', 'atendimentos', 'agendaAppts', 'inventory',
+    'vacAgenda', 'propriedades', 'parceiras',
+  ];
+  const OPTIONAL_ARRAY_FIELDS = [
+    'inventoryMoves',
+    'contasPagar', 'orcamentos', 'prestadores', 'splitReps', 'accessLog',
+    'sedProtocols', 'examPresets', 'diagCfg', 'rxPresets', 'serviceCatalog',
+    'team', 'treatments', 'procProtocols', 'consultTypes', 'anamneseCfg',
+    'examCfg', 'sistemasCfg',
+  ];
+  const CORE_OBJECT_FIELDS = ['charts', 'weights', 'vaccines'];
+  const OPTIONAL_OBJECT_FIELDS = [
+    'agendaCfg', 'anamneseByModel',
+    'callbackPrefs', 'catCustom', 'clinic', 'consultInclude', 'consultRoteiros',
+    'customConsultModels', 'docTemplates', 'estoqueCfg', 'financeiroCfg',
+    'integrations', 'integrationsCfg', 'lgpdCfg',
+    'notifCfg', 'odontoCfg', 'odontoDxCfg', 'odontoFindings', 'odontoHistory',
+    'odontoGraficos', 'payCfg', 'precos', 'securityCfg', 'signatures',
+    'splitCfg', 'sysCfg', 'vtConfig',
+  ];
+
+  // Algumas versões antigas podiam salvar o workspace inteiro ou coleções
+  // internas em formatos incompatíveis. Repara só a estrutura, preservando
+  // todos os registros válidos e campos desconhecidos do usuário.
   function normalizeData(value) {
     let data = value;
     for (let i = 0; i < 2 && typeof data === 'string'; i++) {
       try { data = JSON.parse(data); }
       catch (e) { return emptyData(); }
     }
-    return data && typeof data === 'object' && !Array.isArray(data) ? data : emptyData();
+    if (!isObject(data)) return emptyData();
+
+    let out = data;
+    const ensureCopy = () => {
+      if (out === data) out = { ...data };
+      return out;
+    };
+    const recoverArray = (field, required) => {
+      const valueAtField = data[field];
+      if (valueAtField === undefined) {
+        if (required) ensureCopy()[field] = [];
+        return;
+      }
+      if (Array.isArray(valueAtField)) return;
+      // Recupera arrays que foram serializados como {"0": ..., "1": ...}.
+      if (isObject(valueAtField)) {
+        const keys = Object.keys(valueAtField);
+        if (keys.length && keys.every((key) => /^\d+$/.test(key))) {
+          ensureCopy()[field] = keys.sort((a, b) => Number(a) - Number(b)).map((key) => valueAtField[key]);
+          return;
+        }
+      }
+      if (required) ensureCopy()[field] = [];
+      else { ensureCopy(); delete out[field]; }
+    };
+
+    CORE_ARRAY_FIELDS.forEach((field) => recoverArray(field, true));
+    OPTIONAL_ARRAY_FIELDS.forEach((field) => recoverArray(field, false));
+    CORE_OBJECT_FIELDS.forEach((field) => {
+      if (!isObject(data[field])) ensureCopy()[field] = {};
+    });
+    OPTIONAL_OBJECT_FIELDS.forEach((field) => {
+      if (data[field] !== undefined && !isObject(data[field])) {
+        ensureCopy();
+        delete out[field];
+      }
+    });
+
+    const fin = isObject(data.fin) ? data.fin : {};
+    const caixa = isObject(fin.caixa) ? fin.caixa : {};
+    let tx = Array.isArray(fin.tx) ? fin.tx : [];
+    if (!Array.isArray(fin.tx) && isObject(fin.tx)) {
+      const txKeys = Object.keys(fin.tx);
+      if (txKeys.length && txKeys.every((key) => /^\d+$/.test(key))) {
+        tx = txKeys.sort((a, b) => Number(a) - Number(b)).map((key) => fin.tx[key]);
+      }
+    }
+    if (!isObject(data.fin) || !isObject(fin.caixa) || !Array.isArray(fin.tx)) {
+      ensureCopy().fin = {
+        ...fin,
+        caixa: { open: false, abertura: 0, saldo: 0, ...caixa },
+        tx,
+      };
+    }
+    return out;
   }
 
   // hash simples (não-criptográfico, suficiente p/ protótipo)
@@ -230,7 +316,10 @@ window.VtStore = (function () {
     const key = localStorage.getItem(SESSION_KEY);
     if (!key || !payload || !payload.data) return { ok: false, error: 'Backup inválido.' };
     const db = loadDB();
-    db.data[key] = mode === 'replace' ? payload.data : { ...(db.data[key] || {}), ...payload.data };
+    const incoming = isObject(payload.data) ? payload.data : normalizeData(payload.data);
+    db.data[key] = mode === 'replace'
+      ? normalizeData(incoming)
+      : normalizeData({ ...normalizeData(db.data[key]), ...incoming });
     saveDB(db);
     return { ok: true };
   }
@@ -304,8 +393,18 @@ window.VtStore = (function () {
     const key = localStorage.getItem(SESSION_KEY);
     if (!key) return;
     const db = loadDB();
-    db.data[key] = { ...normalizeData(db.data[key]), ...patch };
+    db.data[key] = normalizeData({ ...normalizeData(db.data[key]), ...(isObject(patch) ? patch : {}) });
     saveDB(db);
+  }
+
+  // Reexecuta a migração estrutural de forma segura a partir da tela de erro.
+  function repairData() {
+    const key = localStorage.getItem(SESSION_KEY);
+    if (!key) return false;
+    const db = loadDB();
+    db.data[key] = normalizeData(db.data[key]);
+    saveDB(db);
+    return true;
   }
 
   // ---- migração segura: nunca apaga dados existentes em atualizações ----
@@ -343,5 +442,5 @@ window.VtStore = (function () {
     return { ok: true };
   }
 
-  return { register, login, logout: clearSession, currentUser, getData, setData, exportData, importData, changePassword, updateProfile, requestReset, confirmReset, migrate, _loadDB: loadDB, _normalizeData: normalizeData };
+  return { register, login, logout: clearSession, currentUser, getData, setData, repairData, exportData, importData, changePassword, updateProfile, requestReset, confirmReset, migrate, _loadDB: loadDB, _normalizeData: normalizeData };
 })();
