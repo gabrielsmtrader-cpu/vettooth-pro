@@ -825,8 +825,9 @@ function gxSaveStore(name, url) {
 }
 
 function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, BaseSvgChart, selectedId, onToothClick, selectedTooth, setStatus, toggleFinding, setNote, setSeverity, onClosePanel, layers, setLayers, go }) {
-  const CW = useSpeciesArch ? 880 : 1390;
-  const CH = useSpeciesArch ? 560 : 511;
+  const archSize = useSpeciesArch && window.SpeciesArchSize ? window.SpeciesArchSize(species) : null;
+  const CW = archSize ? archSize.width : (useSpeciesArch ? 880 : 1390);
+  const CH = archSize ? archSize.height : (useSpeciesArch ? 560 : 511);
   const canvasRef = React.useRef(null);
   const ctxRef = React.useRef(null);
   const undoRef = React.useRef([]);
@@ -1006,7 +1007,7 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
         <div className="gx-chart">
           <div className="gx-stage" style={{ aspectRatio: `${CW} / ${CH}` }}>
             {useSpeciesArch
-              ? <window.SpeciesArch species={species} marksByTooth={(layers && layers.achados) ? chart.marks : {}} selectedId={selectedId} onToothClick={onToothClick} />
+              ? <window.SpeciesArch species={species} marksByTooth={(layers && layers.achados) ? chart.marks : {}} fillsByTooth={chart.toothFills || {}} selectedId={selectedId} onToothClick={onToothClick} />
               : (BaseSvgChart ? <BaseSvgChart marksByTooth={(layers && layers.achados) ? chart.marks : {}} fillsByTooth={chart.toothFills || {}} selectedId={selectedId} onToothClick={onToothClick} /> : null)}
             <canvas ref={canvasRef} className="gx-canvas" style={{ pointerEvents: tool === 'select' ? 'none' : 'auto', cursor: tool === 'select' ? 'default' : 'crosshair' }}
               onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp} />
@@ -1040,15 +1041,12 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
         {/* toolbar — 3 módulos escuros */}
         <div className="gx-toolbar">
           <div className="gx-mod">
-            <span className="gx-mod-badge">1</span>
             {GX_TOOLS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} onClick={() => setTool(t.id)}><GxToolIcon id={t.id} /></button>)}
           </div>
           <div className="gx-mod">
-            <span className="gx-mod-badge">2</span>
             {GX_MARKERS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} onClick={() => setTool(t.id)}><GxToolIcon id={t.id} /></button>)}
           </div>
           <div className="gx-mod">
-            <span className="gx-mod-badge">3</span>
             {GX_STATUS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} onClick={() => setTool(t.id)}><GxToolIcon id={t.id} /></button>)}
           </div>
         </div>

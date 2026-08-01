@@ -881,6 +881,13 @@ button { font-family: inherit; cursor: pointer; }
 .gx-chart { position:relative; flex:1; min-height:340px; display:flex; align-items:center; justify-content:center; padding:16px; background:#fff; }
 .gx-stage { position:relative; width:100%; max-width:1260px; }
 .gx-stage > svg.sp-arch-svg { position:absolute; inset:0; width:100%; height:100%; }
+.gx-stage > .sp-arch-figma { position:absolute; inset:0; width:100%; height:100%; }
+.sp-arch-figma-art, .sp-arch-figma-art > svg, .sp-arch-hotspots { position:absolute; inset:0; width:100%; height:100%; display:block; }
+.sp-arch-hotspots { overflow:visible; }
+.dog-tooth-vector, .dog-tooth-zone { cursor:pointer; transition:filter .16s ease, opacity .16s ease, stroke-width .16s ease; }
+.dog-tooth-vector:hover, .dog-tooth-zone:hover { filter:drop-shadow(0 0 5px rgba(15,143,136,.55)); }
+.dog-tooth-vector.is-selected { filter:drop-shadow(0 0 7px rgba(15,143,136,.85)); }
+.sp-arch-loading { position:absolute; inset:0; display:grid; place-items:center; color:var(--od-muted); font-weight:700; }
 .gx-stage .anat-stage { position:absolute; inset:0; height:100%; }
 .gx-stage .anat-base { height:100%; width:100%; object-fit:contain; }
 .gx-canvas { position:absolute; inset:0; width:100%; height:100%; touch-action:none; }
@@ -889,7 +896,6 @@ button { font-family: inherit; cursor: pointer; }
 /* toolbar — 3 módulos escuros */
 .gx-toolbar { display:flex; gap:8px; padding:20px 16px 12px; background:#eef1f5; flex-wrap:wrap; justify-content:center; }
 .gx-mod { position:relative; background:#1a2e44; border-radius:12px; padding:10px 16px; display:flex; align-items:center; gap:8px; }
-.gx-mod-badge { position:absolute; top:-10px; left:12px; width:24px; height:24px; border-radius:50%; background:var(--od-teal); color:#fff; font-size:12px; font-weight:800; display:grid; place-items:center; box-shadow:0 2px 6px rgba(0,0,0,.32); }
 .gx-tbtn { width:44px; height:44px; border-radius:8px; border:none; cursor:pointer; line-height:1; color:#fff; background:transparent; display:grid; place-items:center; transition:background .14s ease, transform .14s ease, color .14s ease; }
 .gx-tbtn:hover { background:rgba(255,255,255,.13); transform:translateY(-1px); }
 .gx-tbtn:focus-visible { outline:2px solid #fff; outline-offset:2px; }
@@ -942,13 +948,13 @@ body.od-wizard-embed .gx-head-btns .gx-hbtn:last-child { display:none; }
 <script type="text/babel" src="src/apps/equichart/chart-components.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/chart-anatomical.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/chart-base-svg.jsx?v=20260719g"></script>
-<script type="text/babel" src="src/apps/equichart/vt-species-arch.jsx"></script>
+<script type="text/babel" src="src/apps/equichart/vt-species-arch.jsx?v=20260801a"></script>
 <script type="text/babel" src="src/apps/equichart/odonto-ui.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/vt-odonto-especie.jsx"></script>
-<script type="text/babel" src="src/apps/equichart/vt-odonto-steps.jsx?v=20260724a"></script>
+<script type="text/babel" src="src/apps/equichart/vt-odonto-steps.jsx?v=20260801a"></script>
 <script type="text/babel" src="src/apps/equichart/ui-components.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/panels.jsx"></script>
-<script type="text/babel" src="src/apps/equichart/app.jsx?v=20260725a"></script>
+<script type="text/babel" src="src/apps/equichart/app.jsx?v=20260801a"></script>
 
 <style id="__om-edit-overrides"></style>
 </body>

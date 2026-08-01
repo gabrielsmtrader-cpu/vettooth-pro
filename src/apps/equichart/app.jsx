@@ -227,7 +227,7 @@ function App() {
                 <div className="od-design" onClick={() => { if (tool === 'select') setSelectedId(null); }}>
                   <div className={`od-chart-inner${!layers.anatomia ? ' hide-anat' : ''}`}>
                     {useSpeciesArch
-                      ? <window.SpeciesArch species={patSpecies} marksByTooth={layers.achados ? chart.marks : {}} selectedId={selectedId} onToothClick={onToothClick} />
+                      ? <window.SpeciesArch species={patSpecies} marksByTooth={layers.achados ? chart.marks : {}} fillsByTooth={chart.toothFills || {}} selectedId={selectedId} onToothClick={onToothClick} />
                       : <BaseSvgChart marksByTooth={layers.achados ? chart.marks : {}} selectedId={selectedId} onToothClick={onToothClick} />}
                     <div style={{ opacity: layers.tratamentos ? 1 : 0 }}>
                       <DrawingLayer mode={drawMode} penColor={penColor} strokes={chart.strokes} onStroke={addStroke} onRemoveStroke={removeStroke} drops={chart.drops} onDrop={addDrop} onRemoveDrop={removeDrop} />

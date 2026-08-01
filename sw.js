@@ -4,7 +4,7 @@
    Sync: enfileira push offline e sobe ao reconectar
    ============================================================ */
 
-const CACHE_NAME = 'vettooth-v4';
+const CACHE_NAME = 'vettooth-v5';
 const CACHE_CDN  = 'vettooth-cdn-v1';
 
 /* ── Assets locais ─────────────────────────────────────────── */
@@ -49,6 +49,7 @@ const LOCAL_ASSETS = [
   '/vt-odonto-steps.jsx',
   '/vt-odonto-especie.jsx',
   '/vt-species-arch.jsx',
+  '/assets/odontograma-canino.svg',
   '/vt-prontuario-plan.jsx',
   '/odonto-ui.jsx',
   '/panels.jsx',

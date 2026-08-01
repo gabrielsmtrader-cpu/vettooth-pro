@@ -110,25 +110,101 @@
   }
 
   /* =========================================================
-     Arcada Canino (cão) — layout existente
+     Dentição canina anatômica — SVG oficial do Figma.
+     Os posteriores usam os vetores exatos do arquivo; os dentes que fazem
+     parte do contorno da mandíbula recebem zonas clínicas vinculadas.
      ========================================================= */
-  function DogArch({ marksByTooth, selectedId, onToothClick }) {
-    const up = DOG.upper.map(makeTooth), lo = DOG.lower.map(makeTooth);
-    const upPos = archPositions(up.length, 118, 74, 'upper');
-    const loPos = archPositions(lo.length, 442, 74, 'lower');
-    const renderRow = (teeth, pos, jaw) => teeth.map((t, i) => e(Tooth, {
-      key: t.id, tooth: t, marks: marksByTooth[t.id] || [], selected: selectedId === t.id,
-      onClick: onToothClick, tx: pos[i].tx, ty: pos[i].ty, rot: pos[i].rot, jaw,
-    }));
-    return e('svg', { className: 'sp-arch-svg', viewBox: '0 0 880 560', width: '100%', preserveAspectRatio: 'xMidYMid meet' },
-      e('line', { x1: 440, y1: 40, x2: 440, y2: 520, stroke: '#e2e7ee', strokeWidth: 1.5, strokeDasharray: '4 5' }),
-      e('text', { className: 'sp-arch-side', x: 150, y: 30, textAnchor: 'middle' }, 'DIREITA'),
-      e('text', { className: 'sp-arch-side', x: 730, y: 30, textAnchor: 'middle' }, 'ESQUERDA'),
-      e('text', { className: 'sp-arch-jaw', x: 24, y: 150, textAnchor: 'middle', transform: 'rotate(-90 24 150)' }, 'MAXILA'),
-      e('text', { className: 'sp-arch-jaw', x: 24, y: 440, textAnchor: 'middle', transform: 'rotate(-90 24 440)' }, 'MANDÍBULA'),
-      e('text', { className: 'sp-arch-badge', x: 440, y: 295, textAnchor: 'middle' }, 'Arcada Canino'),
-      e('g', null, renderRow(up, upPos, 'upper')),
-      e('g', null, renderRow(lo, loPos, 'lower')),
+  const DOG_FIGMA_GROUPS = {
+    'Vector 42': '110', 'Vector 43': '109', 'Vector 44': '108', 'Vector 45': '107', 'Vector 46': '106', 'Vector 47': '105',
+    'Vector 48': '109', 'Vector 49': '108',
+    'Vector 63': '210', 'Vector 63_2': '209', 'Vector 64_2': '208', 'Vector 65_2': '207', 'Vector 66_2': '206', 'Vector 67_2': '205',
+    'Vector 68_2': '209', 'Vector 69_2': '208',
+    'Vector 57': '411', 'Vector 58': '410', 'Vector 59': '409', 'Vector 60': '408', 'Vector 61': '407', 'Vector 62': '406',
+    'Vector 64': '311', 'Vector 65': '310', 'Vector 66': '309', 'Vector 67': '308', 'Vector 68': '307', 'Vector 69': '306',
+  };
+  const DOG_FRONT_ZONES = [
+    ['104', 'M67 145 C88 142 105 163 101 190 C96 214 77 211 69 187 Z'],
+    ['103', 'M100 92 C115 82 137 92 143 117 C145 137 132 151 115 143 C104 132 98 112 100 92 Z'],
+    ['102', 'M142 61 C155 48 177 57 182 83 C184 104 173 120 158 115 C146 105 140 82 142 61 Z'],
+    ['101', 'M184 43 C197 32 214 39 218 63 L218 108 C208 122 193 119 187 104 Z'],
+    ['201', 'M239 43 C226 32 220 39 220 63 L220 108 C230 122 245 119 251 104 Z'],
+    ['202', 'M275 61 C262 48 252 57 251 83 C250 104 261 120 276 115 C288 105 290 82 275 61 Z'],
+    ['203', 'M316 92 C301 82 284 92 282 117 C280 137 293 151 310 143 C321 132 323 112 316 92 Z'],
+    ['204', 'M353 145 C332 142 319 163 322 190 C327 214 346 211 355 187 Z'],
+    ['404', 'M50 984 C61 960 84 951 100 972 C104 996 88 1020 65 1035 L45 1020 Z'],
+    ['405', 'M106 910 C119 902 136 914 138 934 C138 951 128 963 116 956 C108 946 104 928 106 910 Z'],
+    ['403', 'M105 1023 C119 1016 137 1023 144 1044 C142 1060 129 1070 116 1062 C107 1052 103 1038 105 1023 Z'],
+    ['402', 'M145 1042 C158 1033 177 1038 184 1058 C183 1076 171 1087 158 1081 C149 1072 145 1057 145 1042 Z'],
+    ['401', 'M186 1053 C199 1042 218 1048 224 1067 C223 1087 212 1098 199 1091 C190 1082 186 1068 186 1053 Z'],
+    ['301', 'M232 1053 C245 1042 264 1048 269 1067 C269 1087 258 1098 245 1091 C236 1082 232 1068 232 1053 Z'],
+    ['302', 'M272 1042 C285 1033 304 1038 310 1058 C310 1076 298 1087 285 1081 C276 1072 272 1057 272 1042 Z'],
+    ['303', 'M313 1023 C327 1016 345 1023 351 1044 C350 1060 337 1070 324 1062 C315 1052 311 1038 313 1023 Z'],
+    ['305', 'M315 910 C328 902 345 914 347 934 C347 951 337 963 325 956 C317 946 313 928 315 910 Z'],
+    ['304', 'M355 984 C366 960 389 951 405 972 C409 996 393 1020 370 1035 L350 1020 Z'],
+  ];
+
+  function dogPaintFor(id, fillsByTooth, marksByTooth) {
+    if (fillsByTooth && fillsByTooth[id]) return fillsByTooth[id];
+    const findings = ((marksByTooth && marksByTooth[id]) || []).filter((m) => m !== 'normal');
+    return findings.length ? mark(findings[0]).color : '';
+  }
+
+  function DogArch({ marksByTooth, fillsByTooth, selectedId, onToothClick }) {
+    const hostRef = React.useRef(null);
+    const [svgText, setSvgText] = React.useState('');
+    React.useEffect(() => {
+      let active = true;
+      fetch('assets/odontograma-canino.svg?v=20260801a').then((r) => {
+        if (!r.ok) throw new Error('SVG canino indisponível');
+        return r.text();
+      }).then((txt) => { if (active) setSvgText(txt); }).catch(() => { if (active) setSvgText(''); });
+      return () => { active = false; };
+    }, []);
+    React.useEffect(() => {
+      const host = hostRef.current; if (!host || !svgText) return;
+      const arch = host.querySelector('[id="Arcada aberta"]');
+      if (!arch) return;
+      Object.entries(DOG_FIGMA_GROUPS).forEach(([figmaId, toothId]) => {
+        const node = arch.querySelector(`[id="${figmaId}"]`);
+        if (!node) return;
+        node.setAttribute('data-tooth', toothId);
+        node.classList.add('dog-tooth-vector');
+        const paintableParts = [
+          ...(node.hasAttribute('fill') ? [node] : []),
+          ...node.querySelectorAll('[fill]'),
+        ];
+        paintableParts.forEach((part) => {
+          const original = part.getAttribute('fill');
+          if (original && original !== 'none' && original.toLowerCase() !== 'black' && original !== '#000000') {
+            if (!part.dataset.baseFill) part.dataset.baseFill = original;
+            const paint = dogPaintFor(toothId, fillsByTooth, marksByTooth);
+            part.style.fill = paint || part.dataset.baseFill;
+          }
+        });
+        node.classList.toggle('is-selected', selectedId === toothId);
+      });
+    }, [svgText, fillsByTooth, marksByTooth, selectedId]);
+
+    const click = (ev) => {
+      const zone = ev.target.closest && ev.target.closest('[data-tooth]');
+      if (!zone || !hostRef.current || !hostRef.current.contains(zone)) return;
+      ev.stopPropagation();
+      const tooth = window.SpeciesTeeth[zone.getAttribute('data-tooth')];
+      if (tooth) onToothClick(tooth);
+    };
+    const zones = DOG_FRONT_ZONES.map(([id, d]) => {
+      const paint = dogPaintFor(id, fillsByTooth, marksByTooth);
+      return e('path', {
+        key: id, d, 'data-tooth': id, className: `dog-tooth-zone${selectedId === id ? ' is-selected' : ''}`,
+        fill: paint || 'transparent', fillOpacity: paint ? .72 : .001,
+        stroke: selectedId === id ? 'var(--od-teal-d,#0f8f88)' : 'transparent', strokeWidth: selectedId === id ? 4 : 0,
+      });
+    });
+    return e('div', { ref: hostRef, className: 'sp-arch-figma', onClick: click },
+      svgText
+        ? e('div', { className: 'sp-arch-figma-art', dangerouslySetInnerHTML: { __html: svgText } })
+        : e('div', { className: 'sp-arch-loading' }, 'Carregando dentição canina…'),
+      e('svg', { className: 'sp-arch-hotspots', viewBox: '0 0 1812 1138', preserveAspectRatio: 'xMidYMid meet', 'aria-label': 'Dentição canina interativa' }, zones),
     );
   }
 
@@ -188,12 +264,15 @@
     );
   }
 
-  function SpeciesArch({ species, marksByTooth, selectedId, onToothClick }) {
+  function SpeciesArch({ species, marksByTooth, fillsByTooth, selectedId, onToothClick }) {
     const s = (species || '').toLowerCase();
     marksByTooth = marksByTooth || {};
     if (/gato|felin|cat/.test(s)) return e(FelineArch, { marksByTooth, selectedId, onToothClick });
-    return e(DogArch, { marksByTooth, selectedId, onToothClick });
+    return e(DogArch, { marksByTooth, fillsByTooth: fillsByTooth || {}, selectedId, onToothClick });
   }
 
+  window.SpeciesArchSize = function (species) {
+    return /gato|felin|cat/i.test(species || '') ? { width: 880, height: 560 } : { width: 1812, height: 1138 };
+  };
   window.SpeciesArch = SpeciesArch;
 })();
