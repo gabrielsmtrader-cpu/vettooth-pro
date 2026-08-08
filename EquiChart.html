@@ -884,9 +884,9 @@ button { font-family: inherit; cursor: pointer; }
 .gx-stage > .sp-arch-figma { position:absolute; inset:0; width:100%; height:100%; }
 .sp-arch-figma-art, .sp-arch-figma-art > svg, .sp-arch-hotspots { position:absolute; inset:0; width:100%; height:100%; display:block; }
 .sp-arch-hotspots { overflow:visible; }
-.dog-tooth-vector, .dog-tooth-zone { cursor:pointer; transition:filter .16s ease, opacity .16s ease, stroke-width .16s ease; }
-.dog-tooth-vector:hover, .dog-tooth-zone:hover { filter:drop-shadow(0 0 5px rgba(15,143,136,.55)); }
-.dog-tooth-vector.is-selected { filter:drop-shadow(0 0 7px rgba(15,143,136,.85)); }
+.dog-tooth-vector, .dog-tooth-zone, .cat-tooth-zone { cursor:pointer; transition:filter .16s ease, opacity .16s ease, stroke-width .16s ease; }
+.dog-tooth-vector:hover, .dog-tooth-zone:hover, .cat-tooth-zone:hover { filter:drop-shadow(0 0 5px rgba(15,143,136,.55)); }
+.dog-tooth-vector.is-selected, .cat-tooth-zone.is-selected { filter:drop-shadow(0 0 7px rgba(15,143,136,.85)); }
 .sp-arch-loading { position:absolute; inset:0; display:grid; place-items:center; color:var(--od-muted); font-weight:700; }
 .gx-stage .anat-stage { position:absolute; inset:0; height:100%; }
 .gx-stage .anat-base { height:100%; width:100%; object-fit:contain; }
@@ -948,7 +948,7 @@ body.od-wizard-embed .gx-head-btns .gx-hbtn:last-child { display:none; }
 <script type="text/babel" src="src/apps/equichart/chart-components.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/chart-anatomical.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/chart-base-svg.jsx?v=20260719g"></script>
-<script type="text/babel" src="src/apps/equichart/vt-species-arch.jsx?v=20260801a"></script>
+<script type="text/babel" src="src/apps/equichart/vt-species-arch.jsx?v=20260808a"></script>
 <script type="text/babel" src="src/apps/equichart/odonto-ui.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/vt-odonto-especie.jsx"></script>
 <script type="text/babel" src="src/apps/equichart/vt-odonto-steps.jsx?v=20260801a"></script>

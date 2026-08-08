@@ -1,6 +1,6 @@
 ﻿/* ============================================================
    VetTooth Pro — Arcos dentários por espécie (Cão / Gato)
-   SVG representativo, dentes clicáveis integrados ao sistema de marcações.
+   SVGs oficiais do Figma, com dentes clicáveis integrados às marcações.
    Equino continua usando o BaseSvgChart existente.
    Expõe window.SpeciesArch e window.SpeciesTeeth (lookup id→dente)
    ============================================================ */
@@ -143,7 +143,7 @@
     ['304', 'M355 984 C366 960 389 951 405 972 C409 996 393 1020 370 1035 L350 1020 Z'],
   ];
 
-  function dogPaintFor(id, fillsByTooth, marksByTooth) {
+  function speciesPaintFor(id, fillsByTooth, marksByTooth) {
     if (fillsByTooth && fillsByTooth[id]) return fillsByTooth[id];
     const findings = ((marksByTooth && marksByTooth[id]) || []).filter((m) => m !== 'normal');
     return findings.length ? mark(findings[0]).color : '';
@@ -154,7 +154,7 @@
     const [svgText, setSvgText] = React.useState('');
     React.useEffect(() => {
       let active = true;
-      fetch('assets/odontograma-canino.svg?v=20260801a').then((r) => {
+      fetch('assets/odontograma-canino.svg?v=20260808a').then((r) => {
         if (!r.ok) throw new Error('SVG canino indisponível');
         return r.text();
       }).then((txt) => { if (active) setSvgText(txt); }).catch(() => { if (active) setSvgText(''); });
@@ -177,7 +177,7 @@
           const original = part.getAttribute('fill');
           if (original && original !== 'none' && original.toLowerCase() !== 'black' && original !== '#000000') {
             if (!part.dataset.baseFill) part.dataset.baseFill = original;
-            const paint = dogPaintFor(toothId, fillsByTooth, marksByTooth);
+            const paint = speciesPaintFor(toothId, fillsByTooth, marksByTooth);
             part.style.fill = paint || part.dataset.baseFill;
           }
         });
@@ -193,7 +193,7 @@
       if (tooth) onToothClick(tooth);
     };
     const zones = DOG_FRONT_ZONES.map(([id, d]) => {
-      const paint = dogPaintFor(id, fillsByTooth, marksByTooth);
+      const paint = speciesPaintFor(id, fillsByTooth, marksByTooth);
       return e('path', {
         key: id, d, 'data-tooth': id, className: `dog-tooth-zone${selectedId === id ? ' is-selected' : ''}`,
         fill: paint || 'transparent', fillOpacity: paint ? .72 : .001,
@@ -209,70 +209,64 @@
   }
 
   /* =========================================================
-     Odontograma Felino (gato) — vista oclusal central +
-     painéis laterais (perfil) esquerdo/direito.
-     Estilo anatômico: contorno preto espesso, preenchimento cinza.
+     Dentição felina anatômica — SVG oficial do Figma.
+     As 30 peças da vista oclusal possuem zonas clínicas independentes.
      ========================================================= */
-  function FelineArch({ marksByTooth, selectedId, onToothClick }) {
-    const M = (id) => marksByTooth[id] || [];
-    // ---- oclusal central: arcos estreitos no centro (x 250–630) ----
-    const up = CAT.upper.map(makeTooth), lo = CAT.lower.map(makeTooth);
-    const upPos = archPositions(up.length, 132, 60, 'upper', 880, 270);
-    const loPos = archPositions(lo.length, 430, 60, 'lower', 880, 270);
-    const occ = (teeth, pos, jaw) => teeth.map((t, i) => e(Tooth, {
-      key: t.id, tooth: t, marks: M(t.id), selected: selectedId === t.id,
-      onClick: onToothClick, tx: pos[i].tx, ty: pos[i].ty, rot: pos[i].rot, jaw, anat: true, sc: 0.82,
-    }));
+  const CAT_TOOTH_ZONES = [
+    ['104', 416, 450, 28, 58, -14], ['103', 514, 365, 12, 21, -12], ['102', 539, 356, 11, 19, -7], ['101', 567, 351, 11, 18, -3],
+    ['201', 594, 351, 11, 18, 3], ['202', 621, 356, 11, 19, 7], ['203', 647, 365, 12, 21, 12], ['204', 744, 450, 28, 58, 14],
+    ['106', 389, 554, 10, 23, 12], ['107', 357, 665, 18, 47, 24], ['108', 318, 782, 39, 70, 27], ['109', 286, 876, 26, 20, 8],
+    ['206', 771, 554, 10, 23, -12], ['207', 804, 665, 18, 47, -24], ['208', 843, 782, 39, 70, -27], ['209', 875, 876, 26, 20, -8],
+    ['409', 343, 1316, 38, 73, -18], ['408', 386, 1422, 21, 39, -18], ['407', 414, 1503, 20, 32, -12], ['404', 472, 1700, 35, 72, 36],
+    ['403', 520, 1752, 10, 15, 15], ['402', 544, 1757, 9, 16, 8], ['401', 568, 1759, 9, 16, 3],
+    ['301', 592, 1759, 9, 16, -3], ['302', 616, 1757, 9, 16, -8], ['303', 640, 1752, 10, 15, -15], ['304', 688, 1700, 35, 72, -36],
+    ['307', 746, 1503, 20, 32, 12], ['308', 774, 1422, 21, 39, 18], ['309', 817, 1316, 38, 73, 18],
+  ];
 
-    // ---- painel lateral: lista de dentes em perfil ----
-    const lateral = (x0, title, upTeeth, loTeeth) => {
-      const colW = 30, h = 30, gap = 4;
-      const rowY1 = 264, rowY2 = 346;
-      const upEls = upTeeth.map((id, i) => e(ProfileTooth, {
-        key: 'u' + id, tooth: makeTooth(id), marks: M(String(id)), selected: selectedId === String(id),
-        onClick: onToothClick, x: x0 + i * (colW + gap), y: rowY1, w: colW, h,
-      }));
-      const loEls = loTeeth.map((id, i) => e(ProfileTooth, {
-        key: 'l' + id, tooth: makeTooth(id), marks: M(String(id)), selected: selectedId === String(id),
-        onClick: onToothClick, x: x0 + i * (colW + gap), y: rowY2, w: colW, h,
-      }));
-      const boxW = Math.max(upTeeth.length, loTeeth.length) * (colW + gap) + 12;
-      const cx = x0 - 8 + boxW / 2;
-      return e('g', null,
-        e('rect', { x: x0 - 8, y: 226, width: boxW, height: 188, rx: 12, fill: '#f7f9fb', stroke: '#dde3ea', strokeWidth: 1.4 }),
-        e('text', { className: 'sp-arch-side', x: cx, y: 244, textAnchor: 'middle' }, title),
-        e('text', { className: 'sp-lat-cap', x: cx, y: 328, textAnchor: 'middle' }, 'maxila ▲ · mandíbula ▼'),
-        e('g', null, upEls), e('g', null, loEls),
-      );
+  function FelineArch({ marksByTooth, fillsByTooth, selectedId, onToothClick }) {
+    const hostRef = React.useRef(null);
+    const [svgText, setSvgText] = React.useState('');
+    React.useEffect(() => {
+      let active = true;
+      fetch('assets/odontograma-felino.svg?v=20260808a').then((r) => {
+        if (!r.ok) throw new Error('SVG felino indisponível');
+        return r.text();
+      }).then((txt) => { if (active) setSvgText(txt); }).catch(() => { if (active) setSvgText(''); });
+      return () => { active = false; };
+    }, []);
+    const click = (ev) => {
+      const zone = ev.target.closest && ev.target.closest('[data-tooth]');
+      if (!zone || !hostRef.current || !hostRef.current.contains(zone)) return;
+      ev.stopPropagation();
+      const tooth = window.SpeciesTeeth[zone.getAttribute('data-tooth')];
+      if (tooth) onToothClick(tooth);
     };
-
-    return e('svg', { className: 'sp-arch-svg', viewBox: '0 0 880 560', width: '100%', preserveAspectRatio: 'xMidYMid meet' },
-      // linha média + rótulos
-      e('line', { x1: 440, y1: 36, x2: 440, y2: 200, stroke: '#e2e7ee', strokeWidth: 1.5, strokeDasharray: '4 5' }),
-      e('line', { x1: 440, y1: 360, x2: 440, y2: 524, stroke: '#e2e7ee', strokeWidth: 1.5, strokeDasharray: '4 5' }),
-      e('text', { className: 'sp-arch-side', x: 330, y: 28, textAnchor: 'middle' }, 'DIREITA'),
-      e('text', { className: 'sp-arch-side', x: 550, y: 28, textAnchor: 'middle' }, 'ESQUERDA'),
-      e('text', { className: 'sp-arch-jaw', x: 440, y: 70, textAnchor: 'middle' }, 'MAXILA · oclusal'),
-      e('text', { className: 'sp-arch-jaw', x: 440, y: 500, textAnchor: 'middle' }, 'MANDÍBULA · oclusal'),
-      e('text', { className: 'sp-arch-badge', x: 440, y: 285, textAnchor: 'middle' }, 'Odontograma Felino · 30 dentes'),
-      // oclusal
-      e('g', null, occ(up, upPos, 'upper')),
-      e('g', null, occ(lo, loPos, 'lower')),
-      // laterais
-      lateral(34, 'LATERAL DIREITA', [104, 106, 107, 108, 109], [404, 407, 408, 409]),
-      lateral(690, 'LATERAL ESQUERDA', [204, 206, 207, 208, 209], [304, 307, 308, 309]),
+    const zones = CAT_TOOTH_ZONES.map(([id, cx, cy, rx, ry, rot]) => {
+      const paint = speciesPaintFor(id, fillsByTooth, marksByTooth);
+      return e('ellipse', {
+        key: id, cx, cy, rx, ry, transform: `rotate(${rot} ${cx} ${cy})`, 'data-tooth': id,
+        className: `cat-tooth-zone${selectedId === id ? ' is-selected' : ''}`,
+        fill: paint || 'transparent', fillOpacity: paint ? .7 : .001,
+        stroke: selectedId === id ? 'var(--od-teal-d,#0f8f88)' : 'transparent', strokeWidth: selectedId === id ? 9 : 0,
+      });
+    });
+    return e('div', { ref: hostRef, className: 'sp-arch-figma sp-arch-feline', onClick: click },
+      svgText
+        ? e('div', { className: 'sp-arch-figma-art', dangerouslySetInnerHTML: { __html: svgText } })
+        : e('div', { className: 'sp-arch-loading' }, 'Carregando dentição felina…'),
+      e('svg', { className: 'sp-arch-hotspots', viewBox: '0 0 4096 2030', preserveAspectRatio: 'xMidYMid meet', 'aria-label': 'Dentição felina interativa' }, zones),
     );
   }
 
   function SpeciesArch({ species, marksByTooth, fillsByTooth, selectedId, onToothClick }) {
     const s = (species || '').toLowerCase();
     marksByTooth = marksByTooth || {};
-    if (/gato|felin|cat/.test(s)) return e(FelineArch, { marksByTooth, selectedId, onToothClick });
+    if (/gato|felin|cat/.test(s)) return e(FelineArch, { marksByTooth, fillsByTooth: fillsByTooth || {}, selectedId, onToothClick });
     return e(DogArch, { marksByTooth, fillsByTooth: fillsByTooth || {}, selectedId, onToothClick });
   }
 
   window.SpeciesArchSize = function (species) {
-    return /gato|felin|cat/i.test(species || '') ? { width: 880, height: 560 } : { width: 1812, height: 1138 };
+    return /gato|felin|cat/i.test(species || '') ? { width: 4096, height: 2030 } : { width: 1812, height: 1138 };
   };
   window.SpeciesArch = SpeciesArch;
 })();
