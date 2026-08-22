@@ -66,7 +66,13 @@ window.VtStore = (function () {
         if (required) ensureCopy()[field] = [];
         return;
       }
-      if (Array.isArray(valueAtField)) return;
+      if (Array.isArray(valueAtField)) {
+        if (required) {
+          const cleaned = valueAtField.filter(isObject);
+          if (cleaned.length !== valueAtField.length) ensureCopy()[field] = cleaned;
+        }
+        return;
+      }
       // Recupera arrays que foram serializados como {"0": ..., "1": ...}.
       if (isObject(valueAtField)) {
         const keys = Object.keys(valueAtField);
@@ -93,14 +99,14 @@ window.VtStore = (function () {
 
     const fin = isObject(data.fin) ? data.fin : {};
     const caixa = isObject(fin.caixa) ? fin.caixa : {};
-    let tx = Array.isArray(fin.tx) ? fin.tx : [];
+    let tx = Array.isArray(fin.tx) ? fin.tx.filter(isObject) : [];
     if (!Array.isArray(fin.tx) && isObject(fin.tx)) {
       const txKeys = Object.keys(fin.tx);
       if (txKeys.length && txKeys.every((key) => /^\d+$/.test(key))) {
         tx = txKeys.sort((a, b) => Number(a) - Number(b)).map((key) => fin.tx[key]);
       }
     }
-    if (!isObject(data.fin) || !isObject(fin.caixa) || !Array.isArray(fin.tx)) {
+    if (!isObject(data.fin) || !isObject(fin.caixa) || !Array.isArray(fin.tx) || tx.length !== fin.tx.length) {
       ensureCopy().fin = {
         ...fin,
         caixa: { open: false, abertura: 0, saldo: 0, ...caixa },

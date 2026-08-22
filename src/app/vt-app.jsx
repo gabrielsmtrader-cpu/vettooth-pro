@@ -3,6 +3,20 @@
    ============================================================ */
 const { useState, useEffect } = React;
 
+function vtApptTimeValue(appt) {
+  const raw = appt && (appt.time ?? appt.start);
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  const text = String(raw ?? '').trim();
+  const clock = text.match(/^(\d{1,2}):(\d{2})/);
+  if (clock) return Number(clock[1]) + Number(clock[2]) / 60;
+  const numeric = Number(text.replace(',', '.'));
+  return Number.isFinite(numeric) ? numeric : Number.POSITIVE_INFINITY;
+}
+
+function vtCompareAppointments(a, b) {
+  return vtApptTimeValue(a) - vtApptTimeValue(b);
+}
+
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: 'grid' },
   { id: 'pacientes', label: 'Pacientes', icon: 'paw' },
@@ -508,8 +522,8 @@ function Dashboard({ setActive }) {
   const weekStart = (() => { const dt = new Date(); dt.setDate(dt.getDate() - dt.getDay()); return dt.toISOString().slice(0, 10); })();
   const weekEnd   = (() => { const dt = new Date(); dt.setDate(dt.getDate() - dt.getDay() + 7); return dt.toISOString().slice(0, 10); })();
   const aptsWeek = appts.filter((a) => (a.date || '') >= weekStart && (a.date || '') < weekEnd).length;
-  const aptsHoje = appts.filter((a) => (a.date || '') === today).sort((a, b) => (a.time || a.start || '').localeCompare(b.time || b.start || ''));
-  const proximos = appts.filter((a) => (a.date || '') > today).sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || '')).slice(0, 4);
+  const aptsHoje = appts.filter((a) => (a.date || '') === today).sort(vtCompareAppointments);
+  const proximos = appts.filter((a) => (a.date || '') > today).sort((a, b) => (a.date || '').localeCompare(b.date || '') || vtCompareAppointments(a, b)).slice(0, 4);
 
   // vacinas vencendo em 30 dias
   const vacAlert = (() => {
