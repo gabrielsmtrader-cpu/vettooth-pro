@@ -725,17 +725,15 @@
     const [activeTool, setActiveTool] = useState('pencil');
     const [histPanelOpen, setHistPanelOpen] = useState(false);
     const [histList, setHistList] = useState([]);
-    const isHorse = /equi|caval|égua|egua|potr|muar/i.test(wiz.species || '');
     const equiSrc = useMemo(() => {
       const q = new URLSearchParams({
-        patient: wiz.patientName || '', owner: wiz.ownerName || '', species: wiz.species || 'Equino',
-        date: date || '', embed: 'wizard', step: 'odontograma', v: '20260725a',
+        patient: wiz.patientName || '', owner: wiz.ownerName || '', species: wiz.species || 'Cão',
+        date: date || '', embed: 'wizard', step: 'odontograma', v: '20260822a',
       });
       return 'EquiChart.html?' + q.toString();
     }, [wiz.patientName, wiz.ownerName, wiz.species, date]);
 
     useEffect(() => {
-      if (!isHorse) return undefined;
       const receive = (event) => {
         if (event.origin !== location.origin || event.source !== (equiFrameRef.current && equiFrameRef.current.contentWindow)) return;
         if (!event.data || event.data.type !== 'vettooth:equichart-change') return;
@@ -743,14 +741,14 @@
       };
       window.addEventListener('message', receive);
       return () => window.removeEventListener('message', receive);
-    }, [isHorse]);
+    }, []);
 
-    if (isHorse) return (
+    return (
       <div style={{ flex: 1, minHeight: 0, background: 'var(--bg)' }}>
         <iframe
           ref={equiFrameRef}
           data-equi-chart="true"
-          title={`Odontograma equino de ${wiz.patientName || 'paciente'}`}
+          title={`Odontograma ${wiz.species || 'veterinário'} de ${wiz.patientName || 'paciente'}`}
           src={equiSrc}
           style={{ display: 'block', width: '100%', height: '100%', border: 0, background: '#eef1f5' }}
         />
