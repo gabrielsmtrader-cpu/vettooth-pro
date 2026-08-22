@@ -121,6 +121,12 @@
     'Vector 68_2': '209', 'Vector 69_2': '208',
     'Vector 57': '411', 'Vector 58': '410', 'Vector 59': '409', 'Vector 60': '408', 'Vector 61': '407', 'Vector 62': '406',
     'Vector 64': '311', 'Vector 65': '310', 'Vector 66': '309', 'Vector 67': '308', 'Vector 68': '307', 'Vector 69': '306',
+    'Vector 42_2': '110', 'Vector 43_2': '109', 'Vector 44_2': '108', 'Vector 45_2': '107', 'Vector 46_2': '106', 'Vector 47_2': '105',
+    'Vector 48_2': '109', 'Vector 49_2': '108',
+    'Vector 42_3': '210', 'Vector 43_3': '209', 'Vector 44_3': '208', 'Vector 45_3': '207', 'Vector 46_3': '206', 'Vector 47_3': '205',
+    'Vector 48_3': '209', 'Vector 49_3': '208',
+    'Vector 57_2': '411', 'Vector 58_2': '410', 'Vector 59_2': '409', 'Vector 60_2': '408', 'Vector 61_2': '407', 'Vector 62_2': '406',
+    'Vector 57_3': '311', 'Vector 58_3': '310', 'Vector 59_3': '309', 'Vector 60_3': '308', 'Vector 61_3': '307', 'Vector 62_3': '306',
   };
   const DOG_FRONT_ZONES = [
     ['104', 'M67 145 C88 142 105 163 101 190 C96 214 77 211 69 187 Z'],
@@ -149,6 +155,22 @@
     return findings.length ? mark(findings[0]).color : '';
   }
 
+  function nearestSpeciesTooth(host, clientX, clientY) {
+    if (!host) return null;
+    let best = null;
+    host.querySelectorAll('.sp-arch-figma-art [id]').forEach((node) => {
+      const match = String(node.id || '').match(/^([1-4]\d\d)(?:_\d+)?$/);
+      if (!match || !window.SpeciesTeeth[match[1]]) return;
+      const r = node.getBoundingClientRect();
+      const dx = clientX < r.left ? r.left - clientX : clientX > r.right ? clientX - r.right : 0;
+      const dy = clientY < r.top ? r.top - clientY : clientY > r.bottom ? clientY - r.bottom : 0;
+      const distance = Math.hypot(dx, dy);
+      if (!best || distance < best.distance) best = { toothId: match[1], distance };
+    });
+    const limit = Math.max(38, Math.min(90, host.getBoundingClientRect().width * .075));
+    return best && best.distance <= limit ? window.SpeciesTeeth[best.toothId] : null;
+  }
+
   function DogArch({ marksByTooth, fillsByTooth, selectedId, onToothClick }) {
     const hostRef = React.useRef(null);
     const [svgText, setSvgText] = React.useState('');
@@ -162,10 +184,8 @@
     }, []);
     React.useEffect(() => {
       const host = hostRef.current; if (!host || !svgText) return;
-      const arch = host.querySelector('[id="Arcada aberta"]');
-      if (!arch) return;
       Object.entries(DOG_FIGMA_GROUPS).forEach(([figmaId, toothId]) => {
-        const node = arch.querySelector(`[id="${figmaId}"]`);
+        const node = host.querySelector(`[id="${figmaId}"]`);
         if (!node) return;
         node.setAttribute('data-tooth', toothId);
         node.classList.add('dog-tooth-vector');
@@ -187,15 +207,20 @@
 
     const click = (ev) => {
       const zone = ev.target.closest && ev.target.closest('[data-tooth]');
-      if (!zone || !hostRef.current || !hostRef.current.contains(zone)) return;
+      if (!hostRef.current) return;
+      if (!zone || !hostRef.current.contains(zone)) {
+        const nearest = nearestSpeciesTooth(hostRef.current, ev.clientX, ev.clientY);
+        if (nearest) onToothClick(nearest);
+        return;
+      }
       ev.stopPropagation();
       const tooth = window.SpeciesTeeth[zone.getAttribute('data-tooth')];
       if (tooth) onToothClick(tooth);
     };
-    const zones = DOG_FRONT_ZONES.map(([id, d]) => {
+    const zones = DOG_FRONT_ZONES.map(([id, d], index) => {
       const paint = speciesPaintFor(id, fillsByTooth, marksByTooth);
       return e('path', {
-        key: id, d, 'data-tooth': id, className: `dog-tooth-zone${selectedId === id ? ' is-selected' : ''}`,
+        key: `${id}-${index}`, d, 'data-tooth': id, className: `dog-tooth-zone${selectedId === id ? ' is-selected' : ''}`,
         fill: paint || 'transparent', fillOpacity: paint ? .72 : .001,
         stroke: selectedId === id ? 'var(--od-teal-d,#0f8f88)' : 'transparent', strokeWidth: selectedId === id ? 4 : 0,
       });
@@ -204,7 +229,7 @@
       svgText
         ? e('div', { className: 'sp-arch-figma-art', dangerouslySetInnerHTML: { __html: svgText } })
         : e('div', { className: 'sp-arch-loading' }, 'Carregando dentição canina…'),
-      e('svg', { className: 'sp-arch-hotspots', viewBox: '0 0 1812 1138', preserveAspectRatio: 'xMidYMid meet', 'aria-label': 'Dentição canina interativa' }, zones),
+      e('svg', { className: 'sp-arch-hotspots', style: { pointerEvents: 'none' }, viewBox: '0 0 1812 1138', preserveAspectRatio: 'xMidYMid meet', 'aria-label': 'Dentição canina interativa' }, zones),
     );
   }
 
@@ -221,6 +246,22 @@
     ['403', 520, 1752, 10, 15, 15], ['402', 544, 1757, 9, 16, 8], ['401', 568, 1759, 9, 16, 3],
     ['301', 592, 1759, 9, 16, -3], ['302', 616, 1757, 9, 16, -8], ['303', 640, 1752, 10, 15, -15], ['304', 688, 1700, 35, 72, -36],
     ['307', 746, 1503, 20, 32, 12], ['308', 774, 1422, 21, 39, 18], ['309', 817, 1316, 38, 73, 18],
+
+    // Vista lateral esquerda — as mesmas peças compartilham estado com a vista oclusal.
+    ['109', 1515, 1085, 34, 34, 5], ['108', 1605, 1082, 45, 42, 3], ['107', 1718, 1077, 42, 40, 2],
+    ['106', 1818, 1067, 38, 38, 0], ['104', 1950, 1080, 55, 105, -8],
+    ['409', 1608, 1262, 42, 45, -4], ['408', 1710, 1265, 42, 43, -2], ['407', 1810, 1260, 38, 40, 0], ['404', 1955, 1228, 50, 100, 10],
+
+    // Vista lateral direita.
+    ['204', 3070, 1080, 55, 105, 8], ['206', 3205, 1067, 38, 38, 0], ['207', 3310, 1077, 42, 40, -2],
+    ['208', 3425, 1082, 45, 42, -3], ['209', 3515, 1085, 34, 34, -5],
+    ['304', 3065, 1228, 50, 100, -10], ['307', 3210, 1260, 38, 40, 0], ['308', 3310, 1265, 42, 43, 2], ['309', 3415, 1262, 42, 45, 4],
+
+    // Vistas frontais superior e inferior.
+    ['104', 2318, 1285, 52, 105, -8], ['103', 2418, 1268, 28, 48, -3], ['102', 2460, 1272, 25, 43, -2], ['101', 2502, 1275, 24, 42, 0],
+    ['201', 2544, 1275, 24, 42, 0], ['202', 2586, 1272, 25, 43, 2], ['203', 2628, 1268, 28, 48, 3], ['204', 2728, 1285, 52, 105, 8],
+    ['404', 2260, 1515, 50, 105, 12], ['403', 2418, 1538, 28, 48, 4], ['402', 2460, 1545, 25, 43, 2], ['401', 2502, 1548, 24, 42, 0],
+    ['301', 2544, 1548, 24, 42, 0], ['302', 2586, 1545, 25, 43, -2], ['303', 2628, 1538, 28, 48, -4], ['304', 2785, 1515, 50, 105, -12],
   ];
 
   function FelineArch({ marksByTooth, fillsByTooth, selectedId, onToothClick }) {
@@ -236,15 +277,20 @@
     }, []);
     const click = (ev) => {
       const zone = ev.target.closest && ev.target.closest('[data-tooth]');
-      if (!zone || !hostRef.current || !hostRef.current.contains(zone)) return;
+      if (!hostRef.current) return;
+      if (!zone || !hostRef.current.contains(zone)) {
+        const nearest = nearestSpeciesTooth(hostRef.current, ev.clientX, ev.clientY);
+        if (nearest) onToothClick(nearest);
+        return;
+      }
       ev.stopPropagation();
       const tooth = window.SpeciesTeeth[zone.getAttribute('data-tooth')];
       if (tooth) onToothClick(tooth);
     };
-    const zones = CAT_TOOTH_ZONES.map(([id, cx, cy, rx, ry, rot]) => {
+    const zones = CAT_TOOTH_ZONES.map(([id, cx, cy, rx, ry, rot], index) => {
       const paint = speciesPaintFor(id, fillsByTooth, marksByTooth);
       return e('ellipse', {
-        key: id, cx, cy, rx, ry, transform: `rotate(${rot} ${cx} ${cy})`, 'data-tooth': id,
+        key: `${id}-${index}`, cx, cy, rx, ry, transform: `rotate(${rot} ${cx} ${cy})`, 'data-tooth': id,
         className: `cat-tooth-zone${selectedId === id ? ' is-selected' : ''}`,
         fill: paint || 'transparent', fillOpacity: paint ? .7 : .001,
         stroke: selectedId === id ? 'var(--od-teal-d,#0f8f88)' : 'transparent', strokeWidth: selectedId === id ? 9 : 0,
@@ -254,7 +300,7 @@
       svgText
         ? e('div', { className: 'sp-arch-figma-art', dangerouslySetInnerHTML: { __html: svgText } })
         : e('div', { className: 'sp-arch-loading' }, 'Carregando dentição felina…'),
-      e('svg', { className: 'sp-arch-hotspots', viewBox: '0 0 4096 2030', preserveAspectRatio: 'xMidYMid meet', 'aria-label': 'Dentição felina interativa' }, zones),
+      e('svg', { className: 'sp-arch-hotspots', style: { pointerEvents: 'none' }, viewBox: '0 0 4096 2030', preserveAspectRatio: 'xMidYMid meet', 'aria-label': 'Dentição felina interativa' }, zones),
     );
   }
 

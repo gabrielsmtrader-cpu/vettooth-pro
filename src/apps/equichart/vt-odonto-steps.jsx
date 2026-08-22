@@ -883,6 +883,24 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
         const g = el.closest && el.closest('[data-tooth]');
         if (g) { const r = g.getBoundingClientRect(); return { toothId: g.getAttribute('data-tooth'), cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; }
       }
+      // Os SVGs do Figma agrupam algumas vistas felinas em um único vetor.
+      // Quando a peça não possui um path isolado, usa o número Triadan mais
+      // próximo como âncora, mantendo o clique sobre o desenho do dente.
+      const host = document.querySelector('.sp-arch-figma');
+      if (host && window.SpeciesTeeth) {
+        let best = null;
+        host.querySelectorAll('.sp-arch-figma-art [id]').forEach((node) => {
+          const match = String(node.id || '').match(/^([1-4]\d\d)(?:_\d+)?$/);
+          if (!match || !window.SpeciesTeeth[match[1]]) return;
+          const r = node.getBoundingClientRect();
+          const dx = clientX < r.left ? r.left - clientX : clientX > r.right ? clientX - r.right : 0;
+          const dy = clientY < r.top ? r.top - clientY : clientY > r.bottom ? clientY - r.bottom : 0;
+          const distance = Math.hypot(dx, dy);
+          if (!best || distance < best.distance) best = { toothId: match[1], distance };
+        });
+        const limit = Math.max(38, Math.min(90, host.getBoundingClientRect().width * .075));
+        if (best && best.distance <= limit) return { toothId: best.toothId, cx: clientX, cy: clientY };
+      }
     } catch (e) {}
     return null;
   };
