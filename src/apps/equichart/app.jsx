@@ -117,7 +117,7 @@ function App() {
         chart: {
           marks: chart.marks || {}, status: chart.status || {}, notes: chart.notes || {},
           severity: chart.severity || {}, toothFills: chart.toothFills || {},
-          gmarks: chart.gmarks || [], examDate: chart.examDate || entryDate,
+          gmarks: chart.gmarks || [], drawing: chart.drawing || null, examDate: chart.examDate || entryDate,
         },
       }, location.origin);
     }

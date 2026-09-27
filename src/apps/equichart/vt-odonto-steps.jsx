@@ -778,8 +778,20 @@ const GX_GLYPH = {};
 const GX_COLORS = ['#111111', '#ef4444', '#2a6fdb', '#1f8a5b', '#e8852b'];
 const gxIsStamp = (t) => t && (t.startsWith('mk-') || t.startsWith('st-'));
 
-/* Ícones vetoriais próprios, baseados na linguagem visual da barra clínica do Pimbury. */
+// Arquivos fornecidos pelo usuário: o tratamento monocromático acontece apenas
+// na apresentação. Os originais permanecem intactos para rastreabilidade.
+const GX_REFERENCE_ICONS = {
+  'mk-atr': ['atr-etr', 44, 0, 0],
+  'mk-protub': ['protuberancia', 52, 0, 0],
+  'mk-incis': ['incisivos', 54, 0, 0],
+  'mk-hook': ['gancho', 52, 0, 0],
+  'st-diastema': ['diastema', 52, 0, 0],
+  'st-wolf': ['dente-lobo', 46, 0, 0],
+  'st-tartar': ['tartaro', 44, 0, 0],
+};
 function GxToolIcon({ id }) {
+  const reference = GX_REFERENCE_ICONS[id];
+  if (reference) return <span className="gx-reference-icon" aria-hidden="true"><img src={`assets/toolbar-reference/${reference[0]}.jpeg`} alt="" draggable="false" style={{ width: reference[1], transform: `translate(${reference[2]}px, ${reference[3]}px)` }} /></span>;
   const strokeProps = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
   let icon = null;
   switch (id) {
@@ -812,14 +824,14 @@ function GxToolIcon({ id }) {
 function gxLoadStore(name) {
   try { const d = (window.VtStore && window.VtStore.getData()) || {}; return ((d.odontoGraficos || {})[name]) || { current: null, list: [] }; } catch (e) { return { current: null, list: [] }; }
 }
-function gxSaveStore(name, url) {
+function gxSaveStore(name, url, data) {
   try {
     if (!window.VtStore || !name) return;
     const d = window.VtStore.getData() || {};
     const all = { ...(d.odontoGraficos || {}) };
     const prev = all[name] || { current: null, list: [] };
-    const entry = { date: new Date().toLocaleDateString('pt-BR'), url };
-    all[name] = { current: url, list: [entry, ...(prev.list || [])].slice(0, 12) };
+    const entry = { date: new Date().toLocaleDateString('pt-BR'), url, data };
+    all[name] = { current: url, currentData: data, list: [entry, ...(prev.list || [])].slice(0, 12) };
     window.VtStore.setData({ odontoGraficos: all });
   } catch (e) {}
 }
@@ -834,6 +846,7 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
   const actionsRef = React.useRef([]);
   const draftRef = React.useRef(null);
   const pendingRef = React.useRef(null);
+  const drawingRef = React.useRef(undefined);
   const [tool, setTool] = React.useState('select');
   const [color, setColor] = React.useState('#ef4444');
   const [size, setSize] = React.useState(3);
@@ -848,8 +861,30 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
     const c = canvasRef.current; if (!c) return;
     c.width = CW; c.height = CH;
     ctxRef.current = c.getContext('2d');
+    drawingRef.current = undefined;
     undoRef.current = []; setCanUndo(false);
   }, [CW, CH]);
+
+  // O canvas também faz parte do prontuário: não apenas da tela montada.
+  React.useEffect(() => {
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    if (drawingRef.current === chart.drawing) return;
+    drawingRef.current = chart.drawing;
+    let active = true;
+    if (!chart.drawing) ctx.clearRect(0, 0, CW, CH);
+    else {
+      const img = new Image();
+      img.onload = () => { if (active) { ctx.clearRect(0, 0, CW, CH); ctx.drawImage(img, 0, 0, CW, CH); } };
+      img.src = chart.drawing;
+    }
+    return () => { active = false; };
+  }, [CW, CH, chart.drawing]);
+  const persistDrawing = () => {
+    const drawing = canvasRef.current.toDataURL('image/png');
+    drawingRef.current = drawing;
+    setChart((c) => ({ ...c, drawing }));
+  };
 
   const getPos = (e) => {
     const c = canvasRef.current; const rect = c.getBoundingClientRect();
@@ -861,47 +896,42 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
   const pushDraw = () => { pushUndo(); actionsRef.current.push({ t: 'draw' }); };
   const doUndo = () => {
     const a = actionsRef.current.pop();
-    if (!a) { const s = undoRef.current.pop(); if (s) restore(s); setCanUndo(false); return; }
+    if (!a) { const s = undoRef.current.pop(); if (s) { restore(s); persistDrawing(); } setCanUndo(false); return; }
     if (a.t === 'mark') { removeMark(a.id); }
     else if (a.t === 'fill') { restoreToothFill(a.toothId, a.previous); }
+    else if (a.t === 'remove-mark') { setChart((c) => ({ ...c, gmarks: [...(c.gmarks || []), a.mark] })); }
     else if (a.t === 'clear') {
       const s = undoRef.current.pop(); if (s) restore(s);
       setChart((c) => ({ ...c, gmarks: a.gmarks, toothFills: a.toothFills }));
     }
     else { const s = undoRef.current.pop(); if (s) restore(s); }
+    persistDrawing();
     setCanUndo(actionsRef.current.length > 0);
   };
-  const drawDataURL = (url, undo) => { const img = new Image(); img.onload = () => { const ctx = ctxRef.current; if (undo) pushDraw(); ctx.clearRect(0, 0, CW, CH); ctx.drawImage(img, 0, 0, CW, CH); }; img.src = url; };
+  const drawDataURL = (url, undo) => { const img = new Image(); img.onload = () => { const ctx = ctxRef.current; if (undo) pushDraw(); ctx.clearRect(0, 0, CW, CH); ctx.drawImage(img, 0, 0, CW, CH); persistDrawing(); }; img.src = url; };
 
   /* ---- marcações por dente (camada SVG removível) ---- */
   const addMark = (m) => { actionsRef.current.push({ t: 'mark', id: m.id }); setCanUndo(true); setChart((c) => ({ ...c, gmarks: [...(c.gmarks || []), m] })); };
   const removeMark = (id) => { actionsRef.current = actionsRef.current.filter((a) => a.id !== id); setChart((c) => ({ ...c, gmarks: (c.gmarks || []).filter((m) => m.id !== id) })); };
+  const eraseMark = (mark) => {
+    actionsRef.current.push({ t: 'remove-mark', mark });
+    setChart((c) => ({ ...c, gmarks: (c.gmarks || []).filter((m) => m.id !== mark.id) }));
+    setCanUndo(true);
+  };
   const toothAtPoint = (clientX, clientY) => {
+    const canvas = canvasRef.current;
+    const previousEvents = canvas.style.pointerEvents;
     try {
+      // O canvas cobre a arte: retire-o SOMENTE do hit-test, sem alterar o desenho.
+      canvas.style.pointerEvents = 'none';
       const els = document.elementsFromPoint(clientX, clientY);
       for (const el of els) {
         const g = el.closest && el.closest('[data-tooth]');
-        if (g) { const r = g.getBoundingClientRect(); return { toothId: g.getAttribute('data-tooth'), cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; }
+        if (g && canvas.parentElement.contains(g)) { const r = el.getBoundingClientRect(); return { toothId: g.getAttribute('data-tooth'), cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; }
       }
-      // Os SVGs do Figma agrupam algumas vistas felinas em um único vetor.
-      // Quando a peça não possui um path isolado, usa o número Triadan mais
-      // próximo como âncora, mantendo o clique sobre o desenho do dente.
-      const host = document.querySelector('.sp-arch-figma');
-      if (host && window.SpeciesTeeth) {
-        let best = null;
-        host.querySelectorAll('.sp-arch-figma-art [id]').forEach((node) => {
-          const match = String(node.id || '').match(/^([1-4]\d\d)(?:_\d+)?$/);
-          if (!match || !window.SpeciesTeeth[match[1]]) return;
-          const r = node.getBoundingClientRect();
-          const dx = clientX < r.left ? r.left - clientX : clientX > r.right ? clientX - r.right : 0;
-          const dy = clientY < r.top ? r.top - clientY : clientY > r.bottom ? clientY - r.bottom : 0;
-          const distance = Math.hypot(dx, dy);
-          if (!best || distance < best.distance) best = { toothId: match[1], distance };
-        });
-        const limit = Math.max(38, Math.min(90, host.getBoundingClientRect().width * .075));
-        if (best && best.distance <= limit) return { toothId: best.toothId, cx: clientX, cy: clientY };
-      }
-    } catch (e) {}
+      // Nunca atribua um clique vazio ao número mais próximo: isso pode
+      // registrar uma alteração no dente errado.
+    } catch (e) {} finally { canvas.style.pointerEvents = previousEvents; }
     return null;
   };
   const restoreToothFill = (toothId, value) => setChart((c) => {
@@ -918,6 +948,10 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
     const numericId = Number(toothId);
     const tooth = (window.SpeciesTeeth && window.SpeciesTeeth[toothId]) || window.EquiData.makeTooth(Math.floor(numericId / 100), numericId % 100);
     onToothClick(tooth);
+  };
+  const activateTooth = (tooth) => {
+    if (tool === 'tooth-fill') paintTooth(String(tooth.triadan || tooth.id));
+    else onToothClick(tooth);
   };
 
   const stamp = (ctx, t, x, y) => {
@@ -941,6 +975,15 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
       const hit = toothAtPoint(e.clientX, e.clientY);
       if (hit) paintTooth(hit.toothId); else ogToast('Clique diretamente sobre um dente para pintá-lo.', 'err');
       return;
+    }
+    if (tool === 'eraser') {
+      const hit = toothAtPoint(e.clientX, e.clientY);
+      if (hit && (chart.toothFills || {})[hit.toothId]) {
+        actionsRef.current.push({ t: 'fill', toothId: hit.toothId, previous: chart.toothFills[hit.toothId] });
+        setCanUndo(true);
+        restoreToothFill(hit.toothId, null);
+        return;
+      }
     }
     if (gxIsStamp(tool)) {
       const hit = toothAtPoint(e.clientX, e.clientY);
@@ -968,7 +1011,7 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
     }
     if (tool === 'line' || tool === 'arrow') {
       if (!pendingRef.current) { pendingRef.current = { sx: x, sy: y, snap: snapshot() }; }
-      else { const p = pendingRef.current; restore(p.snap); pushDraw(); drawLine(ctx, p.sx, p.sy, x, y, tool === 'arrow'); pendingRef.current = null; }
+      else { const p = pendingRef.current; restore(p.snap); pushDraw(); drawLine(ctx, p.sx, p.sy, x, y, tool === 'arrow'); pendingRef.current = null; persistDrawing(); }
     }
   };
   const onMove = (e) => {
@@ -977,17 +1020,27 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
     if (d && d.mode === 'shape') { const { x, y } = getPos(e); restore(d.snap); const r = Math.hypot(x - d.sx, y - d.sy); ctx.beginPath(); ctx.arc(d.sx, d.sy, r, 0, Math.PI * 2); if (tool === 'fcircle') ctx.fill(); else ctx.stroke(); return; }
     if (pendingRef.current) { const { x, y } = getPos(e); const p = pendingRef.current; restore(p.snap); drawLine(ctx, p.sx, p.sy, x, y, tool === 'arrow'); }
   };
-  const onUp = () => { const ctx = ctxRef.current; if (ctx) ctx.globalCompositeOperation = 'source-over'; draftRef.current = null; };
+  const onUp = () => { const ctx = ctxRef.current; if (ctx) ctx.globalCompositeOperation = 'source-over'; if (draftRef.current) persistDrawing(); draftRef.current = null; };
+  React.useEffect(() => {
+    if (pendingRef.current) { restore(pendingRef.current.snap); pendingRef.current = null; }
+  }, [tool]);
 
-  const clearAll = () => { if (window.confirm('Limpar todo o gráfico? Esta ação pode ser desfeita com Desfazer.')) { pushUndo(); actionsRef.current.push({ t: 'clear', gmarks: [...(chart.gmarks || [])], toothFills: { ...(chart.toothFills || {}) } }); ctxRef.current.clearRect(0, 0, CW, CH); setChart((c) => ({ ...c, gmarks: [], toothFills: {} })); setCanUndo(true); ogToast('Gráfico limpo.'); } };
+  const clearAll = () => { if (window.confirm('Limpar todo o gráfico? Esta ação pode ser desfeita com Desfazer.')) { pushUndo(); actionsRef.current.push({ t: 'clear', gmarks: [...(chart.gmarks || [])], toothFills: { ...(chart.toothFills || {}) } }); ctxRef.current.clearRect(0, 0, CW, CH); setChart((c) => ({ ...c, gmarks: [], toothFills: {}, drawing: null })); setCanUndo(true); ogToast('Gráfico limpo.'); } };
   const saveChart = () => {
     const base = canvasRef.current;
     const off = document.createElement('canvas'); off.width = CW; off.height = CH;
     const o = off.getContext('2d'); o.drawImage(base, 0, 0);
     (chart.gmarks || []).forEach((m) => { o.save(); o.fillStyle = m.color; o.textAlign = 'center'; o.textBaseline = 'middle'; o.font = `${m.fs || 22}px 'Hanken Grotesk', sans-serif`; o.fillText(m.glyph, m.x, m.y); o.restore(); });
-    const url = off.toDataURL('image/png'); gxSaveStore(name, url); setShowAttach(true); ogToast('Gráfico salvo no histórico do paciente.');
+    const url = off.toDataURL('image/png'); gxSaveStore(name, url, { drawing: base.toDataURL('image/png'), toothFills: { ...(chart.toothFills || {}) }, gmarks: [...(chart.gmarks || [])] }); setShowAttach(true); ogToast('Gráfico salvo no histórico do paciente.');
   };
-  const loadPrevious = () => { const s = gxLoadStore(name); if (s.current) { drawDataURL(s.current, true); ogToast('Gráfico anterior carregado.'); } else ogToast('Nenhum gráfico salvo para este paciente.', 'err'); };
+  const loadEntry = (entry) => {
+    if (!entry.data) { drawDataURL(entry.url, true); return; }
+    pushUndo();
+    actionsRef.current.push({ t: 'clear', gmarks: [...(chart.gmarks || [])], toothFills: { ...(chart.toothFills || {}) } });
+    setCanUndo(true);
+    setChart((c) => ({ ...c, drawing: entry.data.drawing || null, toothFills: { ...(entry.data.toothFills || {}) }, gmarks: [...(entry.data.gmarks || [])] }));
+  };
+  const loadPrevious = () => { const s = gxLoadStore(name); if (s.current) { loadEntry({ url: s.current, data: s.currentData }); ogToast('Gráfico anterior carregado.'); } else ogToast('Nenhum gráfico salvo para este paciente.', 'err'); };
 
   /* anexos */
   const fileRef = React.useRef(null);
@@ -1025,13 +1078,13 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
         <div className="gx-chart">
           <div className="gx-stage" style={{ aspectRatio: `${CW} / ${CH}` }}>
             {useSpeciesArch
-              ? <window.SpeciesArch species={species} marksByTooth={(layers && layers.achados) ? chart.marks : {}} fillsByTooth={chart.toothFills || {}} selectedId={selectedId} onToothClick={onToothClick} />
-              : (BaseSvgChart ? <BaseSvgChart marksByTooth={(layers && layers.achados) ? chart.marks : {}} fillsByTooth={chart.toothFills || {}} selectedId={selectedId} onToothClick={onToothClick} /> : null)}
-            <canvas ref={canvasRef} className="gx-canvas" style={{ pointerEvents: tool === 'select' ? 'none' : 'auto', cursor: tool === 'select' ? 'default' : 'crosshair' }}
+              ? <window.SpeciesArch species={species} marksByTooth={(layers && layers.achados) ? chart.marks : {}} fillsByTooth={chart.toothFills || {}} selectedId={selectedId} onToothClick={activateTooth} />
+              : (BaseSvgChart ? <BaseSvgChart marksByTooth={(layers && layers.achados) ? chart.marks : {}} fillsByTooth={chart.toothFills || {}} selectedId={selectedId} onToothClick={activateTooth} /> : null)}
+            <canvas ref={canvasRef} className="gx-canvas" style={{ pointerEvents: tool === 'select' || tool === 'tooth-fill' ? 'none' : 'auto', cursor: tool === 'select' ? 'default' : 'crosshair', touchAction: 'none' }}
               onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp} />
             <svg className="gx-marks" viewBox={`0 0 ${CW} ${CH}`} preserveAspectRatio="xMidYMid meet" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
               {(chart.gmarks || []).map((m) => (
-                <g key={m.id} className="gx-mark" style={{ pointerEvents: tool === 'select' ? 'auto' : 'none', cursor: 'pointer' }} onClick={() => removeMark(m.id)}>
+                <g key={m.id} className="gx-mark" style={{ pointerEvents: tool === 'select' ? 'auto' : 'none', cursor: 'pointer' }} onClick={() => eraseMark(m)}>
                   <title>{tool === 'select' ? 'Clique para remover' : (m.toothId ? 'Dente ' + m.toothId : 'Marcação')}</title>
                   <text x={m.x} y={m.y} textAnchor="middle" dominantBaseline="central" fontSize={m.fs || 22} fontWeight="800" fill={m.color} stroke="#fff" strokeWidth="0.7" style={{ paintOrder: 'stroke' }}>{m.glyph}</text>
                 </g>
@@ -1059,13 +1112,13 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
         {/* toolbar — 3 módulos escuros */}
         <div className="gx-toolbar">
           <div className="gx-mod">
-            {GX_TOOLS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} onClick={() => setTool(t.id)}><GxToolIcon id={t.id} /></button>)}
+            {GX_TOOLS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}><GxToolIcon id={t.id} /></button>)}
           </div>
           <div className="gx-mod">
-            {GX_MARKERS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} onClick={() => setTool(t.id)}><GxToolIcon id={t.id} /></button>)}
+            {GX_MARKERS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}><GxToolIcon id={t.id} /></button>)}
           </div>
           <div className="gx-mod">
-            {GX_STATUS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} onClick={() => setTool(t.id)}><GxToolIcon id={t.id} /></button>)}
+            {GX_STATUS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}><GxToolIcon id={t.id} /></button>)}
           </div>
         </div>
 
@@ -1131,7 +1184,7 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
               ? <p className="og-modal-sub">Nenhum gráfico salvo ainda. Use <b>Adicionar/Salvar</b> para arquivar o gráfico atual.</p>
               : <div className="gx-prev-list">
                   {store.list.map((it, i) => (
-                    <button key={i} className="gx-prev-item" onClick={() => { drawDataURL(it.url, true); setPrevOpen(false); ogToast('Gráfico de ' + it.date + ' carregado.'); }}>
+                    <button key={i} className="gx-prev-item" onClick={() => { loadEntry(it); setPrevOpen(false); ogToast('Gráfico de ' + it.date + ' carregado.'); }}>
                       <img src={it.url} alt={'Gráfico ' + it.date} />
                       <span>{it.date}</span>
                     </button>

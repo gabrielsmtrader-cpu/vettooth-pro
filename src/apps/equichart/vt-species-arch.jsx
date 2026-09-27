@@ -188,6 +188,9 @@
         const node = host.querySelector(`[id="${figmaId}"]`);
         if (!node) return;
         node.setAttribute('data-tooth', toothId);
+        node.setAttribute('role', 'button');
+        node.setAttribute('tabindex', '0');
+        node.setAttribute('aria-label', `Dente ${toothId}`);
         node.classList.add('dog-tooth-vector');
         const paintableParts = [
           ...(node.hasAttribute('fill') ? [node] : []),
@@ -209,8 +212,6 @@
       const zone = ev.target.closest && ev.target.closest('[data-tooth]');
       if (!hostRef.current) return;
       if (!zone || !hostRef.current.contains(zone)) {
-        const nearest = nearestSpeciesTooth(hostRef.current, ev.clientX, ev.clientY);
-        if (nearest) onToothClick(nearest);
         return;
       }
       ev.stopPropagation();
@@ -220,12 +221,12 @@
     const zones = DOG_FRONT_ZONES.map(([id, d], index) => {
       const paint = speciesPaintFor(id, fillsByTooth, marksByTooth);
       return e('path', {
-        key: `${id}-${index}`, d, 'data-tooth': id, className: `dog-tooth-zone${selectedId === id ? ' is-selected' : ''}`,
+        key: `${id}-${index}`, d, 'data-tooth': id, role: 'button', tabIndex: 0, 'aria-label': `Dente ${id}`, pointerEvents: 'all', className: `dog-tooth-zone${selectedId === id ? ' is-selected' : ''}`,
         fill: paint || 'transparent', fillOpacity: paint ? .72 : .001,
         stroke: selectedId === id ? 'var(--od-teal-d,#0f8f88)' : 'transparent', strokeWidth: selectedId === id ? 4 : 0,
       });
     });
-    return e('div', { ref: hostRef, className: 'sp-arch-figma', onClick: click },
+    return e('div', { ref: hostRef, className: 'sp-arch-figma', onClick: click, onKeyDown: (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); click(ev); } } },
       svgText
         ? e('div', { className: 'sp-arch-figma-art', dangerouslySetInnerHTML: { __html: svgText } })
         : e('div', { className: 'sp-arch-loading' }, 'Carregando dentição canina…'),
@@ -279,8 +280,6 @@
       const zone = ev.target.closest && ev.target.closest('[data-tooth]');
       if (!hostRef.current) return;
       if (!zone || !hostRef.current.contains(zone)) {
-        const nearest = nearestSpeciesTooth(hostRef.current, ev.clientX, ev.clientY);
-        if (nearest) onToothClick(nearest);
         return;
       }
       ev.stopPropagation();
@@ -290,13 +289,13 @@
     const zones = CAT_TOOTH_ZONES.map(([id, cx, cy, rx, ry, rot], index) => {
       const paint = speciesPaintFor(id, fillsByTooth, marksByTooth);
       return e('ellipse', {
-        key: `${id}-${index}`, cx, cy, rx, ry, transform: `rotate(${rot} ${cx} ${cy})`, 'data-tooth': id,
+        key: `${id}-${index}`, cx, cy, rx, ry, transform: `rotate(${rot} ${cx} ${cy})`, 'data-tooth': id, role: 'button', tabIndex: 0, 'aria-label': `Dente ${id}`, pointerEvents: 'all',
         className: `cat-tooth-zone${selectedId === id ? ' is-selected' : ''}`,
         fill: paint || 'transparent', fillOpacity: paint ? .7 : .001,
         stroke: selectedId === id ? 'var(--od-teal-d,#0f8f88)' : 'transparent', strokeWidth: selectedId === id ? 9 : 0,
       });
     });
-    return e('div', { ref: hostRef, className: 'sp-arch-figma sp-arch-feline', onClick: click },
+    return e('div', { ref: hostRef, className: 'sp-arch-figma sp-arch-feline', onClick: click, onKeyDown: (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); click(ev); } } },
       svgText
         ? e('div', { className: 'sp-arch-figma-art', dangerouslySetInnerHTML: { __html: svgText } })
         : e('div', { className: 'sp-arch-loading' }, 'Carregando dentição felina…'),
