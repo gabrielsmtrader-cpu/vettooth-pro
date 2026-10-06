@@ -777,6 +777,17 @@ const GX_GLYPH = {};
 [...GX_MARKERS, ...GX_STATUS].forEach((s) => { GX_GLYPH[s.id] = s.g; });
 const GX_COLORS = ['#111111', '#ef4444', '#2a6fdb', '#1f8a5b', '#e8852b'];
 const gxIsStamp = (t) => t && (t.startsWith('mk-') || t.startsWith('st-'));
+const GX_CLINICAL = { 'mk-atr':'atr', 'mk-sharp':'sharp', 'mk-ramp':'ramp', 'mk-hook':'hook', 'mk-wave':'wave', 'mk-frac':'fracture' };
+function gxClinicalEdit(previous, tool, color) {
+  const next = { ...previous, color };
+  if (tool === 'mk-protub') {
+    // Normal -> ausente -> protuberância -> normal. All views share this state.
+    if (previous.missing) { next.missing = false; next.growth = true; }
+    else if (previous.growth) { next.missing = false; next.growth = false; }
+    else { next.missing = true; next.growth = false; }
+  } else if (GX_CLINICAL[tool]) next[GX_CLINICAL[tool]] = !previous[GX_CLINICAL[tool]];
+  return next;
+}
 
 // Arquivos fornecidos pelo usuário: o tratamento monocromático acontece apenas
 // na apresentação. Os originais permanecem intactos para rastreabilidade.
@@ -789,9 +800,30 @@ const GX_REFERENCE_ICONS = {
   'st-wolf': ['dente-lobo', 46, 0, 0],
   'st-tartar': ['tartaro', 44, 0, 0],
 };
+const gxIconData = {};
 function GxToolIcon({ id }) {
   const reference = GX_REFERENCE_ICONS[id];
-  if (reference) return <span className="gx-reference-icon" aria-hidden="true"><img src={`assets/toolbar-reference/${reference[0]}.jpeg`} alt="" draggable="false" style={{ width: reference[1], transform: `translate(${reference[2]}px, ${reference[3]}px)` }} /></span>;
+  const uid = React.useId().replace(/:/g, '');
+  const [imageData, setImageData] = React.useState(null);
+  React.useEffect(() => {
+    let active = true;
+    if (!reference) return;
+    const name = reference[0];
+    if (!gxIconData[name]) gxIconData[name] = fetch(`assets/toolbar-reference/${name}.jpeg`).then(r => { if (!r.ok) throw Error('Ícone'); return r.blob(); }).then(blob => new Promise((resolve,reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(blob); }));
+    gxIconData[name].then(data => { if (active) setImageData(data); }).catch(() => {});
+    return () => { active = false; };
+  }, [id]);
+  if (reference && imageData) return <svg className="gx-tool-icon" width="27" height="27" viewBox="0 0 24 24" aria-hidden="true">
+    <defs>
+      <filter id={`threshold-${uid}`} colorInterpolationFilters="sRGB"><feComponentTransfer>
+        {['R','G','B'].map(channel => React.createElement(`feFunc${channel}`, { key:channel, type:'discrete', tableValues:'0 0 0 0 0 0 0 0 1' }))}
+      </feComponentTransfer></filter>
+      <mask id={`symbol-${uid}`} maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24" style={{ maskType:'luminance' }}>
+        <image href={imageData} x={(24-reference[1])/2} y={(24-reference[1])/2} width={reference[1]} height={reference[1]} preserveAspectRatio="xMidYMid meet" filter={`url(#threshold-${uid})`} />
+      </mask>
+    </defs>
+    <rect width="24" height="24" fill="currentColor" mask={`url(#symbol-${uid})`} />
+  </svg>;
   const strokeProps = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
   let icon = null;
   switch (id) {
@@ -813,9 +845,9 @@ function GxToolIcon({ id }) {
     case 'mk-frac': icon = <path d="m14 3-9 11h6l-1 7 9-11h-6Z" fill="currentColor" stroke="none" />; break;
     case 'st-diastema': icon = <><path d="M8 4v16M14 4v16M5 7h3M5 12h3M14 7h4M14 12h4" /><path d="M11 4v16" strokeDasharray="1.5 2.5" /></>; break;
     case 'st-wolf': icon = <><circle cx="12" cy="12" r="8" /><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" stroke="none" /></>; break;
-    case 'st-caps': icon = <><circle cx="12" cy="12" r="8" fill="currentColor" stroke="none" /><text x="12" y="15.3" textAnchor="middle" fontSize="10" fontWeight="900" fill="#1a2e44" stroke="none">C</text></>; break;
-    case 'st-ulcer': icon = <><circle cx="12" cy="12" r="8" fill="currentColor" stroke="none" /><text x="12" y="15.3" textAnchor="middle" fontSize="10" fontWeight="900" fill="#1a2e44" stroke="none">U</text></>; break;
-    case 'st-tartar': icon = <><path d="M4 14c1.5-5 14.5-5 16 0l-2 5H6Z" fill="currentColor" stroke="none" /><text x="12" y="17" textAnchor="middle" fontSize="9" fontWeight="900" fill="#1a2e44" stroke="none">T</text></>; break;
+    case 'st-caps': icon = <><circle cx="12" cy="12" r="8" fill="currentColor" stroke="none" /><text x="12" y="15.3" textAnchor="middle" fontSize="10" fontWeight="900" fill="var(--gx-icon-cutout,#101112)" stroke="none">C</text></>; break;
+    case 'st-ulcer': icon = <><circle cx="12" cy="12" r="8" fill="currentColor" stroke="none" /><text x="12" y="15.3" textAnchor="middle" fontSize="10" fontWeight="900" fill="var(--gx-icon-cutout,#101112)" stroke="none">U</text></>; break;
+    case 'st-tartar': icon = <><path d="M4 14c1.5-5 14.5-5 16 0l-2 5H6Z" fill="currentColor" stroke="none" /><text x="12" y="17" textAnchor="middle" fontSize="9" fontWeight="900" fill="var(--gx-icon-cutout,#101112)" stroke="none">T</text></>; break;
     default: icon = <circle cx="12" cy="12" r="7" />;
   }
   return <svg className="gx-tool-icon" width="27" height="27" viewBox="0 0 24 24" aria-hidden="true" {...strokeProps}>{icon}</svg>;
@@ -826,14 +858,16 @@ function gxLoadStore(name) {
 }
 function gxSaveStore(name, url, data) {
   try {
-    if (!window.VtStore || !name) return;
-    const d = window.VtStore.getData() || {};
+    if (!window.VtStore || !name) return false;
+    const d = window.VtStore.getData();
+    if (!d) return false;
     const all = { ...(d.odontoGraficos || {}) };
     const prev = all[name] || { current: null, list: [] };
     const entry = { date: new Date().toLocaleDateString('pt-BR'), url, data };
     all[name] = { current: url, currentData: data, list: [entry, ...(prev.list || [])].slice(0, 12) };
     window.VtStore.setData({ odontoGraficos: all });
-  } catch (e) {}
+    return (((window.VtStore.getData() || {}).odontoGraficos || {})[name] || {}).current === url;
+  } catch (e) { return false; }
 }
 
 function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, BaseSvgChart, selectedId, onToothClick, selectedTooth, setStatus, toggleFinding, setNote, setSeverity, onClosePanel, layers, setLayers, go }) {
@@ -853,7 +887,9 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
   const [canUndo, setCanUndo] = React.useState(false);
   const [showIncisor, setShowIncisor] = React.useState(false);
   const [showAttach, setShowAttach] = React.useState(false);
+  const [lastCapture, setLastCapture] = React.useState(null);
   const [prevOpen, setPrevOpen] = React.useState(false);
+  const [activeView, setActiveView] = React.useState(null);
   const name = chart.patientName || '';
   const dateBR = (chart.examDate || '').split('-').reverse().join('/') || new Date().toLocaleDateString('pt-BR');
 
@@ -900,9 +936,11 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
     if (a.t === 'mark') { removeMark(a.id); }
     else if (a.t === 'fill') { restoreToothFill(a.toothId, a.previous); }
     else if (a.t === 'remove-mark') { setChart((c) => ({ ...c, gmarks: [...(c.gmarks || []), a.mark] })); }
+    else if (a.t === 'clinical') setChart(c => ({ ...c, clinicalByTooth:{ ...(c.clinicalByTooth || {}), [a.toothId]:a.previous } }));
+    else if (a.t === 'position') setChart(c => ({ ...c, viewEdits:{ ...(c.viewEdits || {}), [a.viewKey]:a.previous } }));
     else if (a.t === 'clear') {
       const s = undoRef.current.pop(); if (s) restore(s);
-      setChart((c) => ({ ...c, gmarks: a.gmarks, toothFills: a.toothFills }));
+      setChart((c) => ({ ...c, gmarks: a.gmarks, toothFills: a.toothFills, clinicalByTooth:a.clinicalByTooth || {}, viewEdits:a.viewEdits || {} }));
     }
     else { const s = undoRef.current.pop(); if (s) restore(s); }
     persistDrawing();
@@ -927,7 +965,7 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
       const els = document.elementsFromPoint(clientX, clientY);
       for (const el of els) {
         const g = el.closest && el.closest('[data-tooth]');
-        if (g && canvas.parentElement.contains(g)) { const r = el.getBoundingClientRect(); return { toothId: g.getAttribute('data-tooth'), cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; }
+        if (g && canvas.parentElement.contains(g)) { const r = el.getBoundingClientRect(); return { toothId: g.getAttribute('data-tooth'), viewKey:g.getAttribute('data-view'), cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; }
       }
       // Nunca atribua um clique vazio ao número mais próximo: isso pode
       // registrar uma alteração no dente errado.
@@ -949,9 +987,32 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
     const tooth = (window.SpeciesTeeth && window.SpeciesTeeth[toothId]) || window.EquiData.makeTooth(Math.floor(numericId / 100), numericId % 100);
     onToothClick(tooth);
   };
-  const activateTooth = (tooth) => {
+  const applyClinical = (toothId) => {
+    const previous = { ...((chart.clinicalByTooth || {})[toothId] || {}) };
+    actionsRef.current.push({ t:'clinical', toothId, previous }); setCanUndo(true);
+    setChart(c => ({ ...c, clinicalByTooth:{ ...(c.clinicalByTooth || {}), [toothId]:gxClinicalEdit(previous, tool, color) } }));
+    const id = Number(toothId);
+    onToothClick((window.SpeciesTeeth && window.SpeciesTeeth[toothId]) || window.EquiData.makeTooth(Math.floor(id / 100), id % 100));
+  };
+  const configureFracture = patch => {
+    if (!selectedId) return;
+    const previous = { ...((chart.clinicalByTooth || {})[selectedId] || {}) };
+    actionsRef.current.push({ t:'clinical', toothId:selectedId, previous }); setCanUndo(true);
+    setChart(c => ({ ...c, clinicalByTooth:{ ...(c.clinicalByTooth || {}), [selectedId]:{ ...previous, fracture:true, ...patch } } }));
+  };
+  const activateTooth = (tooth, viewKey) => {
+    if (viewKey) setActiveView(viewKey);
     if (tool === 'tooth-fill') paintTooth(String(tooth.triadan || tooth.id));
+    else if (GX_CLINICAL[tool] || tool === 'mk-protub') applyClinical(String(tooth.triadan || tooth.id));
+    else if (tool === 'mk-move') { setActiveView(viewKey); onToothClick(tooth); }
     else onToothClick(tooth);
+  };
+  const adjustIncisor = (axis, delta) => {
+    if (!activeView || !/^equine-1-/.test(activeView) || !/^[1-4]0[1-3]$/.test(String(selectedId))) return;
+    const previous = { ...((chart.viewEdits || {})[activeView] || {}) };
+    actionsRef.current.push({ t:'position', viewKey:activeView, previous }); setCanUndo(true);
+    const next = axis === 'reset' ? {} : { ...previous, [axis]:(previous[axis] || 0)+delta };
+    setChart(c => ({ ...c, viewEdits:{ ...(c.viewEdits || {}), [activeView]:next } }));
   };
 
   const stamp = (ctx, t, x, y) => {
@@ -971,9 +1032,26 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
     e.preventDefault();
     const { x, y } = getPos(e); const ctx = ctxRef.current;
     ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = size; ctx.globalCompositeOperation = 'source-over';
+    if (tool === 'mk-incis') { setShowIncisor(true); return; }
+    if (tool === 'mk-move' || GX_CLINICAL[tool] || tool === 'mk-protub') {
+      const hit = toothAtPoint(e.clientX, e.clientY);
+      if (!hit) { ogToast('Clique diretamente no contorno do dente.', 'err'); return; }
+      setActiveView(hit.viewKey || null);
+      if (tool === 'mk-move') {
+        if (!hit.viewKey) return;
+        const previous = { ...((chart.viewEdits || {})[hit.viewKey] || {}) };
+        setActiveView(hit.viewKey);
+        actionsRef.current.push({ t:'position', viewKey:hit.viewKey, previous }); setCanUndo(true);
+        draftRef.current = { mode:'move-tooth', viewKey:hit.viewKey, previous, sx:x, sy:y };
+        try { canvasRef.current.setPointerCapture(e.pointerId); } catch (_) {}
+      } else {
+        applyClinical(hit.toothId);
+      }
+      return;
+    }
     if (tool === 'tooth-fill') {
       const hit = toothAtPoint(e.clientX, e.clientY);
-      if (hit) paintTooth(hit.toothId); else ogToast('Clique diretamente sobre um dente para pintá-lo.', 'err');
+      if (hit) { setActiveView(hit.viewKey || null); paintTooth(hit.toothId); } else ogToast('Clique diretamente sobre um dente para pintá-lo.', 'err');
       return;
     }
     if (tool === 'eraser') {
@@ -991,7 +1069,7 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
       let mx, my, toothId = null;
       if (hit) { toothId = hit.toothId; mx = (hit.cx - cr.left) * (CW / cr.width); my = (hit.cy - cr.top) * (CH / cr.height); }
       else { const p = getPos(e); mx = p.x; my = p.y; }
-      addMark({ id: 'GM' + Date.now() + Math.random().toString(36).slice(2, 5), toothId, x: mx, y: my, glyph: GX_GLYPH[tool] || '?', color, fs: 18 + size * 2, kind: tool.slice(0, 2) === 'st' ? 'status' : 'marker' });
+      addMark({ id: 'GM' + Date.now() + Math.random().toString(36).slice(2, 5), toothId, x: mx, y: my, toolId:tool, glyph: GX_GLYPH[tool] || '?', color, fs: 18 + size * 2, kind: tool.slice(0, 2) === 'st' ? 'status' : 'marker' });
       return;
     }
     if (tool === 'pencil' || tool === 'eraser') {
@@ -1016,29 +1094,39 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
   };
   const onMove = (e) => {
     const ctx = ctxRef.current; if (!ctx) return; const d = draftRef.current;
+    if (d && d.mode === 'move-tooth') {
+      const p = getPos(e);
+      setChart(c => ({ ...c, viewEdits:{ ...(c.viewEdits || {}), [d.viewKey]:{ ...d.previous, x:(d.previous.x || 0)+p.x-d.sx, y:(d.previous.y || 0)+p.y-d.sy } } }));
+      return;
+    }
     if (d && d.mode === 'free') { const { x, y } = getPos(e); ctx.lineTo(x, y); ctx.stroke(); return; }
     if (d && d.mode === 'shape') { const { x, y } = getPos(e); restore(d.snap); const r = Math.hypot(x - d.sx, y - d.sy); ctx.beginPath(); ctx.arc(d.sx, d.sy, r, 0, Math.PI * 2); if (tool === 'fcircle') ctx.fill(); else ctx.stroke(); return; }
     if (pendingRef.current) { const { x, y } = getPos(e); const p = pendingRef.current; restore(p.snap); drawLine(ctx, p.sx, p.sy, x, y, tool === 'arrow'); }
   };
-  const onUp = () => { const ctx = ctxRef.current; if (ctx) ctx.globalCompositeOperation = 'source-over'; if (draftRef.current) persistDrawing(); draftRef.current = null; };
+  const onUp = () => { const ctx = ctxRef.current; if (ctx) ctx.globalCompositeOperation = 'source-over'; if (draftRef.current && draftRef.current.mode !== 'move-tooth') persistDrawing(); draftRef.current = null; };
   React.useEffect(() => {
     if (pendingRef.current) { restore(pendingRef.current.snap); pendingRef.current = null; }
   }, [tool]);
 
-  const clearAll = () => { if (window.confirm('Limpar todo o gráfico? Esta ação pode ser desfeita com Desfazer.')) { pushUndo(); actionsRef.current.push({ t: 'clear', gmarks: [...(chart.gmarks || [])], toothFills: { ...(chart.toothFills || {}) } }); ctxRef.current.clearRect(0, 0, CW, CH); setChart((c) => ({ ...c, gmarks: [], toothFills: {}, drawing: null })); setCanUndo(true); ogToast('Gráfico limpo.'); } };
-  const saveChart = () => {
+  const clearAll = () => { if (window.confirm('Limpar todo o gráfico? Esta ação pode ser desfeita com Desfazer.')) { pushUndo(); actionsRef.current.push({ t: 'clear', gmarks: [...(chart.gmarks || [])], toothFills: { ...(chart.toothFills || {}) }, clinicalByTooth:{ ...(chart.clinicalByTooth || {}) }, viewEdits:{ ...(chart.viewEdits || {}) } }); ctxRef.current.clearRect(0, 0, CW, CH); setChart((c) => ({ ...c, gmarks: [], toothFills: {}, drawing: null, clinicalByTooth:{}, viewEdits:{} })); setCanUndo(true); ogToast('Gráfico limpo.'); } };
+  const saveChart = async () => {
     const base = canvasRef.current;
-    const off = document.createElement('canvas'); off.width = CW; off.height = CH;
-    const o = off.getContext('2d'); o.drawImage(base, 0, 0);
-    (chart.gmarks || []).forEach((m) => { o.save(); o.fillStyle = m.color; o.textAlign = 'center'; o.textBaseline = 'middle'; o.font = `${m.fs || 22}px 'Hanken Grotesk', sans-serif`; o.fillText(m.glyph, m.x, m.y); o.restore(); });
-    const url = off.toDataURL('image/png'); gxSaveStore(name, url, { drawing: base.toDataURL('image/png'), toothFills: { ...(chart.toothFills || {}) }, gmarks: [...(chart.gmarks || [])] }); setShowAttach(true); ogToast('Gráfico salvo no histórico do paciente.');
+    try {
+      const url = window.vtEquiChartCapture && await window.vtEquiChartCapture();
+      if (!url) throw Error('Captura indisponível');
+      const saved = gxSaveStore(name, url, { drawing: base.toDataURL('image/png'), toothFills: { ...(chart.toothFills || {}) }, gmarks: [...(chart.gmarks || [])], clinicalByTooth:{ ...(chart.clinicalByTooth || {}) }, viewEdits:{ ...(chart.viewEdits || {}) } });
+      setLastCapture(url); setShowAttach(true);
+      ogToast(saved ? 'Gráfico salvo no histórico do paciente.' : 'Prévia gerada. Entre na sua conta para salvar no histórico.', saved ? undefined : 'err');
+    } catch (error) {
+      ogToast('Não foi possível gerar a imagem do odontograma. Suas edições continuam na tela; tente novamente.', 'err');
+    }
   };
   const loadEntry = (entry) => {
     if (!entry.data) { drawDataURL(entry.url, true); return; }
     pushUndo();
-    actionsRef.current.push({ t: 'clear', gmarks: [...(chart.gmarks || [])], toothFills: { ...(chart.toothFills || {}) } });
+    actionsRef.current.push({ t: 'clear', gmarks: [...(chart.gmarks || [])], toothFills: { ...(chart.toothFills || {}) }, clinicalByTooth:{ ...(chart.clinicalByTooth || {}) }, viewEdits:{ ...(chart.viewEdits || {}) } });
     setCanUndo(true);
-    setChart((c) => ({ ...c, drawing: entry.data.drawing || null, toothFills: { ...(entry.data.toothFills || {}) }, gmarks: [...(entry.data.gmarks || [])] }));
+    setChart((c) => ({ ...c, drawing: entry.data.drawing || null, toothFills: { ...(entry.data.toothFills || {}) }, gmarks: [...(entry.data.gmarks || [])], clinicalByTooth:{ ...(entry.data.clinicalByTooth || {}) }, viewEdits:{ ...(entry.data.viewEdits || {}) } }));
   };
   const loadPrevious = () => { const s = gxLoadStore(name); if (s.current) { loadEntry({ url: s.current, data: s.currentData }); ogToast('Gráfico anterior carregado.'); } else ogToast('Nenhum gráfico salvo para este paciente.', 'err'); };
 
@@ -1078,15 +1166,16 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
         <div className="gx-chart">
           <div className="gx-stage" style={{ aspectRatio: `${CW} / ${CH}` }}>
             {useSpeciesArch
-              ? <window.SpeciesArch species={species} marksByTooth={(layers && layers.achados) ? chart.marks : {}} fillsByTooth={chart.toothFills || {}} selectedId={selectedId} onToothClick={activateTooth} />
-              : (BaseSvgChart ? <BaseSvgChart marksByTooth={(layers && layers.achados) ? chart.marks : {}} fillsByTooth={chart.toothFills || {}} selectedId={selectedId} onToothClick={activateTooth} /> : null)}
+              ? <window.SpeciesArch species={species} marksByTooth={(layers && layers.achados) ? chart.marks : {}} fillsByTooth={chart.toothFills || {}} clinicalByTooth={chart.clinicalByTooth || {}} viewEdits={chart.viewEdits || {}} selectedId={selectedId} onToothClick={activateTooth} />
+              : (BaseSvgChart ? <BaseSvgChart marksByTooth={(layers && layers.achados) ? chart.marks : {}} fillsByTooth={chart.toothFills || {}} clinicalByTooth={chart.clinicalByTooth || {}} viewEdits={chart.viewEdits || {}} selectedId={selectedId} onToothClick={activateTooth} /> : null)}
             <canvas ref={canvasRef} className="gx-canvas" style={{ pointerEvents: tool === 'select' || tool === 'tooth-fill' ? 'none' : 'auto', cursor: tool === 'select' ? 'default' : 'crosshair', touchAction: 'none' }}
               onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp} />
             <svg className="gx-marks" viewBox={`0 0 ${CW} ${CH}`} preserveAspectRatio="xMidYMid meet" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
               {(chart.gmarks || []).map((m) => (
                 <g key={m.id} className="gx-mark" style={{ pointerEvents: tool === 'select' ? 'auto' : 'none', cursor: 'pointer' }} onClick={() => eraseMark(m)}>
                   <title>{tool === 'select' ? 'Clique para remover' : (m.toothId ? 'Dente ' + m.toothId : 'Marcação')}</title>
-                  <text x={m.x} y={m.y} textAnchor="middle" dominantBaseline="central" fontSize={m.fs || 22} fontWeight="800" fill={m.color} stroke="#fff" strokeWidth="0.7" style={{ paintOrder: 'stroke' }}>{m.glyph}</text>
+                  {m.toolId ? <g transform={`translate(${m.x-(m.fs || 22)/2} ${m.y-(m.fs || 22)/2}) scale(${(m.fs || 22)/27})`} style={{ color:m.color, '--gx-icon-cutout':'#fff' }}><GxToolIcon id={m.toolId} /></g>
+                    : <text x={m.x} y={m.y} textAnchor="middle" dominantBaseline="central" fontSize={m.fs || 22} fontWeight="800" fill={m.color} stroke="#fff" strokeWidth="0.7" style={{ paintOrder: 'stroke' }}>{m.glyph}</text>}
                 </g>
               ))}
             </svg>
@@ -1115,22 +1204,42 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
             {GX_TOOLS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}><GxToolIcon id={t.id} /></button>)}
           </div>
           <div className="gx-mod">
-            {GX_MARKERS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}><GxToolIcon id={t.id} /></button>)}
+            {GX_MARKERS.filter(t => isEquine || ['mk-protub','mk-move','mk-frac'].includes(t.id)).map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => { setTool(t.id); if (t.id === 'mk-incis') setShowIncisor(true); }}><GxToolIcon id={t.id} /></button>)}
           </div>
           <div className="gx-mod">
-            {GX_STATUS.map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}><GxToolIcon id={t.id} /></button>)}
+            {GX_STATUS.filter(t => isEquine || !['st-wolf','st-caps'].includes(t.id)).map((t) => <button key={t.id} className={`gx-tbtn${tool === t.id ? ' on' : ''}`} title={t.label} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}><GxToolIcon id={t.id} /></button>)}
           </div>
         </div>
 
         {/* cor + espessura + selecionar dente */}
         <div className="gx-controls">
+          {tool === 'mk-frac' && selectedId && <div role="group" aria-label={`Fratura do dente ${selectedId}`}>
+            <b>Dente {selectedId} · </b>
+            <button className="gx-pill" aria-pressed={((chart.clinicalByTooth || {})[selectedId] || {}).fractureMode !== 'cut'} onClick={() => configureFracture({ fractureMode:'line' })}>Marcar fratura</button>
+            <button className="gx-pill" aria-pressed={((chart.clinicalByTooth || {})[selectedId] || {}).fractureMode === 'cut'} onClick={() => configureFracture({ fractureMode:'cut' })}>Remover fragmento</button>
+            {[.25,.5,.75].map(depth => <button key={depth} className="gx-pill" aria-label={`Profundidade da fratura ${depth*100}%`} aria-pressed={(((chart.clinicalByTooth || {})[selectedId] || {}).fractureDepth || .5) === depth} onClick={() => configureFracture({ fractureDepth:depth })}>{depth*100}%</button>)}
+          </div>}
+          {tool === 'mk-move' && activeView && <div role="group" aria-label="Rotação do dente">
+            {[-15,15].map(delta => <button key={delta} className="gx-pill" onClick={() => {
+              const previous = { ...((chart.viewEdits || {})[activeView] || {}) };
+              actionsRef.current.push({ t:'position', viewKey:activeView, previous }); setCanUndo(true);
+              setChart(c => ({ ...c, viewEdits:{ ...(c.viewEdits || {}), [activeView]:{ ...previous, angle:(previous.angle || 0)+delta } } }));
+            }}>{delta < 0 ? '↶' : '↷'} 15°</button>)}
+          </div>}
           <button className={`gx-cursor${tool === 'select' ? ' on' : ''}`} onClick={() => setTool('select')}><span>↖</span> Selecionar Dente</button>
           <button className="gx-pill blue" onClick={loadPrevious}>+ LOAD PREVIOUS</button>
           <div className="gx-colors">
             {GX_COLORS.map((c) => <button key={c} className={`gx-color${color === c ? ' on' : ''}`} style={{ background: c }} onClick={() => setColor(c)} />)}
           </div>
           <div className="gx-espessura"><span>Espessura · {size}px</span><input type="range" min="1" max="8" step="1" value={size} onChange={(e) => setSize(Number(e.target.value))} /></div>
-          <span className="gx-tip"><b>🪣 Pintar dente:</b> escolha uma cor e clique na peça · ela será pintada e selecionada para as demais ferramentas</span>
+          <span className="gx-tip" role="status">{tool === 'tooth-fill' ? 'Pintar dente: escolha a cor e clique no contorno. Clique novamente para remover a mesma cor.'
+            : tool === 'mk-move' ? 'Arraste o dente para reposicionar. Selecione uma peça para usar os controles de rotação.'
+            : tool === 'mk-protub' ? 'Clique no dente: ausente → aumentado → normal. Desfazer restaura a etapa anterior.'
+            : GX_CLINICAL[tool] ? 'Clique no dente para aplicar a alteração; clique novamente para removê-la.'
+            : tool === 'select' ? 'Clique diretamente no dente para ver condições e anotações.'
+            : tool === 'mk-incis' ? 'Vista ampliada aberta abaixo do editor. Escolha uma ferramenta antes de editar os incisivos.'
+            : gxIsStamp(tool) ? 'Clique para aplicar o símbolo. Selecione ou apague o símbolo para removê-lo.'
+            : 'Desenhe sobre o odontograma. Use Desfazer para restaurar a última alteração.'}</span>
         </div>
       </div>
 
@@ -1138,23 +1247,28 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
       {isEquine && showIncisor && (
         <div className="gx-incisor">
           <div className="gx-incisor-head"><b>Vista Oclusal — Incisivos</b><button className="od-link" onClick={() => setShowIncisor(false)}>Fechar</button></div>
-          <svg viewBox="0 0 520 230" className="gx-incisor-svg">
-            <text x="260" y="18" textAnchor="middle" className="gx-inc-cap">SUPERIOR (Maxila)</text>
-            {[['103', 70], ['102', 150], ['101', 230], ['201', 290], ['202', 370], ['203', 450]].map(([id, x], i) => (
-              <g key={id}><rect x={x} y={30} width={i === 2 || i === 3 ? 64 : 56} height={62} rx={10} fill="#f4f6f9" stroke="#b9c2cd" strokeWidth="1.6" /><text x={x + (i === 2 || i === 3 ? 32 : 28)} y={66} textAnchor="middle" className="gx-inc-num">{id}</text></g>
-            ))}
-            <line x1="20" y1="115" x2="500" y2="115" stroke="#e2e7ee" strokeWidth="1.5" strokeDasharray="4 5" />
-            <text x="260" y="135" textAnchor="middle" className="gx-inc-cap">INFERIOR (Mandíbula)</text>
-            {[['403', 70], ['402', 150], ['401', 230], ['301', 290], ['302', 370], ['303', 450]].map(([id, x], i) => (
-              <g key={id}><rect x={x} y={148} width={i === 2 || i === 3 ? 64 : 56} height={62} rx={10} fill="#f4f6f9" stroke="#b9c2cd" strokeWidth="1.6" /><text x={x + (i === 2 || i === 3 ? 32 : 28)} y={184} textAnchor="middle" className="gx-inc-num">{id}</text></g>
-            ))}
-          </svg>
+          <p>Vista ampliada dos incisivos originais. Selecione a peça para pintar; as alterações são compartilhadas com o odontograma.</p>
+          <div className="gx-controls" role="group" aria-label="Ajustes dos incisivos">
+            <button className="gx-pill" onClick={() => setTool('select')}>Selecionar incisivo</button>
+            <button className="gx-pill" onClick={() => setTool('tooth-fill')}>Pintar incisivo</button>
+            <span>{selectedId ? `Dente ${selectedId}` : 'Selecione um incisivo na vista abaixo'}</span>
+            {[
+              ['x',-2,'←','Mover incisivo à esquerda'], ['x',2,'→','Mover incisivo à direita'],
+              ['y',-2,'↑','Subir incisivo'], ['y',2,'↓','Descer incisivo'],
+              ['angle',-5,'↶ 5°','Girar incisivo à esquerda'], ['angle',5,'↷ 5°','Girar incisivo à direita'],
+              ['reset',0,'Restaurar posição','Restaurar posição do incisivo'],
+            ].map(([axis,delta,label,title]) => <button key={title} className="gx-pill" aria-label={title} disabled={!activeView || !/^equine-1-/.test(activeView) || !/^[1-4]0[1-3]$/.test(String(selectedId))} onClick={() => adjustIncisor(axis,delta)}>{label}</button>)}
+          </div>
+          <div style={{ position:'relative', height:360 }}>
+            {BaseSvgChart && <BaseSvgChart focus="incisors" marksByTooth={chart.marks || {}} fillsByTooth={chart.toothFills || {}} clinicalByTooth={chart.clinicalByTooth || {}} viewEdits={chart.viewEdits || {}} selectedId={selectedId} onToothClick={activateTooth} />}
+          </div>
         </div>
       )}
 
       {showAttach && (
         <div className="gx-attach">
           <div className="gx-incisor-head"><b>Anexos — Fotos do Procedimento</b><button className="od-link" onClick={() => setShowAttach(false)}>Ocultar</button></div>
+          {lastCapture && <img src={lastCapture} alt="Prévia do odontograma sem ferramentas" style={{ width:'100%', maxHeight:360, objectFit:'contain', background:'#fff' }} />}
           <div className="og-photos">
             {(chart.photos || []).map((p) => <div key={p.id} className="og-photo"><img src={p.url} alt={p.name} /><button className="og-photo-x" onClick={() => removePhoto(p.id)}>×</button></div>)}
             <button className="og-photo-add" onClick={() => fileRef.current && fileRef.current.click()}>

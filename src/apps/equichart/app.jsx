@@ -86,6 +86,7 @@ function App() {
   const entrySpecies = params.get('species') || '';
   const entryDate = params.get('date') || '';
   const embedded = params.get('embed') === 'wizard';
+  const [hydrated, setHydrated] = useState(!embedded || window.parent === window);
   const requestedStep = params.get('step') || '';
   const [chart, setChart] = useState(() => {
     let c = loadChart();
@@ -110,6 +111,26 @@ function App() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
+    if (!embedded || window.parent === window) return;
+    const receive = event => {
+      if (event.origin !== location.origin || event.source !== window.parent || event.data?.type !== 'vettooth:equichart-init') return;
+      const incoming = event.data.chart;
+      const state = incoming && typeof incoming === 'object' ? incoming : {};
+      setChart({ ...EMPTY, ...state, patientName:entryPatient, clientName:entryOwner, patientSpecies:entrySpecies, examDate:entryDate || state.examDate || EMPTY.examDate });
+      setHydrated(true);
+    };
+    window.addEventListener('message', receive);
+    window.parent.postMessage({ type:'vettooth:equichart-ready' }, location.origin);
+    return () => window.removeEventListener('message', receive);
+  }, []);
+
+  useEffect(() => {
+    window.vtEquiChartSnapshot = () => JSON.parse(JSON.stringify(chart));
+    return () => { delete window.vtEquiChartSnapshot; };
+  }, [chart]);
+
+  useEffect(() => {
+    if (!hydrated) return;
     try { localStorage.setItem(STORE_KEY, JSON.stringify(chart)); } catch (e) {}
     if (embedded && window.parent !== window) {
       window.parent.postMessage({
@@ -117,19 +138,21 @@ function App() {
         chart: {
           marks: chart.marks || {}, status: chart.status || {}, notes: chart.notes || {},
           severity: chart.severity || {}, toothFills: chart.toothFills || {},
-          gmarks: chart.gmarks || [], drawing: chart.drawing || null, examDate: chart.examDate || entryDate,
+          gmarks: chart.gmarks || [], drawing: chart.drawing || null, clinicalByTooth:chart.clinicalByTooth || {}, viewEdits:chart.viewEdits || {}, photos:chart.photos || [], examDate: chart.examDate || entryDate,
         },
       }, location.origin);
     }
-  }, [chart, embedded, entryDate]);
+  }, [chart, embedded, entryDate, hydrated]);
 
   useEffect(() => {
     document.body.classList.toggle('od-wizard-embed', embedded);
     window.vtEquiChartCapture = async () => {
       const renderer = window.html2canvas || (window.parent !== window && window.parent.html2canvas);
-      const target = document.querySelector('.gx-editor');
+      const target = document.querySelector('.gx-stage');
       if (!renderer || !target) return null;
-      const canvas = await renderer(target, { backgroundColor: '#ffffff', scale: 1, useCORS: true, logging: false });
+      await Promise.all(Array.from(target.querySelectorAll('img')).map(img => img.decode ? img.decode().catch(() => {}) : Promise.resolve()));
+      const canvas = await renderer(target, { backgroundColor: '#ffffff', scale: 1, useCORS: true, logging: false,
+        onclone:doc => doc.querySelectorAll('[data-tooth-hit]').forEach(path => path.setAttribute('stroke','transparent')) });
       return canvas.toDataURL('image/png');
     };
     return () => { document.body.classList.remove('od-wizard-embed'); delete window.vtEquiChartCapture; };
@@ -164,6 +187,10 @@ function App() {
         const d = window.VtStore.getData() || {};
         const hist = { ...(d.odontoHistory || {}) };
         const snap = { date: chart.examDate || new Date().toISOString().slice(0, 10), savedAt: new Date().toISOString(), data: { marks: chart.marks, status: chart.status, severity: chart.severity, notes: chart.notes, toothFills: chart.toothFills || {}, preExam: chart.preExam, postExam: chart.postExam, findings5: chart.findings5, findingsOther: chart.findingsOther, sedationLog: chart.sedationLog, clinicalNotes: chart.clinicalNotes, achados: chart.achados, billing: chart.billing } };
+        Object.assign(snap.data, {
+          clinicalByTooth: chart.clinicalByTooth || {}, viewEdits: chart.viewEdits || {},
+          gmarks: chart.gmarks || [], drawing: chart.drawing || null,
+        });
         hist[chart.patientName] = [snap, ...(hist[chart.patientName] || [])].slice(0, 10);
         window.VtStore.setData({ odontoHistory: hist });
       }
@@ -198,6 +225,10 @@ function App() {
   const useSpeciesArch = !!patSpecies && !isEquine && !!window.SpeciesArch;
 
   const gotoStep = (s) => {
+    if (embedded && window.parent !== window && s !== 'odontograma') {
+      window.parent.postMessage({ type: 'vettooth:equichart-navigate', step: s === 'anamnese' ? 2 : 4 }, location.origin);
+      return;
+    }
     if (s !== 'paciente' && s !== 'especie' && !(chart.patientName)) { window.alert && window.alert('Selecione um paciente no passo Paciente para continuar.'); return; }
     setStep(s);
   };

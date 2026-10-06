@@ -565,11 +565,12 @@
 
     /* Slider CSS injected once */
     const S2_CSS = `
-      .vt-s2-range{-webkit-appearance:none;appearance:none;width:100%;height:3px;border-radius:2px;background:#3a7fc1;outline:none;cursor:pointer}
-      .vt-s2-range::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:#3a7fc1;cursor:pointer;box-shadow:0 2px 8px rgba(58,127,193,.45)}
-      .vt-s2-range::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:#3a7fc1;border:none;cursor:pointer;box-shadow:0 2px 8px rgba(58,127,193,.45)}
-      .vt-s2-range::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:#3a7fc1}
-      .vt-s2-range::-moz-range-track{height:3px;border-radius:2px;background:#3a7fc1}
+      .vt-s2-range{-webkit-appearance:none;appearance:none;width:100%;height:18px;border-radius:5px;background:linear-gradient(to right,#148f88 0%,#148f88 var(--filled,0%),#e1e7ec var(--filled,0%),#e1e7ec 100%);cursor:pointer}
+      .vt-s2-range:focus-visible{outline:3px solid #173e68;outline-offset:5px}
+      .vt-s2-range::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:26px;background:transparent;cursor:ew-resize}
+      .vt-s2-range::-moz-range-thumb{width:18px;height:26px;background:transparent;border:none;cursor:ew-resize}
+      .vt-s2-range::-webkit-slider-runnable-track{height:18px;background:transparent}
+      .vt-s2-range::-moz-range-track{height:18px;background:transparent}
     `;
 
     return (
@@ -585,7 +586,7 @@
                 fontWeight: (condSlider === i+1) ? 700 : 400 }}>{l}</span>
             ))}
           </div>
-          <input type="range" min={1} max={11} step={1} value={condSlider}
+          <input type="range" min={1} max={11} step={1} value={condSlider} aria-label="Score de Condição" aria-valuetext={condSlider === 11 ? 'Não avaliado' : `${condSlider} de 10`} style={{ '--filled': `${condSlider === 11 ? 0 : condSlider * 10}%` }}
             onChange={e => setCondScore(Number(e.target.value))}
             className="vt-s2-range" />
         </div>
@@ -599,10 +600,18 @@
                 fontWeight: ltIdx === i ? 700 : 400, whiteSpace:'nowrap' }}>{l}</span>
             ))}
           </div>
-          <input type="range" min={0} max={LT_SLOTS.length - 1} step={1} value={ltIdx}
+          <input type="range" min={0} max={LT_SLOTS.length - 1} step={1} value={ltIdx} aria-label="Último Tratamento" aria-valuetext={LT_SLOTS[ltIdx]} style={{ '--filled': `${ltIdx === LT_SLOTS.length - 1 ? 0 : ((ltIdx + 1) / (LT_SLOTS.length - 1)) * 100}%` }}
             onChange={e => setW({ lastTreatment: LT_SLOTS[Number(e.target.value)] })}
             className="vt-s2-range" />
         </div>
+
+        <details style={{ background:'#fff', padding:'20px 32px', borderTop:'1px solid #e8ecf0' }} open>
+          <summary style={{ fontWeight:700, fontSize:19, cursor:'pointer' }}>Informações</summary>
+          <label style={{ display:'block', marginTop:16 }}>
+            <span>Informações adicionais da avaliação inicial</span>
+            <textarea value={wiz.initialInformation || ''} onChange={e => setW({ initialInformation:e.target.value })} rows={4} maxLength={4000} style={{ width:'100%', marginTop:8, padding:12, border:'1px solid #cbd5df', borderRadius:8, fontFamily:'inherit', resize:'vertical' }} placeholder="Queixa principal, informações do tutor e observações adicionais…" />
+          </label>
+        </details>
 
         {/* ── Clinical History Notes ── */}
         <div style={{ height:1, background:'#dde1e8' }} />
@@ -719,16 +728,17 @@
     { key: 'treated', icon: 'T', label: 'Tratado' },
   ];
 
-  function Step3Odontograma({ wiz, date, setW }) {
+  function Step3Odontograma({ wiz, date, setW, onNavigate }) {
     const odoRef = useRef(null);
     const equiFrameRef = useRef(null);
+    const initialChartRef = useRef(wiz.equiChart || {});
     const [activeTool, setActiveTool] = useState('pencil');
     const [histPanelOpen, setHistPanelOpen] = useState(false);
     const [histList, setHistList] = useState([]);
     const equiSrc = useMemo(() => {
       const q = new URLSearchParams({
         patient: wiz.patientName || '', owner: wiz.ownerName || '', species: wiz.species || 'Cão',
-        date: date || '', embed: 'wizard', step: 'odontograma', v: '20260822a',
+        date: date || '', embed: 'wizard', step: 'odontograma', v: '20261006a',
       });
       return 'EquiChart.html?' + q.toString();
     }, [wiz.patientName, wiz.ownerName, wiz.species, date]);
@@ -736,12 +746,20 @@
     useEffect(() => {
       const receive = (event) => {
         if (event.origin !== location.origin || event.source !== (equiFrameRef.current && equiFrameRef.current.contentWindow)) return;
+        if (event.data?.type === 'vettooth:equichart-ready') {
+          event.source.postMessage({ type:'vettooth:equichart-init', chart:initialChartRef.current }, location.origin);
+          return;
+        }
+        if (event.data && event.data.type === 'vettooth:equichart-navigate') {
+          if (onNavigate && [2, 4].includes(event.data.step)) onNavigate(event.data.step);
+          return;
+        }
         if (!event.data || event.data.type !== 'vettooth:equichart-change') return;
         setW({ equiChart: event.data.chart || {} });
       };
       window.addEventListener('message', receive);
       return () => window.removeEventListener('message', receive);
-    }, []);
+    }, [onNavigate]);
 
     return (
       <div style={{ flex: 1, minHeight: 0, background: 'var(--bg)' }}>
@@ -1519,6 +1537,7 @@
                 <PCell label="Data do Exame" value={fmtDateBR(wiz.date)} />
                 {wiz.condScore !== null && wiz.condScore !== undefined && <PCell label="Score Condição Dentária" value={`${wiz.condScore}/10`} />}
                 {wiz.lastTreatment && <PCell label="Último Tratamento" value={wiz.lastTreatment} />}
+                {wiz.initialInformation && <PCell label="Informações" value={wiz.initialInformation} span />}
                 {wiz.clinicalNotes && <PCell label="Notas Clínicas" value={wiz.clinicalNotes} span />}
               </div>
               <div style={{ borderLeft: '1px solid #eee', paddingLeft: 12 }}>
@@ -1901,7 +1920,7 @@
     breed: '', age: '', sex: '', color: '', weight: '', height: '',
     ownerPhone: '', ownerEmail: '', ownerAddress: '',
     propertyName: '', propertyCity: '', propertyPhone: '',
-    condScore: 5, lastTreatment: '', clinicalNotes: '',
+    condScore: 5, lastTreatment: '', clinicalNotes: '', initialInformation: '',
     sedVet: '', sedTipo: '', sedDose: '', sedVia: '', sedObs: '',
     sedAtiva: false, sedVetConsultorio: '', sedVetNome: '',
     sedRows: [{ tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' }, { tempo: '', tipo: '', quantidade: '' }],
@@ -1942,15 +1961,22 @@
     const captureStep3 = async () => {
       const equiFrame = document.querySelector('iframe[data-equi-chart="true"]');
       if (equiFrame && equiFrame.contentWindow) {
+        const equiChart = equiFrame.contentWindow.vtEquiChartSnapshot
+          ? equiFrame.contentWindow.vtEquiChartSnapshot() : (wiz.equiChart || {});
+        setW({ equiChart });
         try {
           const url = equiFrame.contentWindow.vtEquiChartCapture
             ? await equiFrame.contentWindow.vtEquiChartCapture()
             : null;
-          const raw = localStorage.getItem('equichart:v2');
-          const equiChart = raw ? JSON.parse(raw) : (wiz.equiChart || {});
-          setW({ ...(url ? { chartImage: url } : {}), equiChart });
+          if (!url) throw new Error('Captura indisponível');
+          setW({ chartImage: url });
           return;
-        } catch (e) { console.warn('[VetTooth] Não foi possível capturar o gráfico equino.', e); }
+        } catch (e) {
+          setW({ chartImage:null });
+          console.warn('[VetTooth] Não foi possível capturar o odontograma.', e);
+          window.vtToast && window.vtToast('Edições preservadas, mas a imagem da prévia falhou. Volte ao odontograma e tente novamente.', 'err');
+          return;
+        }
       }
       const svg = document.querySelector('.odm-svg, [class*="odm-wrap"] svg, .odm-chart svg');
       if (!svg) return;
@@ -1964,7 +1990,7 @@
     };
 
     const goNext = async () => { if (step === 3) await captureStep3(); setStep(s => Math.min(s + 1, 6)); };
-    const goPrev = () => setStep(s => Math.max(s - 1, 1));
+    const goPrev = async () => { if (step === 3) await captureStep3(); setStep(s => Math.max(s - 1, 1)); };
     const goStep = async (n) => { if (n !== 3 && step === 3) await captureStep3(); if (n === 1 || wiz.patientId) setStep(n); };
 
     const saveExam = () => {
@@ -1994,6 +2020,7 @@
         condScore: wiz.condScore,
         lastTreatment: wiz.lastTreatment,
         clinicalNotes: wiz.clinicalNotes,
+        initialInformation: wiz.initialInformation || '',
         sedacao: { vet: wiz.sedVet, tipo: wiz.sedTipo, dose: wiz.sedDose, via: wiz.sedVia, obs: wiz.sedObs, consultorio: wiz.sedVetConsultorio, rows: wiz.sedRows },
         anomalias: checkedFlags,
         findings: wiz.findings,
@@ -2051,7 +2078,7 @@
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {step === 1 && <Step1Patient wiz={wizWithDate} setW={setW} onNext={goNext} />}
           {step === 2 && <Step2Avaliacao wiz={wizWithDate} setW={setW} />}
-          {step === 3 && <Step3Odontograma wiz={wizWithDate} date={date} setW={setW} />}
+          {step === 3 && <Step3Odontograma wiz={wizWithDate} date={date} setW={setW} onNavigate={goStep} />}
           {step === 4 && <Step4Tratamentos wiz={wizWithDate} setW={setW} />}
           {step === 5 && <Step5Notas wiz={wizWithDate} setW={setW} />}
           {step === 6 && <Step6Faturamento wiz={wizWithDate} setW={setW} onSave={saveExam} onClose={onClose} onPrev={goPrev} onPreview={() => goStep(5)} />}

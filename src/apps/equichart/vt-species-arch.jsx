@@ -303,11 +303,58 @@
     );
   }
 
-  function SpeciesArch({ species, marksByTooth, fillsByTooth, selectedId, onToothClick }) {
+  // Hit areas follow the original SVG boundaries, including repeated views.
+  // Never fall back to the nearest number or an approximate circle.
+  function ContourArch({ species, marksByTooth, fillsByTooth, clinicalByTooth = {}, viewEdits = {}, selectedId, onToothClick }) {
+    const feline = /gato|felin|cat/i.test(species || '');
+    const key = feline ? 'felino' : 'canino';
+    const [art, setArt] = React.useState(null);
+    const [error, setError] = React.useState(false);
+    React.useEffect(() => {
+      let active = true;
+      setArt(null); setError(false);
+      Promise.all([
+        fetch(`assets/odontograma-${key}.svg`).then(r => { if (!r.ok) throw Error('SVG'); return r.text(); }),
+        fetch(`assets/odontograma-${key}-contours.json?v=20261005`).then(r => { if (!r.ok) throw Error('Contornos'); return r.json(); }),
+      ]).then(([svg, data]) => { if (active) setArt({ svg, zones: data.zones }); })
+        .catch(() => { if (active) setError(true); });
+      return () => { active = false; };
+    }, [key]);
+    const activate = (event, id) => {
+      event.preventDefault(); event.stopPropagation();
+      if (window.SpeciesTeeth[id]) onToothClick(window.SpeciesTeeth[id]);
+    };
+    if (!art) return e('div', { role: error ? 'alert' : 'status', className: 'sp-arch-loading' }, error ? 'Não foi possível carregar a dentição. Recarregue para tentar novamente.' : 'Carregando dentição…');
+    const width = feline ? 4096 : 1812, height = feline ? 2030 : 1138;
+    const artId = `art-${key}`, maskId = `background-${key}`;
+    return e('div', { className: `sp-arch-figma${feline ? ' sp-arch-feline' : ''}` },
+      e('svg', { style:{ width:'100%', height:'100%', display:'block' }, viewBox:`0 0 ${width} ${height}`, preserveAspectRatio:'xMidYMid meet', 'aria-label':`Dentição ${feline ? 'felina' : 'canina'} interativa` },
+        e('defs', null,
+          e('image', { id:artId, width, height, href:'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(art.svg) }),
+          e('mask', { id:maskId, maskUnits:'userSpaceOnUse', x:0, y:0, width, height },
+            e('rect', { width, height, fill:'white' }),
+            art.zones.map(z => e('path', { key:z.viewKey, d:z.d, fill:'black', stroke:'black', strokeWidth:feline ? 5 : 2 })),
+          ),
+        ),
+        e('rect', { width, height, fill:'#ededed', pointerEvents:'none' }),
+        e('use', { href:`#${artId}`, mask:`url(#${maskId})`, pointerEvents:'none' }),
+        art.zones.map(zone => {
+          const paint = speciesPaintFor(zone.id, fillsByTooth, marksByTooth);
+          return e(window.VtVectorTooth, {
+            key:zone.viewKey,
+            piece:{ key:zone.viewKey, toothId:zone.id, tooth:window.SpeciesTeeth[zone.id], ariaLabel:`Dente ${zone.id}`, d:zone.d, overlayPaint:true,
+              content:`<use href="#${artId}" clip-path="url(#__CLIP__)"/><path d="${zone.d}" fill="none" stroke="black" stroke-width="${feline ? 5 : 2}"/>` },
+            paint, edit:clinicalByTooth[zone.id] || {}, position:viewEdits[zone.viewKey] || {}, selected:selectedId === zone.id, onToothClick,
+          });
+        }),
+      ),
+    );
+  }
+
+  function SpeciesArch({ species, marksByTooth, fillsByTooth, clinicalByTooth, viewEdits, selectedId, onToothClick }) {
     const s = (species || '').toLowerCase();
     marksByTooth = marksByTooth || {};
-    if (/gato|felin|cat/.test(s)) return e(FelineArch, { marksByTooth, fillsByTooth: fillsByTooth || {}, selectedId, onToothClick });
-    return e(DogArch, { marksByTooth, fillsByTooth: fillsByTooth || {}, selectedId, onToothClick });
+    return e(ContourArch, { species: s, marksByTooth, fillsByTooth: fillsByTooth || {}, clinicalByTooth, viewEdits, selectedId, onToothClick });
   }
 
   window.SpeciesArchSize = function (species) {

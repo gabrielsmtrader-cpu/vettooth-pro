@@ -98,54 +98,106 @@
     );
   }
 
-  function BaseSvgChart({ marksByTooth, fillsByTooth, selectedId, onToothClick }) {
-    const [toothShapes, setToothShapes] = React.useState({});
+  function fractureGeometry(box, upper, depth = .5) {
+    const fraction = Math.max(.1, Math.min(.9, Number.isFinite(depth) ? depth : .5));
+    const { x, y, width:w, height:h } = box;
+    const baseline = upper ? y+h*(1-fraction) : y+h*fraction;
+    const points = [[x,baseline],[x+w*.25,baseline-h*.06],[x+w*.5,baseline+h*.06],[x+w*.75,baseline-h*.04],[x+w,baseline]];
+    const line = 'M'+points.map(p=>p.join(' ')).join('L');
+    const edge = upper ? y-2 : y+h+2;
+    return { line, retained:line+`L${x+w+2} ${edge}L${x-2} ${edge}Z` };
+  }
+
+  function EquinePiece({ piece, paint, edit = {}, position = {}, selected, onToothClick }) {
+    const instanceId = React.useId().replace(/:/g, '');
+    const shapeRef = React.useRef(null);
+    const [box, setBox] = React.useState(null);
+    React.useLayoutEffect(() => { if (shapeRef.current) { const b = shapeRef.current.getBBox(); setBox({ x:b.x, y:b.y, width:b.width, height:b.height }); } }, [piece.d]);
+    const b = box || { x:0, y:0, width:1, height:1 };
+    const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+    const clipId = 'clip-' + instanceId + '-' + piece.key;
+    const upper = Number(piece.toothId[0]) < 3;
+    const fracture = fractureGeometry(b, upper, edit.fractureDepth);
+    const cutId = clipId + '-retained';
+    const cutting = !!(box && edit.fracture && edit.fractureMode === 'cut');
+    const edgeY = upper ? b.y + b.height : b.y;
+    const inward = upper ? -1 : 1;
+    const transform = `translate(${position.x || 0} ${position.y || 0}) rotate(${position.angle || 0} ${cx} ${cy}) translate(${cx} ${cy}) scale(1 ${edit.growth ? 1.25 : 1}) translate(${-cx} ${-cy})`;
+    const activate = event => {
+      event.preventDefault(); event.stopPropagation();
+      onToothClick(piece.tooth || makeTooth(Number(piece.toothId[0]), Number(piece.toothId.slice(1))), piece.key);
+    };
+    return e('g', { transform, className:'vt-vector-tooth', 'data-piece-id':piece.key },
+      e('defs', null,
+        e('clipPath', { id:clipId }, e('path', { d:piece.d })),
+        e('clipPath', { id:cutId }, e('path', { d:fracture.retained }))),
+      e('g', { visibility:edit.missing ? 'hidden' : 'visible', pointerEvents:'none', clipPath:cutting ? `url(#${cutId})` : undefined },
+        e('path', { d:piece.d, fill:piece.overlayPaint ? '#ededed' : (paint || '#f5f5f5'), fillOpacity:paint && !piece.overlayPaint ? .72 : 1, stroke:piece.overlayPaint ? 'none' : '#111', strokeWidth:1.8 }),
+        e('g', { fill:'none', dangerouslySetInnerHTML:{ __html:piece.content.replaceAll('__CLIP__', clipId) } }),
+        piece.overlayPaint && paint && e('path', { d:piece.d, fill:paint, fillOpacity:.72 }),
+        box && e('g', { clipPath:`url(#${clipId})`, fill:edit.color || '#111' },
+          edit.atr && e('rect', { x:b.x, y:upper ? edgeY-b.height*.22 : edgeY, width:b.width, height:b.height*.22 }),
+          edit.sharp && e('path', { d:`M${b.x} ${edgeY} L${b.x+b.width*.25} ${edgeY+inward*b.height*.3} L${cx} ${edgeY} L${b.x+b.width*.75} ${edgeY+inward*b.height*.3} L${b.x+b.width} ${edgeY} Z` }),
+          edit.ramp && e('path', { d:`M${b.x} ${edgeY} L${b.x} ${edgeY+inward*b.height*.6} L${b.x+b.width} ${edgeY} Z` }),
+          edit.hook && e('path', { d:`M${b.x} ${edgeY} L${b.x} ${edgeY+inward*b.height*.7} Q${cx} ${edgeY} ${b.x+b.width} ${edgeY} Z` }),
+          edit.wave && e('path', { d:`M${b.x} ${edgeY} Q${cx} ${edgeY+inward*b.height*.8} ${b.x+b.width} ${edgeY} Z` }),
+          edit.fracture && e('path', { d:fracture.line, fill:'none', stroke:'#dc2626', strokeWidth:2.4 }),
+        ),
+      ),
+      e('path', { ref:shapeRef, 'data-tooth-hit':true, 'data-tooth':piece.toothId, 'data-view':piece.key, role:'button', tabIndex:0,
+        'aria-label':piece.ariaLabel || `Selecionar dente ${piece.toothId}`, 'aria-pressed':selected,
+        onClick:activate, onKeyDown:event => { if (event.key === 'Enter' || event.key === ' ') activate(event); }, style:{ cursor:'pointer' },
+        d:piece.d, clipPath:cutting ? `url(#${cutId})` : undefined, fill:'transparent', stroke:selected ? '#0f8f88' : 'transparent', strokeWidth:1.8, strokeDasharray:edit.missing ? '4 3' : undefined, pointerEvents:'all' }),
+    );
+  }
+
+  function BaseSvgChart({ marksByTooth = {}, fillsByTooth = {}, clinicalByTooth = {}, viewEdits = {}, selectedId, onToothClick, focus }) {
+    const baseId = React.useId().replace(/:/g, '');
+    const [sources, setSources] = React.useState([]);
+    const [failed, setFailed] = React.useState(false);
     React.useEffect(() => {
       let active = true;
-      Promise.all(SHAPE_SOURCES.map(async (source) => {
-        const text = await fetch(source.url).then((response) => response.text());
-        const svg = new DOMParser().parseFromString(text, 'image/svg+xml');
+      Promise.all(SHAPE_SOURCES.map(async (source, sourceIndex) => {
+        const response = await fetch(source.url);
+        if (!response.ok) throw Error('Dentição indisponível');
+        const svg = new DOMParser().parseFromString(await response.text(), 'image/svg+xml');
         const paths = Array.from(svg.querySelectorAll('path'));
-        return Object.entries(source.teeth).reduce((result, [toothId, pathIndexes]) => {
-          const indexes = Array.isArray(pathIndexes) ? pathIndexes : [pathIndexes];
-          result[toothId] = indexes.map((pathIndex) => paths[pathIndex] && paths[pathIndex].getAttribute('d')).filter(Boolean).map((d) => ({ d, dx: source.dx, dy: source.dy }));
-          return result;
-        }, {});
-      })).then((groups) => {
-        if (!active) return;
-        const merged = {};
-        groups.forEach((group) => Object.entries(group).forEach(([toothId, shapes]) => { merged[toothId] = [...(merged[toothId] || []), ...shapes]; }));
-        setToothShapes(merged);
-      }).catch(() => {});
+        const assigned = new Set();
+        const pieces = [];
+        const occlusalStarts = Object.values(source.teeth).flat().filter(index => sourceIndex !== 1 && index >= 40).sort((a,b) => a-b);
+        Object.entries(source.teeth).forEach(([toothId, indexes]) => {
+          (Array.isArray(indexes) ? indexes : [indexes]).forEach(index => {
+            const part = paths[index];
+            if (!part) return;
+            const end = occlusalStarts.includes(index) ? (occlusalStarts.find(n => n > index) || paths.length) : index + 1;
+            const members = paths.slice(index, end);
+            for (let n=index; n<end; n++) assigned.add(n);
+            pieces.push({ toothId, key:`equine-${sourceIndex}-${index}`, d:part.getAttribute('d'), content:members.map(node => node.outerHTML).join('') });
+          });
+        });
+        return { ...source, pieces, background:paths.filter((_,index) => !assigned.has(index)).map(node => node.outerHTML).join('') };
+      })).then(result => { if (active) setSources(result); }).catch(() => { if (active) setFailed(true); });
       return () => { active = false; };
     }, []);
-    return e('div', { className: 'anat-stage' },
-      e('div', { className: 'anat-base', role: 'img', 'aria-label': 'Odontograma equino', style: { position: 'absolute', inset: 0 } },
-        e('img', {
-          src: 'assets/odontograma-equino-esquerda.svg', alt: '', draggable: false,
-          style: { position: 'absolute', left: '0%', top: '0.98%', width: '35.68%', height: '98.04%', objectFit: 'contain' },
-        }),
-        e('img', {
-          src: 'assets/odontograma-equino-frontal.svg', alt: '', draggable: false,
-          style: { position: 'absolute', left: '36.33%', top: 0, width: '27.27%', height: '100%', objectFit: 'contain' },
-        }),
-        e('img', {
-          src: 'assets/odontograma-equino-direita.svg', alt: '', draggable: false,
-          style: { position: 'absolute', left: '63.67%', top: '0.98%', width: '36.33%', height: '98.04%', objectFit: 'contain' },
-        }),
-      ),
-      e('svg', { className: 'anat-hit', viewBox: '0 0 1390 511', preserveAspectRatio: 'xMidYMid meet' },
-        Z.map((z) => e(ToothFill, { key: `fill-${z.tooth.id}`, z, color: (fillsByTooth || {})[z.tooth.id], selected: selectedId === z.tooth.id, shapes: toothShapes[z.tooth.id] })),
-        Z.map((z) => e(ToothZone, {
-          key: z.tooth.id, z,
-          marks: marksByTooth[z.tooth.id] || [],
-          selected: selectedId === z.tooth.id,
-          shapes: toothShapes[z.tooth.id],
-          onClick: onToothClick,
-        })),
+    if (!sources.length) return e('div', { role:failed ? 'alert' : 'status' }, failed ? 'Não foi possível carregar a dentição equina.' : 'Carregando dentição equina…');
+    return e('div', { className:'anat-stage', style:{ height:'100%', ...(focus === 'incisors' ? { maxWidth:380, margin:'0 auto' } : {}) } },
+      e('svg', { className:'anat-hit', style:{ overflow:'hidden' }, viewBox:focus === 'incisors' ? '550 225 300 290' : '0 0 1390 511', preserveAspectRatio:'xMidYMid meet', 'aria-label':'Odontograma equino interativo' },
+        sources.map((source,index) => e('g', { key:index, transform:`translate(${source.dx} ${source.dy})`, fill:'none' },
+          e('defs', null, e('mask', { id:`equine-background-${baseId}-${index}`, maskUnits:'userSpaceOnUse', x:-5, y:-5, width:1400, height:530 },
+            e('rect', { x:-5, y:-5, width:1400, height:530, fill:'white' }),
+            source.pieces.map(piece => e('path', { key:piece.key, d:piece.d, fill:'black', stroke:'black', strokeWidth:2 })),
+          )),
+          e('g', { mask:`url(#equine-background-${baseId}-${index})`, pointerEvents:'none', dangerouslySetInnerHTML:{ __html:source.background } }),
+          source.pieces.map(piece => {
+            const findings = (marksByTooth[piece.toothId] || []).filter(id => id !== 'normal');
+            const paint = fillsByTooth[piece.toothId] || (findings.length ? mark(findings[0]).color : '');
+            return e(EquinePiece, { key:piece.key, piece, paint, edit:clinicalByTooth[piece.toothId] || {}, position:viewEdits[piece.key] || {}, selected:selectedId === piece.toothId, onToothClick });
+          }),
+        )),
       ),
     );
   }
 
   window.BaseSvgChart = BaseSvgChart;
+  window.VtVectorTooth = EquinePiece;
 })();
