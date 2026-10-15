@@ -98,14 +98,74 @@
     );
   }
 
-  function fractureGeometry(box, upper, depth = .5) {
+  function fractureGeometry(box, upper, depth = .5, normalizedPath) {
     const fraction = Math.max(.1, Math.min(.9, Number.isFinite(depth) ? depth : .5));
     const { x, y, width:w, height:h } = box;
     const baseline = upper ? y+h*(1-fraction) : y+h*fraction;
-    const points = [[x,baseline],[x+w*.25,baseline-h*.06],[x+w*.5,baseline+h*.06],[x+w*.75,baseline-h*.04],[x+w,baseline]];
+    let points;
+    if (Array.isArray(normalizedPath) && normalizedPath.length > 1) {
+      const clean = normalizedPath
+        .filter(p => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+        .map(p => [Math.max(0,Math.min(1,p[0])),Math.max(0,Math.min(1,p[1]))])
+        .sort((a,b) => a[0]-b[0]);
+      if (clean.length > 1) {
+        points = clean.map(p => [x+w*p[0],y+h*p[1]]);
+        points[0] = [x,points[0][1]];
+        points[points.length-1] = [x+w,points[points.length-1][1]];
+      }
+    }
+    if (!points) points = [[x,baseline],[x+w*.25,baseline-h*.06],[x+w*.5,baseline+h*.06],[x+w*.75,baseline-h*.04],[x+w,baseline]];
     const line = 'M'+points.map(p=>p.join(' ')).join('L');
-    const edge = upper ? y-2 : y+h+2;
-    return { line, retained:line+`L${x+w+2} ${edge}L${x-2} ${edge}Z` };
+    const rootEdge = upper ? y-2 : y+h+2;
+    const crownEdge = upper ? y+h+2 : y-2;
+    return {
+      line,
+      retained:line+`L${x+w+2} ${rootEdge}L${x-2} ${rootEdge}Z`,
+      fragment:line+`L${x+w+2} ${crownEdge}L${x-2} ${crownEdge}Z`,
+    };
+  }
+
+  function fractureCycleGeometry(box, stage) {
+    const { x, y, width:w, height:h } = box;
+    const line = fraction => `M${x-2} ${y+h*fraction}L${x+w*.22} ${y+h*(fraction+.025)}L${x+w*.43} ${y+h*(fraction-.055)}L${x+w*.62} ${y+h*(fraction+.035)}L${x+w*.81} ${y+h*(fraction-.025)}L${x+w+2} ${y+h*fraction}`;
+    const top = line(.28), bottom = line(.7);
+    const above = l => l+`L${x+w+2} ${y-2}L${x-2} ${y-2}Z`;
+    const below = l => l+`L${x+w+2} ${y+h+2}L${x-2} ${y+h+2}Z`;
+    // Masks let the third state retain two disconnected pieces without moving
+    // either fragment or shrinking the hit target used to restore the tooth.
+    return { top, bottom, aboveTop:above(top), belowBottom:below(bottom),
+      hidden:stage===1 ? [above(top)] : stage===2 ? [above(top),below(bottom)] : stage===4 ? [below(bottom)] : [],
+      edges:stage===1 ? [top] : stage===4 ? [bottom] : stage ? [top,bottom] : [] };
+  }
+
+  function clinicalStage(edit, finding, maximum) {
+    const stored = Number(edit && edit[finding + 'Stage']);
+    if (Number.isFinite(stored) && stored > 0) return Math.min(maximum, Math.floor(stored));
+    return edit && edit[finding] ? 1 : 0;
+  }
+
+  function clinicalGeometry(box, upper, edit) {
+    const { x, y, width:w, height:h } = box;
+    const edge = upper ? y+h : y;
+    const inward = upper ? -1 : 1;
+    const atr = clinicalStage(edit, 'atr', 3);
+    const sharp = clinicalStage(edit, 'sharp', 4);
+    const ramp = clinicalStage(edit, 'ramp', 6);
+    const hook = clinicalStage(edit, 'hook', 6);
+    const wave = clinicalStage(edit, 'wave', 6);
+    const atrDepth = h * ([0,.14,.22,.32][atr] || 0);
+    const sharpDepth = h * (sharp ? .16 + sharp*.055 : 0);
+    const rampDepth = h * (ramp ? .18 + ramp*.075 : 0);
+    const hookDepth = h * (hook ? .2 + hook*.075 : 0);
+    const waveDepth = h * (wave ? .14 + wave*.07 : 0);
+    return {
+      atr, sharp, ramp, hook, wave,
+      atrRect:{ x, y:upper ? edge-atrDepth : edge, width:w, height:atrDepth },
+      sharpPath:`M${x} ${edge} L${x+w*.25} ${edge+inward*sharpDepth} L${x+w*.5} ${edge} L${x+w*.75} ${edge+inward*sharpDepth} L${x+w} ${edge} Z`,
+      rampPath:`M${x} ${edge} L${x} ${edge+inward*rampDepth} L${x+w} ${edge} Z`,
+      hookPath:`M${x} ${edge} L${x} ${edge+inward*hookDepth} Q${x+w*(.38+.025*hook)} ${edge+inward*hookDepth*.16} ${x+w} ${edge} Z`,
+      wavePath:`M${x} ${edge} Q${x+w*.25} ${edge+inward*waveDepth} ${x+w*.5} ${edge} Q${x+w*.75} ${edge-inward*waveDepth*.55} ${x+w} ${edge} L${x+w} ${edge+inward*h*.05} Q${x+w*.75} ${edge-inward*waveDepth*.15} ${x+w*.5} ${edge+inward*h*.05} Q${x+w*.25} ${edge+inward*waveDepth*.55} ${x} ${edge+inward*h*.05} Z`,
+    };
   }
 
   function EquinePiece({ piece, paint, edit = {}, position = {}, selected, onToothClick }) {
@@ -117,33 +177,47 @@
     const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
     const clipId = 'clip-' + instanceId + '-' + piece.key;
     const upper = Number(piece.toothId[0]) < 3;
-    const fracture = fractureGeometry(b, upper, edit.fractureDepth);
+    const fracture = fractureGeometry(b, upper, edit.fractureDepth, edit.fracturePath);
     const cutId = clipId + '-retained';
+    const fragmentId = clipId + '-fragment';
     const cutting = !!(box && edit.fracture && edit.fractureMode === 'cut');
-    const edgeY = upper ? b.y + b.height : b.y;
-    const inward = upper ? -1 : 1;
-    const transform = `translate(${position.x || 0} ${position.y || 0}) rotate(${position.angle || 0} ${cx} ${cy}) translate(${cx} ${cy}) scale(1 ${edit.growth ? 1.25 : 1}) translate(${-cx} ${-cy})`;
+    const cycleStage = piece.occlusal && edit.fractureMode === 'cycle' ? Number(edit.fractureStage) || 0 : 0;
+    const cycle = fractureCycleGeometry(b, cycleStage);
+    const cycleId = clipId + '-cycle';
+    const clinical = clinicalGeometry(b, upper, edit);
+    const transform = `translate(${position.x || 0} ${position.y || 0}) rotate(${position.angle || 0} ${cx} ${cy}) translate(${cx} ${cy}) scale(1 ${edit.growth ? 1.25 : edit.reduced ? .75 : 1}) translate(${-cx} ${-cy})`;
     const activate = event => {
       event.preventDefault(); event.stopPropagation();
       onToothClick(piece.tooth || makeTooth(Number(piece.toothId[0]), Number(piece.toothId.slice(1))), piece.key);
     };
+    const renderBody = (key, outerClip, bodyTransform) => e('g', {
+      key, visibility:edit.missing ? 'hidden' : 'visible', pointerEvents:'none',
+      clipPath:outerClip, transform:bodyTransform,
+    },
+      e('path', { d:piece.d, fill:piece.overlayPaint ? '#ededed' : (paint || '#f5f5f5'), fillOpacity:paint && !piece.overlayPaint ? .72 : 1, stroke:piece.overlayPaint ? 'none' : '#111', strokeWidth:1.8 }),
+      e('g', { fill:'none', dangerouslySetInnerHTML:{ __html:piece.content.replaceAll('__CLIP__', clipId) } }),
+      piece.overlayPaint && paint && e('path', { d:piece.d, fill:paint, fillOpacity:.72 }),
+      box && e('g', { clipPath:`url(#${clipId})`, fill:edit.color || '#111' },
+        clinical.atr > 0 && e('rect', clinical.atrRect),
+        clinical.sharp > 0 && e('path', { d:clinical.sharpPath }),
+        clinical.ramp > 0 && e('path', { d:clinical.rampPath }),
+        clinical.hook > 0 && e('path', { d:clinical.hookPath }),
+        clinical.wave > 0 && e('path', { d:clinical.wavePath }),
+        edit.fracture && edit.fractureMode !== 'cycle' && e('path', { d:fracture.line, fill:'none', stroke:'#dc2626', strokeWidth:2.4 }),
+      ),
+    );
+    const fragmentTransform = `translate(${edit.fragmentX || 0} ${edit.fragmentY || 0}) rotate(${edit.fragmentAngle || 0} ${cx} ${cy})`;
     return e('g', { transform, className:'vt-vector-tooth', 'data-piece-id':piece.key },
       e('defs', null,
         e('clipPath', { id:clipId }, e('path', { d:piece.d })),
-        e('clipPath', { id:cutId }, e('path', { d:fracture.retained }))),
-      e('g', { visibility:edit.missing ? 'hidden' : 'visible', pointerEvents:'none', clipPath:cutting ? `url(#${cutId})` : undefined },
-        e('path', { d:piece.d, fill:piece.overlayPaint ? '#ededed' : (paint || '#f5f5f5'), fillOpacity:paint && !piece.overlayPaint ? .72 : 1, stroke:piece.overlayPaint ? 'none' : '#111', strokeWidth:1.8 }),
-        e('g', { fill:'none', dangerouslySetInnerHTML:{ __html:piece.content.replaceAll('__CLIP__', clipId) } }),
-        piece.overlayPaint && paint && e('path', { d:piece.d, fill:paint, fillOpacity:.72 }),
-        box && e('g', { clipPath:`url(#${clipId})`, fill:edit.color || '#111' },
-          edit.atr && e('rect', { x:b.x, y:upper ? edgeY-b.height*.22 : edgeY, width:b.width, height:b.height*.22 }),
-          edit.sharp && e('path', { d:`M${b.x} ${edgeY} L${b.x+b.width*.25} ${edgeY+inward*b.height*.3} L${cx} ${edgeY} L${b.x+b.width*.75} ${edgeY+inward*b.height*.3} L${b.x+b.width} ${edgeY} Z` }),
-          edit.ramp && e('path', { d:`M${b.x} ${edgeY} L${b.x} ${edgeY+inward*b.height*.6} L${b.x+b.width} ${edgeY} Z` }),
-          edit.hook && e('path', { d:`M${b.x} ${edgeY} L${b.x} ${edgeY+inward*b.height*.7} Q${cx} ${edgeY} ${b.x+b.width} ${edgeY} Z` }),
-          edit.wave && e('path', { d:`M${b.x} ${edgeY} Q${cx} ${edgeY+inward*b.height*.8} ${b.x+b.width} ${edgeY} Z` }),
-          edit.fracture && e('path', { d:fracture.line, fill:'none', stroke:'#dc2626', strokeWidth:2.4 }),
-        ),
-      ),
+        e('clipPath', { id:cutId }, e('path', { d:fracture.retained })),
+        e('clipPath', { id:fragmentId }, e('path', { d:fracture.fragment })),
+        e('mask', { id:cycleId, maskUnits:'userSpaceOnUse', x:b.x-2,y:b.y-2,width:b.width+4,height:b.height+4 },
+          e('rect',{x:b.x-2,y:b.y-2,width:b.width+4,height:b.height+4,fill:cycleStage===3 ? 'black':'white'}),
+          ...(cycleStage===3 ? [cycle.aboveTop,cycle.belowBottom] : cycle.hidden).map((d,i)=>e('path',{key:i,d,fill:cycleStage===3 ? 'white':'black'})))) ,
+      e('g',{mask:cycleStage ? `url(#${cycleId})`:undefined},renderBody('retained', cutting ? `url(#${cutId})` : undefined)),
+      !!cycleStage && !edit.missing && e('g',{clipPath:`url(#${clipId})`,pointerEvents:'none'},cycle.edges.map((d,i)=>e('path',{key:i,d,fill:'none',stroke:'#dc2626',strokeWidth:1.8}))),
+      cutting && edit.fragmentVisible && renderBody('fragment', `url(#${fragmentId})`, fragmentTransform),
       e('path', { ref:shapeRef, 'data-tooth-hit':true, 'data-tooth':piece.toothId, 'data-view':piece.key, role:'button', tabIndex:0,
         'aria-label':piece.ariaLabel || `Selecionar dente ${piece.toothId}`, 'aria-pressed':selected,
         onClick:activate, onKeyDown:event => { if (event.key === 'Enter' || event.key === ' ') activate(event); }, style:{ cursor:'pointer' },
@@ -172,7 +246,7 @@
             const end = occlusalStarts.includes(index) ? (occlusalStarts.find(n => n > index) || paths.length) : index + 1;
             const members = paths.slice(index, end);
             for (let n=index; n<end; n++) assigned.add(n);
-            pieces.push({ toothId, key:`equine-${sourceIndex}-${index}`, d:part.getAttribute('d'), content:members.map(node => node.outerHTML).join('') });
+            pieces.push({ toothId, occlusal:occlusalStarts.includes(index), key:`equine-${sourceIndex}-${index}`, d:part.getAttribute('d'), content:members.map(node => node.outerHTML).join('') });
           });
         });
         return { ...source, pieces, background:paths.filter((_,index) => !assigned.has(index)).map(node => node.outerHTML).join('') };

@@ -760,7 +760,7 @@ const GX_MARKERS = [
   { id: 'mk-sharp', g: '∠', label: 'Bordas afiadas' },
   { id: 'mk-ramp', g: '▲', label: 'Rampas' },
   { id: 'mk-hook', g: '◥', label: 'Ganchos' },
-  { id: 'mk-protub', g: '≡', label: 'Protuberância / ausência' },
+  { id: 'mk-protub', g: '≡', label: 'Altura do dente / ausência' },
   { id: 'mk-wave', g: '≈', label: 'Ondulações' },
   { id: 'mk-incis', g: '⊕', label: 'Incisivos' },
   { id: 'mk-move', g: '✛', label: 'Mover / rotacionar' },
@@ -778,15 +778,54 @@ const GX_GLYPH = {};
 const GX_COLORS = ['#111111', '#ef4444', '#2a6fdb', '#1f8a5b', '#e8852b'];
 const gxIsStamp = (t) => t && (t.startsWith('mk-') || t.startsWith('st-'));
 const GX_CLINICAL = { 'mk-atr':'atr', 'mk-sharp':'sharp', 'mk-ramp':'ramp', 'mk-hook':'hook', 'mk-wave':'wave', 'mk-frac':'fracture' };
+// Ciclos observados nos recursos e seletores do Pimbury Dental:
+// ATR/ETR = 3 estados; rampa, gancho e onda = 6; borda afiada = 4.
+// Os booleanos continuam sendo gravados para abrir prontuários anteriores.
+const GX_CLINICAL_CYCLES = {
+  'mk-atr': ['atr', 3],
+  'mk-sharp': ['sharp', 4],
+  'mk-ramp': ['ramp', 6],
+  'mk-hook': ['hook', 6],
+  'mk-wave': ['wave', 6],
+};
 function gxClinicalEdit(previous, tool, color) {
   const next = { ...previous, color };
-  if (tool === 'mk-protub') {
-    // Normal -> ausente -> protuberância -> normal. All views share this state.
-    if (previous.missing) { next.missing = false; next.growth = true; }
-    else if (previous.growth) { next.missing = false; next.growth = false; }
-    else { next.missing = true; next.growth = false; }
+  if (tool === 'mk-frac-cycle') {
+    next.fractureStage = ((previous.fractureMode === 'cycle' ? Number(previous.fractureStage) || 0 : 0) + 1) % 5;
+    next.fractureMode = 'cycle';
+    next.fracture = next.fractureStage !== 0;
+  } else if (tool === 'mk-protub') {
+    // Observed in the live reference: normal -> increased -> reduced -> absent.
+    // Preserve the existing boolean fields so saved charts need no migration.
+    next.missing = false; next.growth = false; next.reduced = false;
+    if (previous.missing) { /* Return to normal. */ }
+    else if (previous.reduced) next.missing = true;
+    else if (previous.growth) next.reduced = true;
+    else next.growth = true;
+  } else if (GX_CLINICAL_CYCLES[tool]) {
+    const [finding, maxStage] = GX_CLINICAL_CYCLES[tool];
+    const stageKey = finding + 'Stage';
+    const legacyStage = previous[finding] ? 1 : 0;
+    const current = Number.isFinite(Number(previous[stageKey])) ? Number(previous[stageKey]) : legacyStage;
+    next[stageKey] = (Math.max(0, Math.min(maxStage, current)) + 1) % (maxStage + 1);
+    next[finding] = next[stageKey] !== 0;
   } else if (GX_CLINICAL[tool]) next[GX_CLINICAL[tool]] = !previous[GX_CLINICAL[tool]];
   return next;
+}
+function gxWaveSideToothIds(toothId) {
+  const quadrant = String(toothId || '')[0];
+  const quadrants = quadrant === '1' || quadrant === '4' ? ['1','4'] : quadrant === '2' || quadrant === '3' ? ['2','3'] : [];
+  return quadrants.flatMap(q => [6,7,8,9,10,11].map(position => q + String(position).padStart(2, '0')));
+}
+function gxClinicalTargetIds(toothId, tool) {
+  const id = String(toothId || '');
+  const quadrant = id[0];
+  const position = Number(id.slice(1));
+  if (['mk-atr','mk-sharp','mk-ramp','mk-hook','mk-wave'].includes(tool) && (position < 6 || position > 11)) return [];
+  if (tool === 'mk-hook' && position !== 6 && position !== 11) return [];
+  if (tool === 'mk-wave') return gxWaveSideToothIds(id);
+  if (tool === 'mk-sharp') return [6,7,8,9,10,11].map(value => quadrant + String(value).padStart(2, '0'));
+  return [id];
 }
 
 // Arquivos fornecidos pelo usuário: o tratamento monocromático acontece apenas
@@ -937,6 +976,7 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
     else if (a.t === 'fill') { restoreToothFill(a.toothId, a.previous); }
     else if (a.t === 'remove-mark') { setChart((c) => ({ ...c, gmarks: [...(c.gmarks || []), a.mark] })); }
     else if (a.t === 'clinical') setChart(c => ({ ...c, clinicalByTooth:{ ...(c.clinicalByTooth || {}), [a.toothId]:a.previous } }));
+    else if (a.t === 'clinical-batch') setChart(c => ({ ...c, clinicalByTooth:{ ...(c.clinicalByTooth || {}), ...a.previousByTooth } }));
     else if (a.t === 'position') setChart(c => ({ ...c, viewEdits:{ ...(c.viewEdits || {}), [a.viewKey]:a.previous } }));
     else if (a.t === 'clear') {
       const s = undoRef.current.pop(); if (s) restore(s);
@@ -965,7 +1005,7 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
       const els = document.elementsFromPoint(clientX, clientY);
       for (const el of els) {
         const g = el.closest && el.closest('[data-tooth]');
-        if (g && canvas.parentElement.contains(g)) { const r = el.getBoundingClientRect(); return { toothId: g.getAttribute('data-tooth'), viewKey:g.getAttribute('data-view'), cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; }
+        if (g && canvas.parentElement.contains(g)) { const r = el.getBoundingClientRect(); return { toothId: g.getAttribute('data-tooth'), viewKey:g.getAttribute('data-view'), cx: r.left + r.width / 2, cy: r.top + r.height / 2, rect:{ left:r.left, top:r.top, width:r.width, height:r.height } }; }
       }
       // Nunca atribua um clique vazio ao número mais próximo: isso pode
       // registrar uma alteração no dente errado.
@@ -987,10 +1027,34 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
     const tooth = (window.SpeciesTeeth && window.SpeciesTeeth[toothId]) || window.EquiData.makeTooth(Math.floor(numericId / 100), numericId % 100);
     onToothClick(tooth);
   };
-  const applyClinical = (toothId) => {
+  const applyClinical = (toothId, viewKey) => {
+    const cycleFracture = isEquine && tool === 'mk-frac';
+    if (cycleFracture && !/^equine-(0|2)-(40|50|54|57|61|65|69|71|73|75|77|79)$/.test(viewKey || '')) {
+      ogToast('A fratura é aplicada na vista oclusal dos dentes posteriores.', 'err'); return;
+    }
     const previous = { ...((chart.clinicalByTooth || {})[toothId] || {}) };
+    const targetIds = isEquine ? gxClinicalTargetIds(toothId, tool) : [toothId];
+    if (!targetIds.length) {
+      ogToast(tool === 'mk-hook' ? 'O gancho é aplicado apenas nos dentes posteriores terminais.' : 'Esta ferramenta é aplicada nos dentes posteriores.', 'err');
+      return;
+    }
+    if (isEquine && targetIds.length > 1) {
+      const finding = GX_CLINICAL[tool];
+      const toothIds = targetIds;
+      const previousByTooth = Object.fromEntries(toothIds.map(id => [id, { ...((chart.clinicalByTooth || {})[id] || {}) }]));
+      const anchor = gxClinicalEdit(previous, tool, color);
+      actionsRef.current.push({ t:'clinical-batch', previousByTooth }); setCanUndo(true);
+      setChart(c => {
+        const clinicalByTooth = { ...(c.clinicalByTooth || {}) };
+        toothIds.forEach(id => { clinicalByTooth[id] = { ...previousByTooth[id], color, [finding + 'Stage']:anchor[finding + 'Stage'], [finding]:anchor[finding] }; });
+        return { ...c, clinicalByTooth };
+      });
+      const id = Number(toothId);
+      onToothClick(window.EquiData.makeTooth(Math.floor(id / 100), id % 100));
+      return;
+    }
     actionsRef.current.push({ t:'clinical', toothId, previous }); setCanUndo(true);
-    setChart(c => ({ ...c, clinicalByTooth:{ ...(c.clinicalByTooth || {}), [toothId]:gxClinicalEdit(previous, tool, color) } }));
+    setChart(c => ({ ...c, clinicalByTooth:{ ...(c.clinicalByTooth || {}), [toothId]:gxClinicalEdit(previous, cycleFracture ? 'mk-frac-cycle' : tool, color) } }));
     const id = Number(toothId);
     onToothClick((window.SpeciesTeeth && window.SpeciesTeeth[toothId]) || window.EquiData.makeTooth(Math.floor(id / 100), id % 100));
   };
@@ -1000,10 +1064,20 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
     actionsRef.current.push({ t:'clinical', toothId:selectedId, previous }); setCanUndo(true);
     setChart(c => ({ ...c, clinicalByTooth:{ ...(c.clinicalByTooth || {}), [selectedId]:{ ...previous, fracture:true, ...patch } } }));
   };
+  const adjustFragment = (field, delta) => {
+    if (!selectedId) return;
+    const previous = { ...((chart.clinicalByTooth || {})[selectedId] || {}) };
+    actionsRef.current.push({ t:'clinical', toothId:selectedId, previous }); setCanUndo(true);
+    const value = field === 'reset' ? null : (previous[field] || 0) + delta;
+    const next = field === 'reset'
+      ? { ...previous, fragmentX:0, fragmentY:0, fragmentAngle:0 }
+      : { ...previous, [field]:value };
+    setChart(c => ({ ...c, clinicalByTooth:{ ...(c.clinicalByTooth || {}), [selectedId]:next } }));
+  };
   const activateTooth = (tooth, viewKey) => {
     if (viewKey) setActiveView(viewKey);
     if (tool === 'tooth-fill') paintTooth(String(tooth.triadan || tooth.id));
-    else if (GX_CLINICAL[tool] || tool === 'mk-protub') applyClinical(String(tooth.triadan || tooth.id));
+    else if (GX_CLINICAL[tool] || tool === 'mk-protub') applyClinical(String(tooth.triadan || tooth.id), viewKey);
     else if (tool === 'mk-move') { setActiveView(viewKey); onToothClick(tooth); }
     else onToothClick(tooth);
   };
@@ -1033,6 +1107,23 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
     const { x, y } = getPos(e); const ctx = ctxRef.current;
     ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = size; ctx.globalCompositeOperation = 'source-over';
     if (tool === 'mk-incis') { setShowIncisor(true); return; }
+    if (tool === 'mk-frac' && !isEquine) {
+      const hit = toothAtPoint(e.clientX, e.clientY);
+      if (!hit || !hit.rect || !hit.rect.width || !hit.rect.height) { ogToast('Arraste a linha diretamente sobre o dente.', 'err'); return; }
+      setActiveView(hit.viewKey || null);
+      const previous = { ...((chart.clinicalByTooth || {})[hit.toothId] || {}) };
+      actionsRef.current.push({ t:'clinical', toothId:hit.toothId, previous }); setCanUndo(true);
+      const point = [
+        Math.max(0,Math.min(1,(e.clientX-hit.rect.left)/hit.rect.width)),
+        Math.max(0,Math.min(1,(e.clientY-hit.rect.top)/hit.rect.height)),
+      ];
+      draftRef.current = { mode:'fracture-free', toothId:hit.toothId, rect:hit.rect, points:[point] };
+      setChart(c => ({ ...c, clinicalByTooth:{ ...(c.clinicalByTooth || {}), [hit.toothId]:{ ...previous, fracture:true, fractureMode:'line', fracturePath:[point], color } } }));
+      const id = Number(hit.toothId);
+      onToothClick((window.SpeciesTeeth && window.SpeciesTeeth[hit.toothId]) || window.EquiData.makeTooth(Math.floor(id/100),id%100));
+      try { canvasRef.current.setPointerCapture(e.pointerId); } catch (_) {}
+      return;
+    }
     if (tool === 'mk-move' || GX_CLINICAL[tool] || tool === 'mk-protub') {
       const hit = toothAtPoint(e.clientX, e.clientY);
       if (!hit) { ogToast('Clique diretamente no contorno do dente.', 'err'); return; }
@@ -1045,7 +1136,7 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
         draftRef.current = { mode:'move-tooth', viewKey:hit.viewKey, previous, sx:x, sy:y };
         try { canvasRef.current.setPointerCapture(e.pointerId); } catch (_) {}
       } else {
-        applyClinical(hit.toothId);
+        applyClinical(hit.toothId, hit.viewKey);
       }
       return;
     }
@@ -1094,6 +1185,18 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
   };
   const onMove = (e) => {
     const ctx = ctxRef.current; if (!ctx) return; const d = draftRef.current;
+    if (d && d.mode === 'fracture-free') {
+      const point = [
+        Math.max(0,Math.min(1,(e.clientX-d.rect.left)/d.rect.width)),
+        Math.max(0,Math.min(1,(e.clientY-d.rect.top)/d.rect.height)),
+      ];
+      const last = d.points[d.points.length-1];
+      if (Math.hypot(point[0]-last[0],point[1]-last[1]) > .035) {
+        d.points.push(point);
+        setChart(c => ({ ...c, clinicalByTooth:{ ...(c.clinicalByTooth || {}), [d.toothId]:{ ...((c.clinicalByTooth || {})[d.toothId] || {}), fracture:true, fractureMode:'line', fracturePath:[...d.points] } } }));
+      }
+      return;
+    }
     if (d && d.mode === 'move-tooth') {
       const p = getPos(e);
       setChart(c => ({ ...c, viewEdits:{ ...(c.viewEdits || {}), [d.viewKey]:{ ...d.previous, x:(d.previous.x || 0)+p.x-d.sx, y:(d.previous.y || 0)+p.y-d.sy } } }));
@@ -1103,7 +1206,14 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
     if (d && d.mode === 'shape') { const { x, y } = getPos(e); restore(d.snap); const r = Math.hypot(x - d.sx, y - d.sy); ctx.beginPath(); ctx.arc(d.sx, d.sy, r, 0, Math.PI * 2); if (tool === 'fcircle') ctx.fill(); else ctx.stroke(); return; }
     if (pendingRef.current) { const { x, y } = getPos(e); const p = pendingRef.current; restore(p.snap); drawLine(ctx, p.sx, p.sy, x, y, tool === 'arrow'); }
   };
-  const onUp = () => { const ctx = ctxRef.current; if (ctx) ctx.globalCompositeOperation = 'source-over'; if (draftRef.current && draftRef.current.mode !== 'move-tooth') persistDrawing(); draftRef.current = null; };
+  const onUp = () => {
+    const ctx = ctxRef.current; if (ctx) ctx.globalCompositeOperation = 'source-over';
+    const draft = draftRef.current;
+    if (draft && draft.mode === 'fracture-free' && draft.points.length < 2) {
+      setChart(c => ({ ...c, clinicalByTooth:{ ...(c.clinicalByTooth || {}), [draft.toothId]:{ ...((c.clinicalByTooth || {})[draft.toothId] || {}), fracturePath:null } } }));
+    } else if (draft && draft.mode !== 'move-tooth' && draft.mode !== 'fracture-free') persistDrawing();
+    draftRef.current = null;
+  };
   React.useEffect(() => {
     if (pendingRef.current) { restore(pendingRef.current.snap); pendingRef.current = null; }
   }, [tool]);
@@ -1180,7 +1290,7 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
               ))}
             </svg>
           </div>
-          {selectedTooth && window.ToothPanel && (
+          {tool === 'select' && selectedTooth && window.ToothPanel && (
             <div className="gx-toothpanel">
               <window.ToothPanel
                 tooth={selectedTooth}
@@ -1213,11 +1323,25 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
 
         {/* cor + espessura + selecionar dente */}
         <div className="gx-controls">
-          {tool === 'mk-frac' && selectedId && <div role="group" aria-label={`Fratura do dente ${selectedId}`}>
+          {tool === 'mk-frac' && isEquine && <div role="status">Fratura oclusal: clique para alternar entre quatro configurações e restaurar o dente.</div>}
+          {tool === 'mk-frac' && !isEquine && selectedId && <div role="group" aria-label={`Fratura do dente ${selectedId}`}>
             <b>Dente {selectedId} · </b>
             <button className="gx-pill" aria-pressed={((chart.clinicalByTooth || {})[selectedId] || {}).fractureMode !== 'cut'} onClick={() => configureFracture({ fractureMode:'line' })}>Marcar fratura</button>
             <button className="gx-pill" aria-pressed={((chart.clinicalByTooth || {})[selectedId] || {}).fractureMode === 'cut'} onClick={() => configureFracture({ fractureMode:'cut' })}>Remover fragmento</button>
+            <button className="gx-pill" onClick={() => configureFracture({ fracturePath:null })}>Usar corte padrão</button>
             {[.25,.5,.75].map(depth => <button key={depth} className="gx-pill" aria-label={`Profundidade da fratura ${depth*100}%`} aria-pressed={(((chart.clinicalByTooth || {})[selectedId] || {}).fractureDepth || .5) === depth} onClick={() => configureFracture({ fractureDepth:depth })}>{depth*100}%</button>)}
+            {((chart.clinicalByTooth || {})[selectedId] || {}).fractureMode === 'cut' && <>
+              <button className="gx-pill" aria-pressed={!!((chart.clinicalByTooth || {})[selectedId] || {}).fragmentVisible} onClick={() => configureFracture({ fragmentVisible:!((chart.clinicalByTooth || {})[selectedId] || {}).fragmentVisible })}>Fragmento separado</button>
+              {!!((chart.clinicalByTooth || {})[selectedId] || {}).fragmentVisible && <>
+                <button className="gx-pill" aria-label="Mover fragmento à esquerda" onClick={() => adjustFragment('fragmentX',-3)}>←</button>
+                <button className="gx-pill" aria-label="Mover fragmento à direita" onClick={() => adjustFragment('fragmentX',3)}>→</button>
+                <button className="gx-pill" aria-label="Subir fragmento" onClick={() => adjustFragment('fragmentY',-3)}>↑</button>
+                <button className="gx-pill" aria-label="Descer fragmento" onClick={() => adjustFragment('fragmentY',3)}>↓</button>
+                <button className="gx-pill" aria-label="Girar fragmento à esquerda" onClick={() => adjustFragment('fragmentAngle',-8)}>↶</button>
+                <button className="gx-pill" aria-label="Girar fragmento à direita" onClick={() => adjustFragment('fragmentAngle',8)}>↷</button>
+                <button className="gx-pill" onClick={() => adjustFragment('reset',0)}>Zerar fragmento</button>
+              </>}
+            </>}
           </div>}
           {tool === 'mk-move' && activeView && <div role="group" aria-label="Rotação do dente">
             {[-15,15].map(delta => <button key={delta} className="gx-pill" onClick={() => {
@@ -1234,7 +1358,8 @@ function OdGraficoStep({ chart, setChart, species, useSpeciesArch, isEquine, Bas
           <div className="gx-espessura"><span>Espessura · {size}px</span><input type="range" min="1" max="8" step="1" value={size} onChange={(e) => setSize(Number(e.target.value))} /></div>
           <span className="gx-tip" role="status">{tool === 'tooth-fill' ? 'Pintar dente: escolha a cor e clique no contorno. Clique novamente para remover a mesma cor.'
             : tool === 'mk-move' ? 'Arraste o dente para reposicionar. Selecione uma peça para usar os controles de rotação.'
-            : tool === 'mk-protub' ? 'Clique no dente: ausente → aumentado → normal. Desfazer restaura a etapa anterior.'
+            : tool === 'mk-protub' ? 'Clique no dente: aumentado → reduzido → ausente → normal. Desfazer restaura a etapa anterior.'
+            : tool === 'mk-frac' ? (isEquine ? 'Fratura: clique na vista oclusal. Borda superior → faixa central → duas bordas → borda inferior → normal.' : 'Fratura: arraste sobre o dente para desenhar a linha livre; depois escolha marcar, remover ou separar o fragmento.')
             : GX_CLINICAL[tool] ? 'Clique no dente para aplicar a alteração; clique novamente para removê-la.'
             : tool === 'select' ? 'Clique diretamente no dente para ver condições e anotações.'
             : tool === 'mk-incis' ? 'Vista ampliada aberta abaixo do editor. Escolha uma ferramenta antes de editar os incisivos.'
